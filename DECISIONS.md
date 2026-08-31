@@ -397,22 +397,32 @@ admin pages, which query the database at build time.
 Removing `gen_random_uuid()` (deterministic ids instead, same as hotels and
 rooms already used) fixed the SQL, but **didn't fix the deploy** — the next
 attempt still failed, identically, in 91ms instead of the ~5 seconds a real
-schema-creation run takes. Netlify records a migration as applied by its
-folder name, not by whether it actually succeeded internally, so it was
-skipping `20260831220000_init` entirely on every subsequent deploy,
-regardless of what its file now contained. Editing an already-tracked
-migration in place doesn't get it re-run.
+schema-creation run takes. Working theory at that point: Netlify records a
+migration as applied by its folder name regardless of whether it actually
+succeeded internally, so it was skipping `20260831220000_init` on every
+later deploy no matter what its file contained.
 
-The fix: a new migration folder, `20260831225652_init_retry`, with the
-corrected SQL — a name Netlify has never seen, so it actually executes. The
-original `20260831220000_init` is left in place untouched (harmless; it's a
-permanent no-op) rather than deleted, since Netlify's own applied-migrations
-record still references it by that name.
+So the first fix attempt added a new migration folder,
+`20260831225652_init_retry`, to get a name Netlify had never seen. That
+*also* silently did nothing (81ms for what should be two full
+schema-creation runs) — which pointed at a second, more specific bug:
+Netlify's own docs say a migration folder's slug (the part after the
+number) "must be lowercase alphanumeric with hyphens only," and
+`init_retry` has an underscore. The loader logged both folder names before
+validating them, which is why the log looked like it was picking the new
+one up — but an invalid slug most likely got silently rejected rather than
+run. Renamed to `20260831225652_init-retry` (hyphen) to actually satisfy
+the naming rule.
 
-**Lesson for any future migration**: once a migration folder has been
+The original `20260831220000_init` is left in place untouched (harmless;
+it's a permanent no-op either way) rather than deleted, since Netlify's own
+applied-migrations record still references it by that name.
+
+**Lessons for any future migration**: once a migration folder has been
 pushed and deployed — successfully or not — assume Netlify will never
-re-run it from that name again. A later fix needs a new folder, not an
-edit.
+re-run it from that name again, so a later fix needs a new folder, not an
+edit; and the slug half of that folder name must be lowercase letters,
+digits, and hyphens only — no underscores.
 
 ## Bug: the first deploy took 30+ minutes because of a packaging mistake
 
