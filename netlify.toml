@@ -1,0 +1,9 @@
+# Rate Manifest on Netlify. Framework detection + the Next.js runtime
+# (server components, API routes, ISR) work zero-config on Netlify, but
+# this pins the build command and the plugin explicitly rather than
+# relying on auto-detection guessing right.
+[build]
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

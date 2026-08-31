@@ -1,0 +1,828 @@
+:root {
+  /* Hints the browser that this page's native controls (select boxes,
+     date-picker icons, scrollbars) should default to dark chrome. Without
+     this, some browsers render a transparent <select> background as if it
+     sat on a light page, which made "Choose a property..." nearly
+     invisible on Windows Chrome/Edge — light text on a light native box. */
+  color-scheme: dark;
+
+  /* Brand palette — Electric Tangerine + Acid Lime + Deep Ink.
+     Usage ratio (v3, "flip"): tangerine (+ a lime glow) is the dominant
+     page background everywhere — homepage, results, stub-booking, admin.
+     Every piece of actual content sits inside a dark ink/card "shell" that
+     floats on top of that field, so the existing dark-surface contrast
+     system (text/text-dim on --card, --ink) is untouched — only what's
+     visible *around* the shell changed. Lime keeps its job marking the
+     "intelligence" layer (best-deal tags, save badges, the RM Signal ring)
+     plus a top accent stripe on the shell itself. */
+  --ink: #101114;
+  --card: #191b20;
+  --border: #30323a;
+  --text: #f7f5ef;
+  --text-dim: #a8a9b0;
+
+  --tangerine: #ff5a36;
+  --lime: #c8f31d;
+
+  /* Semantic signal colors — deliberately separate from the brand accents
+     above, so "strong buy / fair / wait" reads as status, not as another
+     brand color competing with tangerine and lime. */
+  --signal-good: #3ddc84;
+  --signal-fair: #f5c344;
+  --signal-wait: #ff6b6b;
+
+  /* Font families loaded via @fontsource (see layout.tsx) — always paired
+     with a system fallback stack in case a weight fails to load. */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  /* The flip: tangerine dominates, with a soft acid-lime glow bleeding in
+     from the top corner — flat, poster-like color fields rather than a
+     muddy blend, since every legible bit of text lives in the dark shell
+     below, not directly on this background. */
+  background: radial-gradient(circle at 100% -12%, var(--lime) 0%, transparent 42%), var(--tangerine);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.shell {
+  max-width: 960px;
+  margin: 2.5rem auto 3rem;
+  padding: 2.25rem 2rem 3rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--lime);
+  border-radius: 20px;
+  box-shadow: 0 28px 64px -28px rgba(0, 0, 0, 0.55);
+}
+
+@media (max-width: 720px) {
+  .shell {
+    margin: 1.25rem 1rem 2rem;
+    padding: 1.75rem 1.25rem 2.5rem;
+    border-radius: 16px;
+  }
+}
+
+.top-strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.tagline {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* --- Hero (home page) --- */
+
+.hero {
+  padding: 1rem 0 1.5rem;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lime);
+  margin-bottom: 0.7rem;
+}
+
+.hero-eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6rem;
+  text-wrap: balance;
+}
+
+.hero p {
+  color: var(--text-dim);
+  font-size: 1rem;
+  max-width: 34rem;
+  margin: 0;
+}
+
+/* --- Cards / panels --- */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.75rem;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.demo-banner {
+  background: var(--card);
+  border: 1px solid var(--lime);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.75rem;
+}
+
+.demo-banner strong {
+  color: var(--lime);
+}
+
+/* --- Search "terminal" --- */
+
+.search-form {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+@media (max-width: 720px) {
+  .search-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+select,
+input {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--text);
+}
+
+select:focus,
+input:focus {
+  outline: none;
+  border-color: var(--tangerine);
+}
+
+/* --- Buttons --- */
+
+.btn {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: var(--tangerine);
+  color: var(--ink);
+  border: none;
+  border-radius: 6px;
+  padding: 0.65rem 1.2rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: #ff7452;
+}
+
+.btn-ghost {
+  display: inline-block;
+  background: transparent;
+  color: var(--tangerine);
+  border: 1px solid var(--tangerine);
+  text-decoration: none;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 90, 54, 0.1);
+}
+
+.btn-whatsapp {
+  display: inline-block;
+  background: #25d366;
+  color: #0b1a10;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  padding: 0.65rem 1.2rem;
+  margin-top: 0.25rem;
+}
+
+.btn-whatsapp:hover {
+  background: #3ee27c;
+}
+
+/* --- Results --- */
+
+.results-header {
+  margin: 2.25rem 0 1rem;
+}
+
+.results-header h1 {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+
+.results-meta {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+}
+
+.summary-stat {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--lime);
+  margin-top: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.offer-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 1.1rem 1.2rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  position: relative;
+}
+
+.admin-row {
+  grid-template-columns: 1fr;
+}
+
+.offer-row.best {
+  border-color: var(--lime);
+  box-shadow: 0 0 0 1px var(--lime), 0 0 24px -8px var(--lime);
+}
+
+.offer-row.sold-out {
+  opacity: 0.5;
+}
+
+.offer-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  background: var(--lime);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.offer-source {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.offer-reasons {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.offer-reasons .positive::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal-good);
+  margin-right: 0.45rem;
+}
+
+.offer-reasons .neutral::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  margin-right: 0.45rem;
+}
+
+.offer-price {
+  text-align: right;
+}
+
+.offer-total {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-nightly {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer-save {
+  color: var(--lime);
+}
+
+.reveal-btn {
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.8rem;
+}
+
+/* --- RM Signal (deal score ring) --- */
+
+.deal-signal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.deal-signal-ring {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(
+    var(--ring-color, var(--lime)) calc(var(--score) * 3.6deg),
+    var(--border) 0deg
+  );
+}
+
+.deal-signal-ring-inner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.deal-signal-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.deal-signal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot-color, var(--text-dim));
+}
+
+/* --- Track this price --- */
+
+.track-price {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.track-price-form {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.track-price-form .field {
+  min-width: 10rem;
+}
+
+.track-price-form input {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.track-price-error {
+  color: var(--signal-wait);
+  font-size: 0.8rem;
+  width: 100%;
+  margin: 0.4rem 0 0;
+}
+
+.track-price-done {
+  color: var(--lime);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* --- Admin (check-ins) --- */
+
+.admin-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.admin-form select,
+.admin-form input {
+  width: auto;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.admin-form input[type="text"] {
+  flex: 1;
+  min-width: 10rem;
+}
+
+/* --- Logo / nav / footer (Brand system v2) --- */
+
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.nav-bar {
+  /* Locked to the top of the viewport while the page scrolls. The negative
+     margin equals .shell's own padding, so the bar spans edge-to-edge
+     within the shell (rather than sitting inset) and its rounded top
+     corners land exactly on the shell's own corners — see the mobile
+     override below for the matching mobile values. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  margin: -2.25rem -2rem 2rem;
+  padding: 1.25rem 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 720px) {
+  .nav-bar {
+    margin: -1.75rem -1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.nav-links a:not(.nav-cta) {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.nav-links a:not(.nav-cta):hover {
+  color: var(--text);
+}
+
+.nav-cta {
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding: 0.5rem 1rem;
+}
+
+.site-footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.site-footer-brand p {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--lime);
+  margin: 0.5rem 0 0;
+}
+
+.site-footer-cols {
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.site-footer-cols a {
+  display: block;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.site-footer-cols a:hover {
+  color: var(--text);
+}
+
+.site-footer-heading {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+.site-footer-disclosure {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  max-width: 44rem;
+  line-height: 1.6;
+}
+
+/* --- Search card as a single command bar --- */
+
+.search-card {
+  padding: 1.4rem 1.6rem;
+}
+
+.search-card .search-form {
+  align-items: end;
+}
+
+@media (min-width: 721px) {
+  .search-card .field {
+    border-right: 1px solid var(--border);
+    padding-right: 1rem;
+  }
+
+  .search-card .field:last-of-type {
+    border-right: none;
+  }
+
+  .search-card select,
+  .search-card input {
+    border: none;
+    /* An explicit dark background, not "transparent" — some browsers (seen
+       on Windows Chrome/Edge) render a transparent select's box using
+       native light chrome instead of inheriting the dark card behind it,
+       which made the placeholder text unreadable. */
+    background: var(--card);
+    color: var(--text);
+    padding-left: 0;
+  }
+
+  .search-card select:focus,
+  .search-card input:focus {
+    outline: none;
+  }
+}
+
+/* --- How it works / Compare-Normalize-Decide --- */
+
+.how-it-works {
+  margin-top: 3rem;
+}
+
+.how-it-works h2 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 1.25rem;
+}
+
+.how-it-works-grid,
+.business-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.business-grid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .how-it-works-grid,
+  .business-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.how-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.4rem;
+}
+
+.how-card-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tangerine);
+  margin-bottom: 0.6rem;
+}
+
+.how-card p {
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* --- Rate Signal caption + Why-this-deal panel --- */
+
+.deal-signal-caption {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.offer-row-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.why-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.why-panel-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lime);
+  margin-bottom: 0.6rem;
+}
+
+.why-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.why-table td {
+  padding: 0.35rem 0;
+  color: var(--text);
+}
+
+.why-table td:first-child {
+  color: var(--text-dim);
+  width: 8rem;
+}
+
+.why-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.why-dot.positive {
+  background: var(--signal-good);
+}
+
+.why-dot.neutral {
+  background: var(--text-dim);
+}
+
+.why-dot.negative {
+  background: var(--signal-wait);
+}
+
+.why-verdict {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.why-verdict-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+/* --- Misc --- */
+
+.footnote {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.empty-state {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}
