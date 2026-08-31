@@ -383,6 +383,37 @@ since that requires the Netlify CLI linked to your live account). The first
 `netlify dev` run and the first real deploy are worth watching for that
 reason.
 
+## Bug: the migration never actually ran
+
+`20260831220000_init`'s seed INSERTs called `gen_random_uuid()` for supplier
+ids. That failed on Netlify's Postgres (never confirmed exactly why — the
+same call works fine against a plain local Postgres 16, so it's specific to
+something about their managed instance, a permission or an extension not
+enabled by default), and because a migration file runs as one transaction,
+that failure rolled back every `CREATE TABLE` above it too. Every deploy
+after came back with the same "relation does not exist" error on the two
+admin pages, which query the database at build time.
+
+Removing `gen_random_uuid()` (deterministic ids instead, same as hotels and
+rooms already used) fixed the SQL, but **didn't fix the deploy** — the next
+attempt still failed, identically, in 91ms instead of the ~5 seconds a real
+schema-creation run takes. Netlify records a migration as applied by its
+folder name, not by whether it actually succeeded internally, so it was
+skipping `20260831220000_init` entirely on every subsequent deploy,
+regardless of what its file now contained. Editing an already-tracked
+migration in place doesn't get it re-run.
+
+The fix: a new migration folder, `20260831225652_init_retry`, with the
+corrected SQL — a name Netlify has never seen, so it actually executes. The
+original `20260831220000_init` is left in place untouched (harmless; it's a
+permanent no-op) rather than deleted, since Netlify's own applied-migrations
+record still references it by that name.
+
+**Lesson for any future migration**: once a migration folder has been
+pushed and deployed — successfully or not — assume Netlify will never
+re-run it from that name again. A later fix needs a new folder, not an
+edit.
+
 ## Bug: the first deploy took 30+ minutes because of a packaging mistake
 
 `netlify-cli` was originally added to `package.json`'s `devDependencies` so
