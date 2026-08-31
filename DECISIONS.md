@@ -383,6 +383,19 @@ since that requires the Netlify CLI linked to your live account). The first
 `netlify dev` run and the first real deploy are worth watching for that
 reason.
 
+## Bug: the first deploy took 30+ minutes because of a packaging mistake
+
+`netlify-cli` was originally added to `package.json`'s `devDependencies` so
+`npm run dev` (→ `netlify dev`) would just work after `npm install`, with no
+separate install step. That was wrong: it's a large package (installing it
+pulled in **1,002** sub-dependencies), and Netlify's own build servers don't
+need their own CLI installed as a project dependency at all — only your
+machine does, to run `netlify dev` locally. Every production build was
+reinstalling all 1,002 packages for a tool the build itself never uses,
+which is almost certainly what made the first deploy crawl. Fixed by
+removing it from `package.json` entirely; the README now has you
+`npm install -g netlify-cli` once, globally, instead.
+
 ## Two other homepage changes made in the same pass
 
 Both requested directly, unrelated to hosting: the homepage's "Demo mode"

@@ -32,7 +32,6 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "drizzle-kit": "^0.31.10",
-    "netlify-cli": "^27.4.2",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }

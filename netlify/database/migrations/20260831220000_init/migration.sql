@@ -132,14 +132,18 @@ CREATE INDEX IF NOT EXISTS events_type_created_idx ON events (type, created_at);
 -- Demo suppliers — same six as src/db/seed.ts, keyed by the real named
 -- seller per the Supply Ledger rule, never by the mock adapter that fetched
 -- the offer.
+-- Deterministic ids (not gen_random_uuid()) — same reasoning as hotels/rooms
+-- below: keeps this file dependency-free (no assumption about which
+-- Postgres extensions or core-function set the host provides) and fully
+-- idempotent by construction.
 INSERT INTO suppliers (id, slug, name, integration_type, requires_click_to_reveal, allows_multi_supplier_display, tos_notes)
 VALUES
-  (gen_random_uuid()::text, 'booking', 'Booking.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
-  (gen_random_uuid()::text, 'expedia', 'Expedia', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
-  (gen_random_uuid()::text, 'agoda', 'Agoda', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
-  (gen_random_uuid()::text, 'hotelscom', 'Hotels.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
-  (gen_random_uuid()::text, 'tripcom', 'Trip.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
-  (gen_random_uuid()::text, 'direct', 'Direct — hotel website', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.')
+  ('supplier-booking', 'booking', 'Booking.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
+  ('supplier-expedia', 'expedia', 'Expedia', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
+  ('supplier-agoda', 'agoda', 'Agoda', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
+  ('supplier-hotelscom', 'hotelscom', 'Hotels.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
+  ('supplier-tripcom', 'tripcom', 'Trip.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.'),
+  ('supplier-direct', 'direct', 'Direct — hotel website', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller. See the Supply Ledger for this source''s real ToS/access classification once a live adapter is wired up.')
 ON CONFLICT (slug) DO NOTHING;
 
 -- Demo hotels — same six fictional properties as src/db/seed.ts, id = slug

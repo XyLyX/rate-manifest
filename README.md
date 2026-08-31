@@ -12,10 +12,18 @@ You'll need [Node.js](https://nodejs.org) 20 or newer installed — the LTS
 installer is fine. Then, from this folder:
 
 ```
+npm install -g netlify-cli
 npm install
 netlify link
 npm run dev
 ```
+
+The Netlify CLI is installed **globally**, not as a project dependency —
+it's a big package (hundreds of sub-dependencies), and Netlify's own build
+servers don't need it at all, only your machine does, to run `netlify dev`
+locally. (Earlier this had it as a devDependency, which meant every single
+production build was reinstalling it for no reason — that's what was
+making the first Netlify deploy take 30+ minutes instead of a couple.)
 
 `npm run dev` runs `netlify dev` (see `package.json`) — the Netlify CLI
 front-ends `next dev` and, because `@netlify/database` is installed,
