@@ -2,6 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { updateOutcomeStatus } from "./actions";
+export const dynamic = "force-dynamic";
 
 // Internal, unauthenticated by design (see DECISIONS.md — this stays a
 // localhost-only tool until real auth is worth adding). This is where the

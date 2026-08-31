@@ -2,6 +2,7 @@ import { db, schema } from "@/db/client";
 import { asc } from "drizzle-orm";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+export const dynamic = "force-dynamic";
 
 function defaultCheckIn(): string {
   const d = new Date();

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { markAlertSent } from "./actions";
+export const dynamic = "force-dynamic";
 
 // Internal, unauthenticated by design (see DECISIONS.md — same rule as
 // /admin/checkins). Every row here is a customer who opted into "track

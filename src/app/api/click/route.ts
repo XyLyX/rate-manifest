@@ -4,6 +4,7 @@ import { db, schema } from "@/db/client";
 import { newId } from "@/lib/id";
 import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
+export const dynamic = "force-dynamic";
 
 // Every outbound click — the moment someone leaves Rate Manifest for a
 // supplier — gets logged as an Event (feeds D4) AND opens a BookingOutcome

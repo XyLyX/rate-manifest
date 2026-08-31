@@ -4,6 +4,7 @@ import { db, schema } from "@/db/client";
 import { buildCheckinLink, isWhatsAppConfigured } from "@/lib/whatsapp";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+export const dynamic = "force-dynamic";
 
 interface StubBookingPageProps {
   searchParams: Promise<{ hotel?: string; supplier?: string; outcome?: string }>;
