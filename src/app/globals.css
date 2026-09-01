@@ -249,6 +249,20 @@ a {
   gap: 0.5rem;
 }
 
+.browse-all-link {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.browse-all-link:hover {
+  color: var(--lime);
+}
+
 .property-picker {
   position: relative;
 }
@@ -516,6 +530,111 @@ input:focus {
 
 .offer-save {
   color: var(--lime);
+}
+
+/* --- Browse-by-emirate grid --- */
+
+.emirate-link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+}
+
+.emirate-link-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+}
+
+.emirate-link-card:hover {
+  border-color: var(--lime);
+}
+
+.hotel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+}
+
+.hotel-card {
+  position: relative;
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hotel-card:hover {
+  border-color: var(--lime);
+}
+
+.hotel-card-demo {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+.hotel-card-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+  padding-right: 3.5rem;
+}
+
+.hotel-card-meta {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+}
+
+.hotel-card-price {
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+
+.hotel-card-price-amount {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hotel-card-price-note {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 720px) {
+  .emirate-link-grid,
+  .hotel-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .reveal-btn {

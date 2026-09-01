@@ -700,21 +700,8 @@ actually come up:
 6. **A Resend (or similar) account**, whenever `/admin/price-alerts`
    manual sending becomes the bottleneck - same "worth it once the manual
    step actually hurts" logic as the WhatsApp Business API note above.
-7. **PENDING - run the first refresh workflow.** Everything else is
-   done and confirmed in production: the StayingAPI cache/refresh code
-   is live (commit `f47a2d5`), `staying_api_cache` exists, and
-   `/api/admin/init-db` reports exactly the intended catalog -
-   `hotelCounts: [{isMockData: false, count: 30}, {isMockData: true,
-   count: 6}]` - no leftover rows. `REFRESH_STAYINGAPI_SECRET` is set
-   on Netlify; still needs adding as a GitHub Actions repo secret
-   (Settings -> Secrets and variables -> Actions -> New repository
-   secret, same name/value as on Netlify) if that hasn't been done yet.
-   What's left: run the "Refresh StayingAPI prices" GitHub Actions
-   workflow with `city=Dubai` (the emirate filter added specifically
-   for this - keeps the first test to ~150 credits instead of ~900),
-   wait for `stillPending: 0`, then search one of the 5 Dubai hotels on
-   the live site for the same date window to confirm real prices
-   actually appear end to end.
+7. ~~Run the first refresh workflow~~ - **done, 2026-09-01.** See
+   "First live refresh test" below for the actual result.
 
 None of these are urgent for running the app as it stands - they're the
 order real integration work would hit them.
@@ -1181,3 +1168,148 @@ more live.** Every credit-spending idea in this table is Phase 2+ of
 the monetization plan above, gated on real economics existing first -
 this badge is the one piece of "freshness" that was free to build now,
 and it is now built.
+
+## First live refresh test (2026-09-01) - Gate 1 proven, not just built
+
+Ran the "Refresh StayingAPI prices" GitHub Actions workflow for real,
+`city=Dubai`, dates left blank (defaults to 21 days out, 2 nights -
+resolved to checkIn `2026-09-22`, checkOut `2026-09-24`). Actual run,
+from the workflow's own logs, not a simulation:
+
+- Submit step: 5 Dubai hotels submitted (Sofitel Dubai The Palm,
+  Address Downtown, The Oberoi Dubai, Rixos Premium Dubai JBR,
+  One&Only Royal Mirage), all returned `status: "pending"` - a genuine
+  StayingAPI job, not an instant cache hit.
+- Poll step: pending on attempt 1, `stillPending: 0` on attempt 2 (~22s
+  after submit) - the whole submit/poll/GitHub-Actions-waits
+  architecture (see "Live StayingAPI calls and the refresh
+  architecture" above) worked exactly as designed, first real-world
+  run.
+- Results, per hotel: Sofitel Dubai The Palm - 0 offers. Address
+  Downtown - 0 offers. The Oberoi Dubai - 0 offers. Rixos Premium
+  Dubai JBR - **6 offers**. One&Only Royal Mirage - **2 offers**.
+
+**The three zero-offer hotels are not a bug.** `stayingApiAdapter.ts`'s
+own comment already anticipated this: a job finishing as `status:
+"ready"` with an empty offer list is a legitimate outcome (StayingAPI
+genuinely had no cross-OTA coverage for that hotel/date combination),
+coded identically to a job that failed - both just mean "nothing to
+show," same as any other adapter's empty-array case. Confirmed by
+checking the wrong hotel first (Sofitel, one of the zero-offer three)
+and seeing "0 sources checked" on the live site, which briefly looked
+like a failure until the actual workflow log showed it was correct
+behavior, not broken behavior - checking the log before assuming a bug
+is what caught this.
+
+**Verified end to end on the live site** by searching Rixos Premium
+Dubai JBR for the same window
+(`ratemanifest.com/search?hotel=rixos-premium-jbr&checkin=2026-09-22&checkout=2026-09-24`):
+6 sources checked, real prices (AED 1,852 total for five of the six
+offers, AED 2,299 for the sixth), and Rate Signal correctly
+differentiating them - 68/Fair on the five closely-priced offers, 0/Weak
+on the outlier. This is the actual product working on real data for
+the first time, not the mock adapter and not a documentation claim.
+The freshness badge (see above) renders client-side after mount, so it
+didn't show up in this particular check - already verified separately
+via Playwright against a seeded database.
+
+**This closes Gate 1** from the monetization plan above: real rates,
+multiple suppliers, and the full architecture (submit, poll, cache,
+adapter, search, display) all proven against production, for real
+StayingAPI credits actually spent. Gate 2 (a real booking, not
+`/stub-booking`) is still open, still blocked on the Travelpayouts
+Booking.com marker review - unchanged by this test.
+
+## Browse by emirate (2026-09-01)
+
+Requested directly, superseding the earlier "deferred" status on this:
+when the property-picker work above was built, an AskUserQuestion
+choice picked "narrow the property list" over "jump to a multi-hotel
+browse page" for the homepage's emirate mode, and DECISIONS.md logged
+the browse page as intentionally deferred. That was the right call for
+the property picker specifically, but a separate, real need - "someone
+coming to Dubai wants to compare hotels first, then check one
+property's price" - isn't served by narrowing a dropdown. Built as its
+own page rather than reopening that earlier decision.
+
+**`src/lib/browse.ts`, new**: `browseCity(city, checkIn, checkOut)`
+lists every hotel in one emirate with whatever price already exists for
+those dates. Deliberately separate from `runSearch()`
+(`src/lib/search.ts`): it calls the same adapters, so a real hotel only
+ever shows StayingAPI data already sitting in `staying_api_cache` -
+never a live call, zero extra credits, same rule as the freshness badge
+above - but it writes nothing to the database. `runSearch()` persists a
+Rate/Cancellation/PriceHistory row and triggers price-tracking checks
+because it represents one visitor's actual search of one specific
+hotel; looping that across every hotel in an emirate just to render a
+browse grid would log five or six "searches" nobody made and pollute
+price history with them. Only clicking through to a specific property's
+own `/search` page counts as a real search, same as before.
+
+**`src/app/browse/page.tsx`, new**: `?city=` required, `?checkin=`/
+`?checkout=` optional (same 14-day-out defaults as the homepage). No
+`city` shows a plain list of the 6 emirates instead of erroring. Each
+hotel card shows name, area, star rating, and either a real price +
+source count, or "Not checked for these dates yet" - written that
+specific way, not "no availability found," so it's never confused with
+the single-hotel search page's "checked everywhere, found nothing"
+message (a real, separate small honesty gap in that existing message,
+flagged but not yet fixed - see below). A demo hotel gets a small
+"Demo" badge, same signal the single-hotel search page already gives
+mock data via its banner. Cards link to that hotel's own `/search` page
+for the full Rate Signal comparison.
+
+**Entry point**: a "Browse all hotels [in X]" link added to
+`SearchForm.tsx`'s emirate-mode picker, under the two selects - visible
+once someone's in emirate mode, using whatever emirate and dates are
+currently selected in the form. No nav-bar link added; the nav's
+minimalism (Search / How it works / For Business only) was a deliberate
+earlier decision to avoid dead-feeling links, and this entry point
+already matches where the need showed up.
+
+**Verified**: `npx tsc --noEmit` clean, a full production `next build`
+clean, and a Playwright pass against a locally seeded 36-hotel database
+with one real cache row (Rixos Premium Dubai JBR) - confirmed all 6
+emirates list correctly, confirmed Dubai's grid shows 11 properties
+(5 real 5-star + 6 demo hotels, since demo hotels default to city
+"Dubai") sorted star-rating-desc-then-name, confirmed the one real
+hotel with a cache row shows its real price while the other 4 real
+Dubai hotels honestly show "Not checked for these dates yet" rather
+than a fake price or a false "no availability," confirmed demo hotels
+show a real simulated price with the Demo badge, confirmed the
+homepage's new link reflects the selected emirate and current dates,
+and confirmed the layout holds at 380px mobile width. Zero console/page
+errors throughout.
+
+**Raised but not resolved: hotel/property images.** Asked directly
+while building this, since a browse grid is exactly where the lack is
+most visible. Checked the real, already-integrated data source rather
+than guessing: `stayingApiRefresh.ts`'s own `StayingApiOffer` interface
+(the actual shape StayingAPI's price-compare endpoint returns, live-
+tested against production) is `{ ota, totalPrice, currency, url }` -
+no image field at all, confirmed from the real integration code, not
+assumed. Generic stock photography was also already ruled out
+explicitly, earlier in this project (see "Color flip" above: "no stock
+photos, no carousels, no fake urgency" was your own stated brand
+direction). A wrong or generic photo mislabeled as a specific real
+5-star hotel would be worse than no photo - the same "never fabricate a
+signal" principle this project has followed everywhere else (Rate
+Signal's missing breakfast row, no faked price intelligence). Real
+options, none of them built here: source each hotel's own official
+press/media images by hand (needs checking each one's actual usage
+terms - not something safe to bulk-automate), or find a licensed
+hotel-content data provider separate from StayingAPI. Shipped
+text-only for now, consistent with the existing "no stock photos"
+direction - this is a real open decision for you, not a defer-by-
+default.
+
+**Also flagged, not yet fixed**: the single-hotel search page's
+existing "No availability found across the sources we checked for
+these dates" message (`src/app/search/page.tsx`) reads the same whether
+Rate Manifest genuinely checked every supplier and found nothing, or
+never checked at all because no cache row exists for that hotel/date.
+The browse page above avoids this by phrasing its own empty state
+differently ("Not checked for these dates yet"); the older single-hotel
+message still conflates the two. Small, copy-only fix, not done yet -
+raised once already this session, still your call whether it's worth
+doing now.

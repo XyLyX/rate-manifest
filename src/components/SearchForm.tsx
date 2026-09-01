@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
 export interface SearchFormHotel {
@@ -167,6 +168,16 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
                 </option>
               ))}
             </select>
+            <Link
+              className="browse-all-link"
+              href={
+                selectedEmirate
+                  ? `/browse?city=${encodeURIComponent(selectedEmirate)}&checkin=${checkIn}&checkout=${checkOut}`
+                  : `/browse?checkin=${checkIn}&checkout=${checkOut}`
+              }
+            >
+              Browse all hotels{selectedEmirate ? ` in ${selectedEmirate}` : ""} →
+            </Link>
           </div>
         ) : (
           <div className="property-picker">
