@@ -1030,6 +1030,71 @@ and never something to multiply by search volume; it only exists once
 a real click converts. **Not yet cleared - blocked on their review, not
 on anything buildable here.**
 
+**2026-09-01 update, from Travelpayouts support directly (Maria)**: you
+asked them to confirm the project's category classification wouldn't
+count against it during program review. Their answer: ratemanifest.com
+is correctly classified under "Content creation," and that
+classification "will not negatively impact your applications to join
+the programs" - each brand's own representatives weigh a project's
+specifics individually during their review. This clears one specific
+worry (a misclassification working against the application) but does
+**not** mean the Booking.com marker itself is approved - that review is
+still separate, still pending, still not something either of us can
+push forward directly. Filed here so the status is accurate: one
+possible obstacle ruled out, the actual blocker unchanged.
+
+**2026-09-01 - the real Gate 2 blocker, from the Travelpayouts dashboard
+directly (not a support reply this time - the actual Booking.com
+program page for this project)**: "20 programs are currently
+unavailable for Ratemanifest," with two reasons given, quoted exactly:
+
+> Your website doesn't currently have enough traffic. Submit for review
+> once it has stable monthly traffic for at least three consecutive
+> months.
+
+> Your website doesn't have enough travel-related content. Most brands
+> only connect content-driven websites with an active blog that is
+> regularly updated and has traffic. We're looking for sites that
+> publish original articles, such as travel guides, personal tips,
+> reviews, or destination stories.
+
+This changes the honest picture of Gate 2 considerably. It was tracked
+above as "blocked on their review" as if it were a queue to wait out -
+it is not. It is blocked on two specific, unmet prerequisites that
+apply to Booking.com **and the other 19 unavailable programs alike**:
+a three-consecutive-month track record of real traffic (Gate 3, not
+started), and ongoing original travel content - guides, tips, reviews,
+destination stories - which this site has none of; it is purely a rate
+comparison tool with no blog or editorial section at all. The earlier
+"correctly classified, won't count against you" reassurance from Maria
+was real but answered a narrower question than it looked like - the
+classification was never the actual gate. The dashboard also says the
+project can be updated and resubmitted for review after 2 September,
+but resubmitting without either prerequisite in place would very
+likely hit the same rejection again.
+
+Practical read: Gate 2, at least through Travelpayouts/Booking.com,
+cannot be pulled forward by anything buildable here - it needs (a)
+Gate 3's real traffic sustained for three months, which hasn't
+started, and (b) a genuine, regularly-updated travel content section,
+which is a real ongoing content operation, not a one-time build. Two
+things worth deciding, not deciding here: whether building that
+content section is worth doing now (before there's traffic to put it
+in front of), and whether a real booking path exists that doesn't
+route through Travelpayouts at all - StayingAPI's own `outboundUrl`
+per offer already links out to the real seller (see
+`stayingApiRefresh.ts`), which is a real link, not `/stub-booking`'s
+placeholder, even though it isn't confirmed to carry any commission
+tracking of its own. Worth checking their docs/terms on that
+specifically rather than assuming either way.
+
+Also confirmed on the same page, useful for the planning-assumption
+number tracked above: Booking.com's real current rate is a **5%
+promotional reward through September 30, 2026**, reverting to the
+regular **4%** after that - so the "4-5%" figure already in this file
+was directionally right, now with the actual mechanism and expiry
+behind it.
+
 **Gate 3 - can we acquire customers for less than they're worth?** The
 honest reframe from round two: not "100,000 visitors," but "100 real
 users, measured end to end (search to hotel to click to booking to
@@ -1529,3 +1594,280 @@ cost this introduces, that should be a deliberate call once there's
 clarity on the StayingAPI plan situation (see "Monetization plan"),
 not something that goes live purely because it was finished being
 built.
+
+## Two-layer architecture, and the roadmap beyond Booking.com (2026-09-01)
+
+The Booking.com dashboard finding above (blocked on traffic history and
+content, not a review queue) prompted a real strategic reset, worked
+through in detail. Formalizing it here because it changes how
+everything downstream gets built, not just what gets monetized.
+
+**The core split - Layer 1 (Rate Intelligence) and Layer 2
+(Monetization) are independent.** Layer 1 is the product: StayingAPI
+feeds Rate Manifest's comparison, freshness, and Rate Signal scoring.
+It does not depend on which monetization partner is active, and no
+monetization decision should ever touch it. Layer 2 is swappable and
+starts with whatever is actually reachable right now - Klook today,
+with Booking.com, Agoda, Expedia, direct hotel deals, and bedbanks
+layered in later as each becomes available. **The site can launch
+without Booking.com.** Booking.com is one supplier to Layer 2, not the
+company - if Rate Manifest's existence depended on one API approval,
+that would mean the wrong company got built.
+
+**Klook's real role, corrected from the first pass**: Klook is not a
+hotel-comparison replacement, and building "Rate Manifest = Klook
+hotel comparison" would be a dead end - their affiliate strength is
+travel experiences, attractions, transport, and tours, not hotel
+rates, even though they do sell some accommodation. So Klook never
+sits inside the hotel comparison or gets treated as a checked source
+- Rate Manifest compares hotel rates independently (Layer 1, untouched,
+still only StayingAPI-verified sellers), and Klook monetizes the
+traveller around the hotel (Layer 2): a "Complete your Dubai trip"
+section - Burj Khalifa, Desert Safari, Marina Cruise, airport transfer,
+eSIM, that kind of thing - surfaced after someone's already chosen a
+hotel, not competing with the comparison itself. Real per-product
+prices for that section aren't buildable honestly yet - there's no
+Klook price API wired up, and the "no fabricated numbers" rule that's
+governed this whole build applies here too - so v1 is real product
+names and real affiliate links, no invented prices, until there's an
+honest way to show real ones.
+
+**Correction, checked against the actual code before building
+anything on top of it**: the paragraph originally written here claimed
+`/api/click` redirects every click to `/stub-booking`, discarding
+`offer.outboundUrl`. That was wrong - re-read after writing it. The
+real "View on {supplier}" button in `ResultsList.tsx`'s `OfferRow`
+already renders `<a href={offer.outboundUrl} target="_blank">`
+directly - it goes straight to the real StayingAPI seller link for
+every real hotel today, no `/api/click` hop, no `/stub-booking`. There
+is no discarded-link bug.
+
+**The real gap this surfaced instead**: `/api/click` is now only ever
+referenced as a URL value in `mockAdapter.ts` (its stub
+`outboundUrl: /api/click?stub=1&hotel=...&supplier=...`, used only for
+`isMockData` hotels). Since all mock hotels were dropped from the
+catalog this session, nothing in production ever hits `/api/click`
+anymore. That route was the only thing that logged an
+`outbound_click` event and opened a `bookingOutcomes` row at
+`clicked` - the row the WhatsApp check-in and supplier
+reliability-score trust layer are built on. So today, for every real
+hotel, a real outbound click is honest (goes straight to the real
+seller) but invisible to Rate Manifest - nothing records that it
+happened. This needs a real design decision, not a quick fix: how to
+log a `clicked` row on that direct outbound link without adding a
+redirect hop in front of it (a fire-and-forget beacon, an `onClick`
+that pings a logging endpoint without blocking the navigation, etc.)
+- not decided yet.
+
+**What's actually buildable now vs. not a coding task**, keeping the
+same discipline as "What's actually actionable today" above:
+1. Decide and build a way to log a `bookingOutcomes` "clicked" row for
+   real-hotel outbound clicks without disrupting the direct
+   `href={offer.outboundUrl} target="_blank"` link - needed before the
+   WhatsApp check-in / reliability-score trust layer means anything
+   for real hotels. Design not yet chosen.
+2. Add the "Complete your Dubai trip" Klook section (names + real
+   links, no invented prices) - buildable once there's at least one
+   real generated Klook affiliate link to build against. Still waiting
+   on that from the Travelpayouts Links tool.
+3. "Save this hotel / notify me when the price changes" as the
+   fallback when no real booking route exists - already built (see
+   `priceTracking` table and its opportunistic check in `search.ts`);
+   this MVP framing just confirms it's the right fallback, nothing new
+   to build.
+4. Direct hotel-group affiliate programs, investigated in parallel
+   with Travelpayouts rather than waiting on it - real research, not
+   a coding task; nobody's started it.
+5. A curated, tiered Dubai-first catalog (100-300 hotels, luxury/
+   high-volume/business tiers) with dedicated per-hotel pages built for
+   long-tail searches ("Atlantis The Palm price," "Atlantis vs Atlantis
+   The Royal") instead of competing on "Dubai hotels" broadly - a real,
+   large scope decision on its own, not something to fold into today's
+   work without deciding it deliberately first.
+6. Lead generation (a "Request a hotel quote" enquiry path for
+   properties with no affiliate link, fulfilled manually by a travel
+   agent/DMC partner at first) - a genuinely new feature, not started,
+   explicitly manual-first by design ("validating demand, not building
+   Expedia on day one").
+7. Other hotel affiliate networks beyond Travelpayouts - not
+   investigated yet.
+
+Items 4 through 7 are real threads, not dismissed - just not something
+to start building reflexively under the momentum of this conversation.
+Worth deciding deliberately, one at a time, which comes next.
+
+**Klook's accommodation program, added to try (2026-09-01)**: Klook's
+own affiliate strength is activities, attractions, tours, airport
+transfers, transport, and SIM/eSIM - and it now also sells
+hotels/accommodation directly, which is why its commission runs
+higher than the experiences-only categories. The user wants to try
+the Klook accommodation program too, not just the "Complete your
+Dubai trip" experiences section. This stays a Layer 2 (Monetization)
+addition only - it does not change Layer 1's rule that the hotel
+comparison itself is StayingAPI-verified sellers only. Klook hotel
+listings, if added, would be a separate, clearly labeled path (for
+example, a "Book via Klook" option shown alongside or after the
+verified comparison, not folded into the Rate Signal or the
+comparison table). Still needs the real generated Klook affiliate
+link(s) before this is buildable - same blocker as the "Complete your
+Dubai trip" section.
+
+## Klook "Complete your Dubai trip" section, shipped (2026-09-01)
+
+Built and locally verified. The real generated Klook affiliate link
+was provided (`https://klook.tpm.lv/2vSljl8m`, generated via
+Travelpayouts' Links tool with the "Destination page" field left as
+`https://klook.com` - confirmed by screenshot, so this is a generic
+homepage link, not a deep link into any specific category or
+product). Because it's one generic link, the section built around it
+makes only one honest claim: "Klook, a real named partner, is one
+click away" - it does not pretend any individual category (Desert
+Safari, eSIM, etc.) has its own tracked link, since none does yet.
+
+**New files**: `src/lib/klook.ts` (the link constant plus the real
+category list: activities & experiences, tours & attractions, airport
+transfers, transport, SIM/eSIM, hotels & accommodation - kept
+deliberately separate from `src/lib/suppliers/`, since Klook is
+Layer 2 and must never be importable from `search.ts` or the scoring
+code); `src/components/KlookTripSection.tsx` (a plain server
+component - one eyebrow, one line of real category names, one real
+`<a href target="_blank">` button, one line disclosing it's a
+separate partner booked/paid on Klook, not through Rate Manifest).
+
+**Wired into** `src/app/search/page.tsx`, shown only when
+`!result.hotel.isMockData && liveCheck.kind !== "checking" &&
+liveCheck.kind !== "error"` - a real hotel, past the live-check
+spinner, past a failed check. This also covers the "Book via Klook
+accommodation" idea from the note above for now: rather than a second,
+separately-labeled accommodation CTA using the same generic link
+(which would read as two calls to action pointing at the identical
+page), the one section's category list already names "Hotels &
+accommodation" alongside the experience categories. A distinct
+accommodation-specific path can be built once there's a Klook link
+actually scoped to hotels.
+
+**Verified locally**: `npx tsc --noEmit` clean; against a local
+Postgres seeded from the real `init-db` schema, the section rendered
+correctly on `/search` for a real hotel with a `ready` cache row
+(real category copy, real link, disclosure line all present), and
+correctly stayed hidden for the same hotel with no cache row and no
+`STAYINGAPI_KEY` set (live-check resolves to `error`, section
+suppressed rather than showing next to a "could not check prices"
+message). No real StayingAPI credits spent.
+
+**Not built yet, on purpose**: click tracking on the Klook button
+(no `bookingOutcomes`-style logging - this is a plain outbound link,
+not wired into `EVENT_TYPES`/`logEvent` since that's server-side and
+this is a client click). Worth adding once there's an appetite for
+it, using the same "don't put a redirect in front of a direct link"
+approach flagged for the real-hotel `bookingOutcomes` gap above
+(`navigator.sendBeacon` on click, not a routed hop).
+
+## Klook accommodation kept out of the trip section (2026-09-01)
+
+Correction to the section just shipped above, before it even went
+live: the rendered category list included "Hotels & accommodation."
+The user caught the real problem with that - Klook does sell hotels,
+so naming it as a category on a page whose whole job is comparing
+hotel rates reads as "does Klook also do what Rate Manifest does,"
+which is exactly the confusion the earlier Klook-positioning
+correction was trying to avoid in the first place. Fixed:
+`KLOOK_CATEGORIES` split into `KLOOK_EXPERIENCE_CATEGORIES`
+(activities, tours, transfers, transport, eSIM - what actually
+renders in `KlookTripSection`) with hotels/accommodation left out of
+the customer-facing copy entirely. Klook's accommodation program
+stays a real, separate idea - just not a line item next to the
+StayingAPI-verified comparison.
+
+## A separate domain for experiences/Klook - considered, not decided (2026-09-01)
+
+The user's proposal: buy a second domain, put Klook/experiences
+content there instead of on ratemanifest.com, test it, and later add
+a tab on ratemanifest.com linking out to it if it proves out -
+ratemanifest.com stays the primary, hotel-comparison-only property.
+The reasoning behind it is the same one above: keep anything
+Klook-branded away from anything that could be mistaken for "hotels,"
+since Klook sells hotels too.
+
+Three real options, laid out honestly rather than picked unilaterally
+(this is a cost/scope decision, not a code change):
+
+1. **Same domain, de-branded copy (what's shipped now)** - the fix
+   above (drop "hotels" from the visible category list, keep the
+   disclosure line) already addresses the specific confusion at zero
+   extra cost or infrastructure. Ships today, no domain purchase, no
+   second site to maintain.
+2. **A subdomain of ratemanifest.com** (e.g. `trips.ratemanifest.com`
+   or `experiences.ratemanifest.com`) - real separation (a distinct
+   URL, a clean place to build out actual experience content/
+   management later) without buying a new domain or starting SEO from
+   zero - it still inherits some association with the ratemanifest.com
+   name via DNS, but reads as a distinct section. Cheapest way to
+   "test it" as the user put it.
+3. **A wholly separate domain and brand** - the most separation, and
+   the right move eventually if the experiences side turns into its
+   own real product ("Rate Manifest" is a hotel-price-comparison name,
+   not a natural fit for tours and transfers) - but it's a real cost
+   (domain registration, plus whatever hosting/build a second site
+   needs) and starts with zero search authority, for a Klook
+   integration that's so far one generic homepage link, not yet
+   tested with a single real visitor.
+
+No decision made yet - asked the user which of these they want to
+commit to before spending anything on a domain.
+
+## Klook hotels/accommodation: not building it yet (2026-09-01)
+
+Decided: new domain idea held for the future - not buying one now.
+Given that, the Klook hotel/accommodation path stays unbuilt too, and
+that's not an oversight, it follows directly from the domain decision:
+the whole reason a second domain came up was to keep "Klook" away from
+anything that reads as hotels, since Klook sells hotels and that's
+exactly what causes the "wait, is this the same as Rate Manifest"
+confusion. Building a "Book via Klook" hotel/accommodation option on
+ratemanifest.com right now, same domain, right next to the
+StayingAPI-verified comparison, would recreate that exact problem
+with nothing to prevent it. So: the "Complete your Dubai trip"
+section (experiences only, no hotels in the copy) is what's shipping.
+Klook-for-hotels waits until there's a place to put it that doesn't
+sit next to the hotel comparison - the subdomain option above, most
+likely, whenever that gets picked up.
+
+## Klook hotels, brought back with explicit not-verified framing (2026-09-01)
+
+Reversed the hold from two entries above. The user's reasoning: they
+believe StayingAPI is the more expensive path (accurate - see the
+credits math throughout this file: 30 credits per call, 300-credit
+free tier, ~120 left as of the last check), and today it's also the
+*unmonetized* path - a StayingAPI-verified offer's outbound click goes
+straight to the real seller (Booking.com, Agoda, etc.) with no
+affiliate marker, because Travelpayouts hasn't approved those programs
+yet (see "the real Gate 2 blocker" above). Klook is the only program
+that's both live and pays a commission right now, and it does sell
+hotels. So the direction is: StayingAPI stays the rate-intelligence
+and trust layer (the verified comparison, the Rate Signal, unchanged),
+while Klook becomes the primary near-term monetization attempt for
+hotels too, not just experiences - "build all from Klook, test it,
+switch off what doesn't work."
+
+Built accordingly, without re-opening the confusion problem two
+entries back: `KlookTripSection` now has a second, deliberately
+secondary block below the experiences CTA - smaller type, a plain
+text link instead of a button, and copy that says outright "unlike
+the offers above, that listing is not one Rate Manifest has
+independently checked." The verified StayingAPI comparison stays the
+visually and structurally primary thing on the page; Klook hotels is
+an honestly-labeled fallback underneath it, not a competing row. That
+framing is what makes it safe to ship on the same domain today,
+without the separate-domain plan (still on hold).
+
+Gated behind `SHOW_KLOOK_HOTELS_NOTE` in `src/lib/klook.ts` (currently
+`true`) specifically so "switch off what doesn't work" is a one-line
+flip-to-`false`-and-push, not a re-edit of the component, once there's
+real click/conversion data to judge it by.
+
+Verified locally the same way as the experiences section: real
+Postgres seeded from the actual `init-db` schema, real hotel, a
+`ready` cache row, both the experiences CTA and the new hotels note
+render with the exact intended copy, "Hotels & accommodation" still
+does not appear anywhere in the primary category list.

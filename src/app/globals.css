@@ -1052,6 +1052,54 @@ input:focus {
   padding-top: 1rem;
 }
 
+/* --- Klook trip section (Layer 2 - see DECISIONS.md) --- */
+
+.klook-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.75rem;
+}
+
+.klook-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lime);
+  margin-bottom: 0.6rem;
+}
+
+.klook-body {
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0 0 1rem;
+  max-width: 46rem;
+}
+
+.klook-cta {
+  margin-bottom: 0.9rem;
+}
+
+.klook-disclosure {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.klook-also-hotels {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.klook-also-hotels a {
+  color: var(--tangerine);
+}
+
 .empty-state {
   color: var(--text-dim);
   font-size: 0.9rem;

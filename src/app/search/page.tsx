@@ -5,6 +5,7 @@ import { getSessionId } from "@/lib/session";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
+import { KlookTripSection } from "@/components/KlookTripSection";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
@@ -122,6 +123,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         appear once you reveal it. This keeps every source&apos;s display terms satisfied without hiding
         that a comparison happened.
       </p>
+
+      {/* Layer 2 (Monetization) - see DECISIONS.md, "Two-layer architecture."
+          Only for real hotels, and only once this hotel's results have
+          actually rendered (not during the live-check spinner, not on a
+          hard error) - a visitor still viewing "Checking real-time
+          prices..." isn't ready for a second, unrelated call to action. */}
+      {!result.hotel.isMockData && liveCheck.kind !== "checking" && liveCheck.kind !== "error" && (
+        <KlookTripSection />
+      )}
 
       <Footer />
     </div>
