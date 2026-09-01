@@ -176,15 +176,51 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Real hotels (is_mock_data = false). mock_base_price stays NULL - the
 -- mock adapter already no-ops for any hotel without one, and these get
--- real prices from staying_api_cache instead, once refreshed. See
--- DECISIONS.md, "Real Dubai hotels seeded for StayingAPI."
+-- real prices from staying_api_cache instead, once refreshed. Top five
+-- 5-star hotels per emirate (Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah,
+-- Sharjah, Ajman), each verified as a currently-operating property (name,
+-- brand and status checked, not just carried over from memory) - see
+-- DECISIONS.md, "Real UAE hotels seeded for StayingAPI."
+-- Ibis Deira City Centre (3-star) was dropped from this list - it doesn't
+-- fit the "top five 5-star" criteria the rest of this set follows.
 INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
 VALUES
+  -- Dubai
   ('sofitel-dubai-the-palm', 'Sofitel Dubai The Palm', 'Palm Jumeirah', 'Dubai', 5, false, NULL),
   ('address-downtown', 'Address Downtown', 'Downtown Dubai', 'Dubai', 5, false, NULL),
   ('oberoi-dubai', 'The Oberoi Dubai', 'Business Bay', 'Dubai', 5, false, NULL),
   ('rixos-premium-jbr', 'Rixos Premium Dubai JBR', 'Jumeirah Beach Residence', 'Dubai', 5, false, NULL),
-  ('ibis-deira-city-centre', 'Ibis Deira City Centre', 'Deira', 'Dubai', 3, false, NULL)
+  ('one-and-only-royal-mirage', 'One&Only Royal Mirage', 'Al Sufouh', 'Dubai', 5, false, NULL),
+  -- Abu Dhabi
+  ('emirates-palace-mandarin-oriental', 'Emirates Palace Mandarin Oriental', 'Corniche', 'Abu Dhabi', 5, false, NULL),
+  ('rosewood-abu-dhabi', 'Rosewood Abu Dhabi', 'Al Maryah Island', 'Abu Dhabi', 5, false, NULL),
+  ('conrad-abu-dhabi-etihad-towers', 'Conrad Abu Dhabi Etihad Towers', 'Corniche', 'Abu Dhabi', 5, false, NULL),
+  ('ritz-carlton-abu-dhabi-grand-canal', 'The Ritz-Carlton Abu Dhabi, Grand Canal', 'Grand Canal', 'Abu Dhabi', 5, false, NULL),
+  ('hilton-abu-dhabi-yas-island', 'Hilton Abu Dhabi Yas Island', 'Yas Island', 'Abu Dhabi', 5, false, NULL),
+  -- Fujairah
+  ('al-bahar-hotel-resort-fujairah', 'Al Bahar Hotel & Resort', 'Fujairah Corniche', 'Fujairah', 5, false, NULL),
+  ('palace-beach-resort-fujairah', 'Palace Beach Resort Fujairah', 'Fujairah', 'Fujairah', 5, false, NULL),
+  ('doubletree-hilton-fujairah-city', 'DoubleTree by Hilton Fujairah City', 'Fujairah City', 'Fujairah', 5, false, NULL),
+  ('royal-m-hotel-gewan-fujairah', 'Royal M Hotel by Gewan Fujairah', 'Fujairah', 'Fujairah', 5, false, NULL),
+  ('al-diar-siji-hotel', 'Al Diar Siji Hotel', 'Fujairah', 'Fujairah', 5, false, NULL),
+  -- Ras Al Khaimah
+  ('so-ras-al-khaimah', 'SO/ Ras Al Khaimah Hotel & Resort', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
+  ('rixos-bab-al-bahr', 'Rixos Bab Al Bahr', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
+  ('sofitel-rak-al-hamra', 'Sofitel Ras Al Khaimah Al Hamra Beach Resort', 'Al Hamra', 'Ras Al Khaimah', 5, false, NULL),
+  ('movenpick-al-marjan-island', 'Movenpick Resort Al Marjan Island', 'Al Marjan Island', 'Ras Al Khaimah', 5, false, NULL),
+  ('intercontinental-rak-resort-spa', 'InterContinental Ras Al Khaimah Resort & Spa', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
+  -- Sharjah
+  ('sheraton-sharjah-beach-resort', 'Sheraton Sharjah Beach Resort & Spa', 'Corniche', 'Sharjah', 5, false, NULL),
+  ('chedi-al-bait-sharjah', 'The Chedi Al Bait, Sharjah', 'Sharjah Heritage Area', 'Sharjah', 5, false, NULL),
+  ('pullman-sharjah', 'Pullman Sharjah', 'Sharjah', 'Sharjah', 5, false, NULL),
+  ('corniche-hotel-sharjah', 'Corniche Hotel Sharjah', 'Buhaira Corniche', 'Sharjah', 5, false, NULL),
+  ('hotel-72-sharjah', '72 Hotel Sharjah', 'Al Khan Lagoon', 'Sharjah', 5, false, NULL),
+  -- Ajman
+  ('bahi-ajman-palace', 'Bahi Ajman Palace Hotel', 'Ajman Corniche', 'Ajman', 5, false, NULL),
+  ('fairmont-ajman', 'Fairmont Ajman', 'Ajman Corniche', 'Ajman', 5, false, NULL),
+  ('dusit-ajman-resort-villas', 'Dusit Ajman Resort & Villas', 'Ajman', 'Ajman', 5, false, NULL),
+  ('ajman-saray-luxury-collection', 'Ajman Saray, a Luxury Collection Resort', 'Ajman Corniche', 'Ajman', 5, false, NULL),
+  ('oberoi-beach-resort-al-zorah', 'The Oberoi Beach Resort, Al Zorah', 'Al Zorah', 'Ajman', 5, false, NULL)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
@@ -199,7 +235,32 @@ VALUES
   ('room-address-downtown', 'address-downtown', 'double_standard', 2, '1 king bed'),
   ('room-oberoi-dubai', 'oberoi-dubai', 'double_standard', 2, '1 king bed'),
   ('room-rixos-premium-jbr', 'rixos-premium-jbr', 'double_standard', 2, '1 king bed'),
-  ('room-ibis-deira-city-centre', 'ibis-deira-city-centre', 'double_standard', 2, '1 king bed')
+  ('room-one-and-only-royal-mirage', 'one-and-only-royal-mirage', 'double_standard', 2, '1 king bed'),
+  ('room-emirates-palace-mandarin-oriental', 'emirates-palace-mandarin-oriental', 'double_standard', 2, '1 king bed'),
+  ('room-rosewood-abu-dhabi', 'rosewood-abu-dhabi', 'double_standard', 2, '1 king bed'),
+  ('room-conrad-abu-dhabi-etihad-towers', 'conrad-abu-dhabi-etihad-towers', 'double_standard', 2, '1 king bed'),
+  ('room-ritz-carlton-abu-dhabi-grand-canal', 'ritz-carlton-abu-dhabi-grand-canal', 'double_standard', 2, '1 king bed'),
+  ('room-hilton-abu-dhabi-yas-island', 'hilton-abu-dhabi-yas-island', 'double_standard', 2, '1 king bed'),
+  ('room-al-bahar-hotel-resort-fujairah', 'al-bahar-hotel-resort-fujairah', 'double_standard', 2, '1 king bed'),
+  ('room-palace-beach-resort-fujairah', 'palace-beach-resort-fujairah', 'double_standard', 2, '1 king bed'),
+  ('room-doubletree-hilton-fujairah-city', 'doubletree-hilton-fujairah-city', 'double_standard', 2, '1 king bed'),
+  ('room-royal-m-hotel-gewan-fujairah', 'royal-m-hotel-gewan-fujairah', 'double_standard', 2, '1 king bed'),
+  ('room-al-diar-siji-hotel', 'al-diar-siji-hotel', 'double_standard', 2, '1 king bed'),
+  ('room-so-ras-al-khaimah', 'so-ras-al-khaimah', 'double_standard', 2, '1 king bed'),
+  ('room-rixos-bab-al-bahr', 'rixos-bab-al-bahr', 'double_standard', 2, '1 king bed'),
+  ('room-sofitel-rak-al-hamra', 'sofitel-rak-al-hamra', 'double_standard', 2, '1 king bed'),
+  ('room-movenpick-al-marjan-island', 'movenpick-al-marjan-island', 'double_standard', 2, '1 king bed'),
+  ('room-intercontinental-rak-resort-spa', 'intercontinental-rak-resort-spa', 'double_standard', 2, '1 king bed'),
+  ('room-sheraton-sharjah-beach-resort', 'sheraton-sharjah-beach-resort', 'double_standard', 2, '1 king bed'),
+  ('room-chedi-al-bait-sharjah', 'chedi-al-bait-sharjah', 'double_standard', 2, '1 king bed'),
+  ('room-pullman-sharjah', 'pullman-sharjah', 'double_standard', 2, '1 king bed'),
+  ('room-corniche-hotel-sharjah', 'corniche-hotel-sharjah', 'double_standard', 2, '1 king bed'),
+  ('room-hotel-72-sharjah', 'hotel-72-sharjah', 'double_standard', 2, '1 king bed'),
+  ('room-bahi-ajman-palace', 'bahi-ajman-palace', 'double_standard', 2, '1 king bed'),
+  ('room-fairmont-ajman', 'fairmont-ajman', 'double_standard', 2, '1 king bed'),
+  ('room-dusit-ajman-resort-villas', 'dusit-ajman-resort-villas', 'double_standard', 2, '1 king bed'),
+  ('room-ajman-saray-luxury-collection', 'ajman-saray-luxury-collection', 'double_standard', 2, '1 king bed'),
+  ('room-oberoi-beach-resort-al-zorah', 'oberoi-beach-resort-al-zorah', 'double_standard', 2, '1 king bed')
 ON CONFLICT (id) DO NOTHING;
 `;
 

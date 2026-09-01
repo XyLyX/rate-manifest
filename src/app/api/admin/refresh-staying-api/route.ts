@@ -26,6 +26,14 @@ import { submitStayingApiJob } from "@/lib/suppliers/stayingApiRefresh";
 // real StayingAPI data if their chosen dates exactly match a window this
 // has been run for - see stayingApiAdapter.ts.
 //
+// Pass ?city=Dubai (must match the `city` column exactly - one of Dubai,
+// Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman) to only refresh
+// one emirate's hotels instead of all 30. Added specifically because 30
+// hotels x ~30 credits/call is ~900 credits per full refresh - more than
+// the entire 300-credit free tier in one run - see DECISIONS.md, "Credit
+// cost at this catalog size, revised." Testing emirate-by-emirate keeps
+// each run to ~150 credits or less.
+//
 // Refreshing a window more than 30 days out still costs the same credits
 // (this endpoint always compares every seller) but stayingApiAdapter.ts
 // only ever surfaces the hotel's own direct listing from a window that
@@ -57,7 +65,28 @@ export async function GET(request: Request) {
     checkOut = end.toISOString().slice(0, 10);
   }
 
-  const realHotels = await db.query.hotels.findMany({ where: eq(schema.hotels.isMockData, false) });
+  const cityParam = url.searchParams.get("city");
+
+  const realHotels = await db.query.hotels.findMany({
+    where: cityParam
+      ? and(eq(schema.hotels.isMockData, false), eq(schema.hotels.city, cityParam))
+      : eq(schema.hotels.isMockData, false),
+  });
+
+  if (cityParam && realHotels.length === 0) {
+    const distinctCities = await db
+      .selectDistinct({ city: schema.hotels.city })
+      .from(schema.hotels)
+      .where(eq(schema.hotels.isMockData, false));
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `No real hotels found for city "${cityParam}" - city must match exactly.`,
+        validCities: distinctCities.map((c) => c.city),
+      },
+      { status: 400 }
+    );
+  }
 
   const results: { hotelId: string; hotelName: string; status: string; detail?: string }[] = [];
 
@@ -117,5 +146,12 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, checkIn, checkOut, hotelsSubmitted: results.length, results });
+  return NextResponse.json({
+    ok: true,
+    checkIn,
+    checkOut,
+    city: cityParam ?? "all",
+    hotelsSubmitted: results.length,
+    results,
+  });
 }

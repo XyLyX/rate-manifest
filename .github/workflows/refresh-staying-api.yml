@@ -23,6 +23,9 @@ on:
       checkOut:
         description: "Check-out date (YYYY-MM-DD) - optional, defaults to 2 nights after check-in"
         required: false
+      city:
+        description: "Emirate to refresh - optional, defaults to all 30 hotels (~900 credits). One of: Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman (~150 credits each)"
+        required: false
 
 jobs:
   refresh:
@@ -36,6 +39,11 @@ jobs:
           fi
           if [ -n "${{ github.event.inputs.checkOut }}" ]; then
             URL="$URL&checkOut=${{ github.event.inputs.checkOut }}"
+          fi
+          if [ -n "${{ github.event.inputs.city }}" ]; then
+            # Only spaces need encoding - every emirate name is plain ASCII words.
+            CITY_ENCODED=$(echo -n "${{ github.event.inputs.city }}" | sed 's/ /%20/g')
+            URL="$URL&city=$CITY_ENCODED"
           fi
           curl -sf "$URL" | tee submit-response.json
 
