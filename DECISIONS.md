@@ -1888,3 +1888,88 @@ locally against a real hotel with no cache row and no
 `STAYINGAPI_KEY` set (forces the error path) - both the "could not
 check real-time prices" message and the full Klook section (trip
 CTA plus the hotels note) render together correctly.
+
+## A dedicated Klook hotels link, Dubai-scoped (2026-09-01)
+
+The "also on Klook" hotels note was reusing the generic homepage
+link (`KLOOK_LINK`) since that was all that existed. The user found
+Klook's Dubai hotels listing page and generated a proper tracked link
+for it through the same Travelpayouts Links tool -
+`https://klook.tpm.lv/RqxKw5oy`, pointed at
+`https://www.klook.com/en-US/hotels/city/78-dubai-hotels/` rather
+than Klook's global hotels page - chosen over the global option
+because everything else in this section, including its own
+"Complete your Dubai trip" copy, is Dubai-specific; sending someone
+to a worldwide hotel search from here would be a mismatch. Added as
+its own constant, `KLOOK_HOTELS_LINK` in `src/lib/klook.ts`, and
+wired into the hotels note in `KlookTripSection` in place of the
+reused generic link. Also lets Travelpayouts' own per-link stats
+distinguish experiences clicks from hotels clicks going forward.
+Verified locally: the experiences CTA still points at the generic
+link, the hotels note now points at the new Dubai-hotels link,
+confirmed by rendering both and checking the actual `href` values.
+
+## Klook Tours Widget - live real prices, in progress (2026-09-01)
+
+Found via Travelpayouts' Widgets tab (not Links): a "Specific City/
+Category Tours Widget" that embeds real, live Klook product cards
+(name, rating, review count, real price) for a chosen city and
+category, via a single `<script async src="https://tpwgts.com/
+content?...">` tag with the referral marker baked in. This is a real
+upgrade over the current experiences block - live real data pulled
+from Klook itself rather than static copy we wrote, which is the
+most honest version of "no fabricated numbers" available: the
+numbers are Klook's own, not ours.
+
+Checked `next.config.mjs` and the codebase for any Content-Security-
+Policy configuration before treating this as buildable - there is
+none, so there's no CSP allowlist blocker to embedding a third-party
+script here.
+
+Not built yet - waiting on the user to settle on a category (leaning
+toward Tours & Activities or Attractions over the Food & Dining shown
+in the first screenshot) and confirm the widget preview actually
+matches the selected category before sending over the final embed
+code. Once that arrives, this needs `next/script` (not a raw
+`<script>` tag) to integrate safely with Next.js - likely `strategy=
+"afterInteractive"` or `"lazyOnload"` given the widget injects DOM
+directly rather than rendering through React, which needs testing to
+confirm it doesn't trip a hydration mismatch.
+
+## Klook Tours Widget, built and verified (2026-09-01)
+
+Wired in the embed code the user sent:
+`https://tpwgts.com/content?currency=AED&trs=568981&shmarker=772385&
+locale=en&city_id=78&category=4&amount=3&powered_by=true&campaign_id=
+137&promo_id=4497`, stored as `KLOOK_TOURS_WIDGET_SRC` in
+`src/lib/klook.ts`. The category=4 vs. "Food & Dining" preview
+mismatch flagged earlier turned out not to matter - per the user, the
+generated code is common across categories, so no further checking
+was needed before wiring it in.
+
+Loaded via `next/script` (`strategy="lazyOnload"`) inside a
+`.klook-widget-mount` div in `KlookTripSection`, not a raw `<script>`
+tag - this is the standard safe way to load a third-party DOM-
+injecting script in Next.js App Router. Kept the plain "Browse Klook"
+button and the category-list text exactly as they were, as a
+guaranteed fallback: the widget's domain (tpwgts.com) is exactly the
+kind of third-party affiliate-widget host ad blockers commonly flag,
+so anyone whose browser blocks it still sees a working CTA underneath
+where the widget would have rendered.
+
+Could not inspect the actual script content before wiring it in -
+tried both `curl` (blocked by this sandbox's own network egress
+policy, unrelated to the widget itself) and WebFetch (blocked by
+tpwgts.com's robots.txt) - so the integration is built on Next.js's
+documented best practice for this class of script rather than on
+reading its actual insertion code.
+
+Verified what's verifiable from here: `npx tsc --noEmit` clean, no
+new em-dashes, and a real Playwright browser load of `/search` showed
+the `<script id="klook-tours-widget">` tag correctly attached to the
+DOM with no hydration errors or React crashes - the only console
+error was the network tunnel failure reaching tpwgts.com, which is
+this sandbox's own block, not a bug in the integration. Whether the
+widget actually renders real Klook product cards in production still
+needs a real check on the live site, since that could not be tested
+from here.

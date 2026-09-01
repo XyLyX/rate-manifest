@@ -44,3 +44,30 @@ export const KLOOK_EXPERIENCE_CATEGORIES = [
 // Rate Manifest does" confusion stays addressed by honest copy instead
 // of by leaving it out.
 export const SHOW_KLOOK_HOTELS_NOTE = true;
+
+// A second, dedicated link for the hotels note above - generated the same
+// way as KLOOK_LINK (Travelpayouts' Links tool), but pointed specifically
+// at Klook's Dubai hotels listing (https://www.klook.com/en-US/hotels/
+// city/78-dubai-hotels/) rather than the generic homepage. Deliberately
+// the Dubai-scoped page, not Klook's global hotels page - everything else
+// in this section, including its own "Complete your Dubai trip" copy, is
+// Dubai-specific, so sending someone to a worldwide hotel search from here
+// would be a mismatch. Kept separate from KLOOK_LINK so the two CTAs point
+// at what they actually say they point at, and so Travelpayouts' own
+// per-link analytics can tell experiences clicks apart from hotels clicks.
+export const KLOOK_HOTELS_LINK = "https://klook.tpm.lv/RqxKw5oy";
+
+// Travelpayouts' "Specific City/Category Tours Widget" for Klook - a
+// third-party script that renders real, live Klook product cards (name,
+// rating, review count, real price) for a given city/category, with the
+// referral marker baked in. This is the actual answer to the "no
+// fabricated numbers" constraint everywhere else in this file: real prices
+// sourced live from Klook itself, not written by us. See DECISIONS.md,
+// "Klook Tours Widget" entries.
+//
+// city_id=78 is Dubai, category=4 is whatever category the user selected
+// in the Travelpayouts widget builder when this was generated - swapping
+// categories later is just regenerating the widget and replacing this one
+// URL, nothing else in the integration needs to change.
+export const KLOOK_TOURS_WIDGET_SRC =
+  "https://tpwgts.com/content?currency=AED&trs=568981&shmarker=772385&locale=en&city_id=78&category=4&amount=3&powered_by=true&campaign_id=137&promo_id=4497";

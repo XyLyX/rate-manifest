@@ -1078,6 +1078,10 @@ input:focus {
   max-width: 46rem;
 }
 
+.klook-widget-mount {
+  margin: 0.25rem 0 1rem;
+}
+
 .klook-cta {
   margin-bottom: 0.9rem;
 }
