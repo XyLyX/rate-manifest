@@ -68,8 +68,14 @@ export const stayingApiAdapter: SupplierAdapter = {
     if (!cached || cached.status !== "ready" || !cached.offersJson) return [];
 
     try {
-      const offers = JSON.parse(cached.offersJson) as SupplierOffer[];
-      if (!Array.isArray(offers)) return [];
+      const parsed = JSON.parse(cached.offersJson) as SupplierOffer[];
+      if (!Array.isArray(parsed)) return [];
+
+      // Every offer in this row came from the same refresh call, so they
+      // all share one real "checked at" - StayingAPI returns the whole
+      // cross-OTA comparison in a single response, it doesn't check each
+      // seller on its own schedule. See DECISIONS.md, "Freshness badge."
+      const offers = parsed.map((o) => ({ ...o, checkedAt: cached.refreshedAt.toISOString() }));
 
       if (daysUntil(params.checkIn) > DYNAMIC_PRICING_WINDOW_DAYS) {
         // Too far out for a real cross-seller comparison to mean much -

@@ -35,6 +35,15 @@ export interface SupplierOffer {
   // an internal stub page; a real adapter returns a real affiliate deep
   // link (with the marker/token appended per that supplier's docs).
   outboundUrl: string;
+  // When this offer's price was actually last checked against the source,
+  // ISO timestamp - not "when the search happened." Only an adapter
+  // backed by a real cache with a known age sets this (stayingApiAdapter
+  // does, from staying_api_cache.refreshedAt); the mock adapter leaves it
+  // unset, since a synthesized demo price has no real "checked at" and the
+  // results page already labels demo hotels separately. Optional and
+  // null-safe everywhere downstream so adding a freshness display never
+  // requires every adapter to support it.
+  checkedAt?: string | null;
 }
 
 export interface SupplierAdapter {

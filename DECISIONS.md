@@ -1116,3 +1116,68 @@ The one piece of this that's actually gated on work happening right
 now, this session, is proving Gate 1 technically: running the pending
 StayingAPI refresh for real data and confirming it flows through to
 the live site. That's what's being finished next.
+
+## Freshness badge (2026-09-01) - built, and the line it must not cross
+
+A "checked X ago" label on each offer, sourced entirely from
+`staying_api_cache.refreshed_at`, which already existed on every cache
+row. This costs nothing: no new StayingAPI call, no new credits, no
+dependency on the still-pending Booking.com marker. Built and shipped
+in this pass:
+
+- `SupplierOffer` (`src/lib/suppliers/types.ts`) gained an optional
+  `checkedAt?: string | null`. `stayingApiAdapter.ts` sets it from the
+  cache row's `refreshedAt` on every offer it returns (one cache row
+  covers the whole cross-OTA comparison for a hotel/date pair, so every
+  offer from a given search genuinely shares the same real check time -
+  this isn't faked per-offer granularity). The mock adapter leaves it
+  unset on purpose: a synthesized demo price has no real "checked at,"
+  and the results page already runs a separate "Demo mode" banner for
+  those hotels: two different honesty mechanisms for two different
+  situations, not the same badge doing double duty.
+- `DisplayOffer` (`src/lib/search.ts`) carries `checkedAt` through the
+  same re-attach pattern already used for `outboundUrl` etc.
+- `ResultsList.tsx` renders it via a small client-only `FreshnessBadge`,
+  computed in a `useEffect` after mount (not during SSR) specifically to
+  avoid a hydration-mismatch on relative time text - an empty first
+  paint that fills in a beat later beats a server/client text mismatch.
+  No polling/timer keeps it updating live; it's computed once per page
+  load, which is enough for a number that only needs to be roughly
+  right.
+
+**Wording is deliberately neutral, and this was corrected mid-build**:
+"Checked 7 min ago," "Checked 1 hr ago," "Checked just now" - never
+"LIVE," "FRESH," "VERIFIED," or any color-coded urgency tier. Those
+words claim something about the data (that it was just live-checked,
+or reconfirmed against the source) that isn't true - this is only a
+read of when the cached response was last pulled. A rounding bug in
+the "just now" threshold (30 seconds old was showing "1 min ago"
+because minutes were rounded before the under-a-minute check) was
+caught in Playwright verification and fixed before shipping.
+
+**Verified**: `npx tsc --noEmit` clean, a full production `next build`
+clean, and a headless Playwright pass against a locally seeded database
+with a real cache row - confirmed the badge renders "Checked 11 mins
+ago" for a 7-minutes-old row (aged further by the time of the actual
+check), confirmed the fixed rounding shows "Checked just now" for a
+30-second-old row, and confirmed a mock hotel's results page renders no
+badge at all. Zero console/page errors in any of it.
+
+**The line this must not cross, recorded explicitly so a future
+change doesn't quietly cross it:**
+
+| Feature | Status | Unlocked by |
+|---|---|---|
+| `refreshedAt` badge (this) | Built | Nothing - already shipped |
+| Search-page freshness display generally | Built | Nothing - already shipped |
+| Adaptive/tiered background refresh | Not built | A paid StayingAPI tier, and even then only makes sense faster than their 1-hour own cache TTL if the upstream source changes - see "Live StayingAPI calls" above |
+| Live recheck at click | Not built | A real (non-stub) booking/affiliate flow existing at all - Gate 2 in the monetization plan above |
+| "Price verified" / final-confirmation copy anywhere in the product | Not built | The same real booking flow - do not ship this wording before that exists |
+| Rate Accuracy KPI (displayed vs. verified price, per supplier) | Not built | Live recheck at click, which itself needs Gate 2 |
+
+The rule underneath all of it, worth restating so it survives past this
+session: **never spend StayingAPI credits solely to make the UI look
+more live.** Every credit-spending idea in this table is Phase 2+ of
+the monetization plan above, gated on real economics existing first -
+this badge is the one piece of "freshness" that was free to build now,
+and it is now built.

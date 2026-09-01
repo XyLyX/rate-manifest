@@ -10,6 +10,10 @@ export interface DisplayOffer extends ScoredOffer {
   nightlyPrice: number;
   taxesFeesPerNight: number;
   cancellationDeadlineIso: string | null;
+  // See SupplierOffer.checkedAt - null for the mock adapter and for any
+  // offer that predates this field. Purely a display value: nothing here
+  // triggers a new lookup. See DECISIONS.md, "Freshness badge."
+  checkedAt: string | null;
 }
 
 export interface SearchResult {
@@ -198,6 +202,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       nightlyPrice: offer?.nightlyPrice ?? 0,
       taxesFeesPerNight: offer?.taxesFeesPerNight ?? 0,
       cancellationDeadlineIso: offer?.cancellation.deadlineIso ?? null,
+      checkedAt: offer?.checkedAt ?? null,
     };
   });
 

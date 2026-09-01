@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DisplayOffer } from "@/lib/search";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
 import { TrackPrice } from "./TrackPrice";
@@ -42,6 +42,40 @@ export default function ResultsList({
       ))}
     </div>
   );
+}
+
+// Deliberately neutral wording only - "Checked 7 min ago," never "LIVE,"
+// "FRESH," or "VERIFIED." Those words claim something about the source
+// (that it's currently live-checked, or reconfirmed) that isn't true yet:
+// this is a read of when StayingAPI's cached response was last pulled,
+// nothing more. See DECISIONS.md, "Freshness badge" - upgrading the
+// wording to a verification claim is gated on a real recheck-at-click
+// flow existing, not on how this string is phrased.
+function formatAge(checkedAtIso: string): string {
+  const ms = Date.now() - new Date(checkedAtIso).getTime();
+  if (ms < 60000) return "just now";
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+// Computed client-side, after mount, on purpose - rendering "X min ago"
+// during server-side render risks a hydration mismatch against the
+// moment the client actually paints, and there's no need to guess: an
+// empty first paint that fills in a beat later is unnoticeable here and
+// avoids the mismatch entirely, with no polling/timer to keep it "live."
+function FreshnessBadge({ checkedAt }: { checkedAt: string | null }) {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLabel(checkedAt ? formatAge(checkedAt) : null);
+  }, [checkedAt]);
+
+  if (!label) return null;
+  return <span className="offer-freshness">Checked {label}</span>;
 }
 
 // Factors shown in "Why this deal?" — every one of these is backed by a
@@ -148,6 +182,7 @@ function OfferRow({
           {revealed ? offer.supplierName : sourceLabel}
           {isBest && <span className="offer-badge">Best available offer</span>}
         </div>
+        <FreshnessBadge checkedAt={offer.checkedAt} />
         <div className="offer-reasons">
           {offer.reasons.map((r, i) => (
             <span key={i} className={r.tone}>
