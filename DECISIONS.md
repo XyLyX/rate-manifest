@@ -1973,3 +1973,17 @@ this sandbox's own block, not a bug in the integration. Whether the
 widget actually renders real Klook product cards in production still
 needs a real check on the live site, since that could not be tested
 from here.
+
+## KLOOK_LINK upgraded from homepage to Dubai search results (2026-09-01)
+
+The main "Browse Klook" experiences CTA was still pointed at Klook's
+bare homepage - the first link generated, before any of the more
+specific ones. The user found a better destination: Klook's own
+Dubai search-results page
+(`https://www.klook.com/search/result/?query=dubai&search_scope=
+main_search`), generated a tracked link for it the same way as the
+others (`https://klook.tpm.lv/JaftNQHL`), and it now replaces the old
+homepage link in `KLOOK_LINK`. Same purpose as before (the fallback/
+primary CTA underneath the Tours Widget), just a landing spot that
+actually shows Dubai results instead of requiring the visitor to
+search again themselves once they arrive on Klook.

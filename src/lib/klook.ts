@@ -5,17 +5,19 @@
 // nothing here should ever get imported by src/lib/search.ts or the scoring
 // code.
 //
-// KLOOK_LINK is the one real affiliate link generated so far via
-// Travelpayouts' Links tool for Ratemanifest (2026-09-01), pointed at
-// klook.com's homepage - not a deep link to any specific product or
-// category page, because the Links tool's "Destination page" field was
-// filled in as https://klook.com and nothing more specific was picked.
-// Every category listed in KLOOK_EXPERIENCE_CATEGORIES is real (Klook does
-// sell all of these), but none of them has its own tracked link yet - so
-// this section must not imply per-category deep links (no "Desert Safari"
-// button that actually lands on the homepage). One real link, one real
-// button, honest copy about what's on the other side of it.
-export const KLOOK_LINK = "https://klook.tpm.lv/2vSljl8m";
+// KLOOK_LINK is the main "Browse Klook" experiences CTA's link, generated
+// via Travelpayouts' Links tool for Ratemanifest. Originally pointed at
+// klook.com's bare homepage; updated 2026-09-01 to Klook's own Dubai
+// search-results page (https://www.klook.com/search/result/?query=dubai&
+// search_scope=main_search) instead - same purpose, a much more useful
+// landing spot than the homepage. Still not a deep link to any specific
+// product or category page, though - every category listed in
+// KLOOK_EXPERIENCE_CATEGORIES is real (Klook does sell all of these), but
+// none of them has its own tracked link, so this section must not imply
+// per-category deep links (no "Desert Safari" button that actually lands
+// somewhere generic). One real link, one real button, honest copy about
+// what's on the other side of it.
+export const KLOOK_LINK = "https://klook.tpm.lv/JaftNQHL";
 
 // Deliberately excludes "Hotels & accommodation" even though Klook does
 // sell it - see DECISIONS.md, "Klook accommodation kept out of the trip
