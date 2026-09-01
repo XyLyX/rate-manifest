@@ -164,16 +164,6 @@ VALUES
   ('supplier-priceline', 'priceline', 'Priceline', 'api_partner', true, true, 'Real data via StayingAPI, when a real hotel has been refreshed.')
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
-VALUES
-  ('marina-skyline', 'Marina Skyline Residences', 'Dubai Marina', 'Dubai', 5, true, 1450),
-  ('old-town-courtyard', 'Old Town Courtyard Hotel', 'Downtown / Old Town', 'Dubai', 4, true, 780),
-  ('palm-crescent', 'Palm Crescent Beach Resort', 'Palm Jumeirah', 'Dubai', 5, true, 2100),
-  ('business-bay-central', 'Business Bay Central Hotel', 'Business Bay', 'Dubai', 3, true, 420),
-  ('al-fahidi-heritage', 'Al Fahidi Heritage Inn', 'Bur Dubai', 'Dubai', 3, true, 340),
-  ('jbr-beachfront', 'JBR Beachfront Suites', 'Jumeirah Beach Residence', 'Dubai', 4, true, 950)
-ON CONFLICT (id) DO NOTHING;
-
 -- Real hotels (is_mock_data = false). mock_base_price stays NULL - the
 -- mock adapter already no-ops for any hotel without one, and these get
 -- real prices from staying_api_cache instead, once refreshed. Top five
@@ -225,12 +215,6 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
 VALUES
-  ('room-marina-skyline', 'marina-skyline', 'double_standard', 2, '1 king bed'),
-  ('room-old-town-courtyard', 'old-town-courtyard', 'double_standard', 2, '1 king bed'),
-  ('room-palm-crescent', 'palm-crescent', 'double_standard', 2, '1 king bed'),
-  ('room-business-bay-central', 'business-bay-central', 'double_standard', 2, '1 king bed'),
-  ('room-al-fahidi-heritage', 'al-fahidi-heritage', 'double_standard', 2, '1 king bed'),
-  ('room-jbr-beachfront', 'jbr-beachfront', 'double_standard', 2, '1 king bed'),
   ('room-sofitel-dubai-the-palm', 'sofitel-dubai-the-palm', 'double_standard', 2, '1 king bed'),
   ('room-address-downtown', 'address-downtown', 'double_standard', 2, '1 king bed'),
   ('room-oberoi-dubai', 'oberoi-dubai', 'double_standard', 2, '1 king bed'),
@@ -271,6 +255,21 @@ ON CONFLICT (id) DO NOTHING;
 -- leave in permanently: a no-op once the row is gone. The rooms table
 -- cascades on delete, so its matching room row goes with it automatically.
 DELETE FROM hotels WHERE id = 'ibis-deira-city-centre';
+
+-- The six fictional placeholder hotels (marina-skyline, old-town-courtyard,
+-- palm-crescent, business-bay-central, al-fahidi-heritage, jbr-beachfront)
+-- were the original demo catalog, kept for continuity while real supplier
+-- data didn't exist yet. Explicit user decision, 2026-09-01 (see
+-- DECISIONS.md, "Demo hotels dropped from the catalog"): now that every
+-- emirate has a real, StayingAPI-backed hotel set, drop them rather than
+-- keep mixing simulated properties into what visitors browse. Their
+-- INSERT statements were removed above (a fresh DB never creates them
+-- again); this DELETE cleans up rows already sitting in production. Same
+-- cascade-safe, re-run-forever-harmless shape as the ibis delete above -
+-- rooms/rates/cancellations/price_history/booking_outcomes/price_tracking/
+-- staying_api_cache all cascade off hotel_id, and events.hotel_id just
+-- goes null for any historical event tied to one of these ids.
+DELETE FROM hotels WHERE is_mock_data = true;
 `;
 
 export async function GET(request: Request) {

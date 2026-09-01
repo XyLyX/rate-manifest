@@ -1348,3 +1348,55 @@ refresh workflow again with dates left blank will populate the window
 that actually matches what visitors see by default - worth doing once
 this deploys, same `city=Dubai` pattern as before to stay well inside
 the free tier.
+
+## Demo hotels dropped from the catalog (2026-09-01)
+
+Explicit decision: the six fictional placeholder hotels (Marina Skyline
+Residences, Old Town Courtyard Hotel, Palm Crescent Beach Resort,
+Business Bay Central Hotel, Al Fahidi Heritage Inn, JBR Beachfront
+Suites - all `city: Dubai`, all `isMockData: true`) are removed from
+the catalog. They were the original demo set, kept for continuity from
+before real hotel data existed. Now that every emirate has a real,
+StayingAPI-backed hotel set (5 per emirate, 30 total), keeping them
+around meant Dubai's dropdown and browse grid showed 11 properties -
+5 real, 6 simulated - with no visible way to tell which was which
+except a small "Demo" badge. That's the wrong default for a site whose
+whole premise is trustworthy comparison. Every property a visitor sees
+now is real.
+
+**What changed:**
+- `src/app/api/admin/init-db/route.ts` - removed the demo hotels' INSERT
+  statement (and their six room rows) from `SCHEMA_SQL`, so a fresh
+  database never creates them again. Added `DELETE FROM hotels WHERE
+  is_mock_data = true;`, in the same pattern as the existing
+  `ibis-deira-city-centre` cleanup line right above it - re-running the
+  route (same secret-protected GET as always) removes any of these six
+  rows still sitting in production. Cascade-safe: rooms, rates,
+  cancellations, price_history, booking_outcomes, price_tracking and
+  staying_api_cache all delete automatically via `ON DELETE CASCADE` on
+  `hotel_id`; any historical `events` row tied to one of these hotels
+  just gets `hotel_id = NULL` via `ON DELETE SET NULL`, not deleted -
+  the search/click event itself is still real instrumentation history.
+  Verified against a local Postgres instance seeded with the six old
+  rows still present (simulating current production): re-running the
+  fixed `SCHEMA_SQL` dropped hotels from 36 to 30, Dubai from 11 to 5,
+  zero orphaned rooms, zero errors.
+- `src/db/seed.ts` - emptied the `HOTELS` array (this script only ever
+  seeded the demo set; the real 30-hotel catalog has only ever come
+  from `init-db`'s `SCHEMA_SQL`, which is what both production and this
+  session's local-Postgres verification actually run). Left as a no-op
+  rather than deleted, so `npm run db:seed` doesn't error if anyone
+  still runs it.
+- `netlify/database/migrations/*/migration.sql` - deliberately left
+  untouched. These are historical, already-applied migration snapshots;
+  editing an already-applied migration doesn't undo what it already did
+  to production, and risks breaking Netlify's migration tracking. The
+  live cleanup path is re-hitting `init-db`, exactly as it's always
+  been used for schema fixes this session.
+
+**Action needed from you**: after this deploys, hit the `init-db` URL
+again with your secret (same one used for the original schema fix) -
+`GET /api/admin/init-db?secret=...`. It'll report back `hotelCounts`
+(mock vs. real) in the JSON response; mock should read `0` afterward.
+Nothing else needs to run - this is a read of the current site's DB
+state, not a new deploy step.

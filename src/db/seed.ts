@@ -2,19 +2,14 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "./client";
 import { newId } from "@/lib/id";
 
-// Same demo property set as the original Rate Manifest prototype, kept for
-// continuity — these are fictional placeholders, not real hotels. Once a
-// real supplier feed (Travelpayouts, etc.) is live, real hotel content
-// replaces this seed entirely; isMockData=true is what marks these rows as
-// safe to delete/ignore at that point.
-const HOTELS = [
-  { slug: "marina-skyline", name: "Marina Skyline Residences", area: "Dubai Marina", starRating: 5, basePrice: 1450 },
-  { slug: "old-town-courtyard", name: "Old Town Courtyard Hotel", area: "Downtown / Old Town", starRating: 4, basePrice: 780 },
-  { slug: "palm-crescent", name: "Palm Crescent Beach Resort", area: "Palm Jumeirah", starRating: 5, basePrice: 2100 },
-  { slug: "business-bay-central", name: "Business Bay Central Hotel", area: "Business Bay", starRating: 3, basePrice: 420 },
-  { slug: "al-fahidi-heritage", name: "Al Fahidi Heritage Inn", area: "Bur Dubai", starRating: 3, basePrice: 340 },
-  { slug: "jbr-beachfront", name: "JBR Beachfront Suites", area: "Jumeirah Beach Residence", starRating: 4, basePrice: 950 },
-];
+// The original demo property set (six fictional placeholders) was seeded
+// here until 2026-09-01. Dropped by explicit user decision once every
+// emirate had a real, StayingAPI-backed hotel set - see DECISIONS.md,
+// "Demo hotels dropped from the catalog." This file now only seeds
+// suppliers; the real hotel catalog lives in
+// src/app/api/admin/init-db/route.ts's SCHEMA_SQL (the mechanism
+// production and local-Postgres verification both actually use).
+const HOTELS: { slug: string; name: string; area: string; starRating: number; basePrice: number }[] = [];
 
 async function upsertSupplier(data: {
   slug: string;
