@@ -1871,3 +1871,20 @@ Postgres seeded from the actual `init-db` schema, real hotel, a
 `ready` cache row, both the experiences CTA and the new hotels note
 render with the exact intended copy, "Hotels & accommodation" still
 does not appear anywhere in the primary category list.
+
+## Klook shown on live-check error too (2026-09-01)
+
+Bug in what shipped an hour earlier: `KlookTripSection` was gated
+behind `liveCheck.kind !== "error"`, meaning it only rendered when
+the StayingAPI check actually succeeded. With credits at 0, every
+hotel/date pair without an existing cached row now resolves to
+"error" - so Klook was invisible on effectively every real search,
+the exact opposite of the point of building an independent
+monetization path. Fixed: it now shows whenever `liveCheck.kind !==
+"checking"`, i.e. on both "ready" and "error" - still hidden during
+the spinner itself, since a visitor mid "Checking real-time
+prices..." isn't the moment for a second call to action. Verified
+locally against a real hotel with no cache row and no
+`STAYINGAPI_KEY` set (forces the error path) - both the "could not
+check real-time prices" message and the full Klook section (trip
+CTA plus the hotels note) render together correctly.

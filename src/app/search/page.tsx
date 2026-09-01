@@ -124,14 +124,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         that a comparison happened.
       </p>
 
-      {/* Layer 2 (Monetization) - see DECISIONS.md, "Two-layer architecture."
-          Only for real hotels, and only once this hotel's results have
-          actually rendered (not during the live-check spinner, not on a
-          hard error) - a visitor still viewing "Checking real-time
-          prices..." isn't ready for a second, unrelated call to action. */}
-      {!result.hotel.isMockData && liveCheck.kind !== "checking" && liveCheck.kind !== "error" && (
-        <KlookTripSection />
-      )}
+      {/* Layer 2 (Monetization) - see DECISIONS.md, "Two-layer architecture,"
+          and "Klook shown on live-check error too." Only suppressed during
+          the live-check spinner itself (a visitor mid "Checking real-time
+          prices..." isn't ready for a second call to action) - shown on
+          BOTH "ready" and "error", because Klook never depended on
+          StayingAPI succeeding. Gating it behind a successful check would
+          make it disappear along with everything else whenever StayingAPI
+          credits run out, which defeats the point of it being a separate
+          monetization path in the first place. */}
+      {!result.hotel.isMockData && liveCheck.kind !== "checking" && <KlookTripSection />}
 
       <Footer />
     </div>
