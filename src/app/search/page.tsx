@@ -2,7 +2,9 @@ import Link from "next/link";
 import { runSearch } from "@/lib/search";
 import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
+import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import ResultsList from "@/components/ResultsList";
+import { LiveCheckStatus } from "@/components/LiveCheckStatus";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
@@ -28,6 +30,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const sessionId = await getSessionId();
   await logEvent({ type: "search", sessionId, hotelId, metadata: { checkIn, checkOut } });
+
+  // Live on-demand check - see DECISIONS.md, "Live on-demand check on
+  // /search." For a real hotel with no cache row at all for this exact
+  // date pair, this claims the pair and fires one real StayingAPI call
+  // (see ensureLiveCheckTriggered for why that's safe under concurrent
+  // requests). Deliberately called BEFORE runSearch(): if StayingAPI
+  // already had this pair cached on its own side, this resolves "ready"
+  // immediately and runSearch() below finds the fresh row in the same page
+  // load - no extra round trip. Mock hotels and dates already checked
+  // (however long ago) are untouched - "not-applicable" and "ready" both
+  // fall straight through to the existing flow below.
+  const liveCheck = await ensureLiveCheckTriggered(hotelId, checkIn, checkOut);
 
   const result = await runSearch(hotelId, checkIn, checkOut);
 
@@ -68,13 +82,21 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {result.hotel.area} · {result.hotel.starRating}-star · {result.nights} night
           {result.nights > 1 ? "s" : ""} · {checkIn} → {checkOut}
         </div>
-        <div className="summary-stat">
-          {result.sourcesChecked} source{result.sourcesChecked === 1 ? "" : "s"} checked
-          {result.cheapestTotal != null && ` — best from AED ${Math.round(result.cheapestTotal).toLocaleString("en-AE")}`}
-        </div>
+        {liveCheck.kind !== "checking" && (
+          <div className="summary-stat">
+            {result.sourcesChecked} source{result.sourcesChecked === 1 ? "" : "s"} checked
+            {result.cheapestTotal != null && ` — best from AED ${Math.round(result.cheapestTotal).toLocaleString("en-AE")}`}
+          </div>
+        )}
       </div>
 
-      {available.length === 0 ? (
+      {liveCheck.kind === "checking" ? (
+        <LiveCheckStatus hotelId={result.hotel.id} checkIn={checkIn} checkOut={checkOut} />
+      ) : liveCheck.kind === "error" ? (
+        <p className="empty-state">
+          We could not check real-time prices for these dates just now - please try again in a moment.
+        </p>
+      ) : available.length === 0 ? (
         <p className="empty-state">No availability found across the sources we checked for these dates.</p>
       ) : (
         <ResultsList
@@ -88,7 +110,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         />
       )}
 
-      {soldOut.length > 0 && (
+      {liveCheck.kind !== "checking" && liveCheck.kind !== "error" && soldOut.length > 0 && (
         <p className="footnote">
           {soldOut.length} source{soldOut.length === 1 ? "" : "s"} checked had no availability for these
           dates.

@@ -1,5 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
+import { newId } from "@/lib/id";
 import type { SupplierOffer } from "./types";
 
 // The slow, live-calling half of the StayingAPI integration - the
@@ -166,6 +167,140 @@ export async function submitStayingApiJob(
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : String(err) };
   }
+}
+
+export type LiveCheckState =
+  | { kind: "not-applicable" } // mock hotel - nothing real to check
+  | { kind: "ready" } // a cache row already exists and is ready (0 or more offers - both are a real answer)
+  | { kind: "checking" } // a live check is in flight (just triggered, or someone else already triggered it)
+  | { kind: "error"; message: string };
+
+/**
+ * The visitor-facing entry point for live on-demand checking on /search -
+ * see DECISIONS.md, "Live on-demand check on /search." Unlike the admin
+ * refresh routes (secret-protected, run deliberately), this can be called
+ * by any real page load, so it has to be safe to call repeatedly and safe
+ * under concurrent requests for the exact same (hotel, checkIn, checkOut)
+ * triple - two visitors opening the same never-before-seen search within
+ * the same second must never both trigger a paid StayingAPI call for it.
+ *
+ * The fix is to CLAIM the triple with an atomic insert before spending any
+ * credits, using the same unique index (staying_api_cache_hotel_checkin_idx)
+ * the admin refresh routes already rely on. onConflictDoNothing() means the
+ * losing request's insert is a silent no-op - its .returning() comes back
+ * empty - rather than an error, so only the request that actually landed
+ * the row goes on to call the paid API. Verified locally: two inserts for
+ * the same triple in quick succession leave exactly one row in the table,
+ * and only the winner's insert reports a returned id.
+ */
+export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string, checkOut: string): Promise<LiveCheckState> {
+  const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
+  if (!hotel || hotel.isMockData) return { kind: "not-applicable" };
+
+  const existing = await db.query.stayingApiCache.findFirst({
+    where: and(
+      eq(schema.stayingApiCache.hotelId, hotelId),
+      eq(schema.stayingApiCache.checkIn, new Date(checkIn)),
+      eq(schema.stayingApiCache.checkOut, new Date(checkOut))
+    ),
+  });
+  if (existing) {
+    // Already checked (however long ago - see stayingApiAdapter.ts, offers
+    // never expire) or already in flight either way. Zero offers on a
+    // "ready" row is a real, final answer - not a reason to check again.
+    return existing.status === "ready" ? { kind: "ready" } : { kind: "checking" };
+  }
+
+  const placeholderId = newId();
+  const inserted = await db
+    .insert(schema.stayingApiCache)
+    .values({
+      id: placeholderId,
+      hotelId,
+      checkIn: new Date(checkIn),
+      checkOut: new Date(checkOut),
+      status: "pending",
+      jobId: null,
+      pollUrl: null,
+      offersJson: null,
+      refreshedAt: new Date(),
+    })
+    .onConflictDoNothing({
+      target: [schema.stayingApiCache.hotelId, schema.stayingApiCache.checkIn, schema.stayingApiCache.checkOut],
+    })
+    .returning({ id: schema.stayingApiCache.id });
+
+  if (inserted.length === 0) {
+    // Lost the race - another request claimed this triple a moment ago.
+    // Don't submit a second paid request for the same thing.
+    return { kind: "checking" };
+  }
+
+  const outcome = await submitStayingApiJob(hotelId, checkIn, checkOut);
+
+  if (outcome.status === "ready") {
+    await db
+      .update(schema.stayingApiCache)
+      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .where(eq(schema.stayingApiCache.id, placeholderId));
+    return { kind: "ready" };
+  }
+  if (outcome.status === "pending") {
+    await db
+      .update(schema.stayingApiCache)
+      .set({ jobId: outcome.jobId, pollUrl: outcome.pollUrl, refreshedAt: new Date() })
+      .where(eq(schema.stayingApiCache.id, placeholderId));
+    return { kind: "checking" };
+  }
+  // The submit call itself failed (bad key, network blip, StayingAPI down).
+  // Delete the placeholder instead of leaving a permanently stuck "pending"
+  // row with no jobId/pollUrl for anyone to poll - the next visitor for
+  // this exact pair gets a clean retry instead of a dead end forever.
+  await db.delete(schema.stayingApiCache).where(eq(schema.stayingApiCache.id, placeholderId));
+  return { kind: "error", message: outcome.message };
+}
+
+/**
+ * The visitor-facing poll, called by the client-side "Checking real-time
+ * prices" widget on /search while ensureLiveCheckTriggered() above left a
+ * row "pending" - the per-triple equivalent of collect-staying-api-jobs,
+ * which polls every pending row for the admin-triggered batch refresh.
+ * Never submits a new paid request - only checks the status of a job that
+ * was already submitted, exactly like the admin route's own polling.
+ */
+export async function pollLiveCheck(
+  hotelId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<{ status: "ready" | "pending" | "error" | "no-pending-job" }> {
+  const row = await db.query.stayingApiCache.findFirst({
+    where: and(
+      eq(schema.stayingApiCache.hotelId, hotelId),
+      eq(schema.stayingApiCache.checkIn, new Date(checkIn)),
+      eq(schema.stayingApiCache.checkOut, new Date(checkOut))
+    ),
+  });
+  if (!row) return { status: "no-pending-job" };
+  if (row.status === "ready") return { status: "ready" };
+  if (!row.pollUrl) return { status: "pending" }; // claimed but the submit call hasn't finished writing a pollUrl yet
+
+  const outcome = await pollStayingApiJob(hotelId, row.pollUrl, checkIn, checkOut);
+
+  if (outcome.status === "ready") {
+    await db
+      .update(schema.stayingApiCache)
+      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .where(eq(schema.stayingApiCache.id, row.id));
+    return { status: "ready" };
+  }
+  if (outcome.status === "error") {
+    await db
+      .update(schema.stayingApiCache)
+      .set({ status: "ready", offersJson: "[]", jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .where(eq(schema.stayingApiCache.id, row.id));
+    return { status: "error" };
+  }
+  return { status: "pending" };
 }
 
 export type PollOutcome =

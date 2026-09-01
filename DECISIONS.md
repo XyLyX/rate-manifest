@@ -1400,3 +1400,132 @@ again with your secret (same one used for the original schema fix) -
 (mock vs. real) in the JSON response; mock should read `0` afterward.
 Nothing else needs to run - this is a read of the current site's DB
 state, not a new deploy step.
+
+## Per-hotel refresh, added once credits ran low (2026-09-01)
+
+Free-tier credits dropped to 120 remaining (out of the original 300).
+A full 5-hotel Dubai refresh costs ~150 credits - no longer affordable
+in one call. `refresh-staying-api/route.ts` previously only supported
+"one whole emirate" (`?city=`) or "every real hotel" - no way to spend
+credits more precisely than that.
+
+**Added**: `?hotel=` - a comma-separated list of hotel ids (matching
+the `hotels.id` column), e.g.
+`?hotel=rixos-premium-jbr,one-and-only-royal-mirage`. Takes priority
+over `?city=` when both are present. If none of the ids match a real
+hotel, returns a 400 with an explicit error rather than silently
+submitting nothing. If some match and some don't (a likely typo),
+proceeds with whatever matched and returns the mismatched ids in a
+`notFoundHotelIds` field - deliberately not silent, so a typo doesn't
+quietly under-spend credits without anyone noticing. Verified against
+a local Postgres instance seeded with the real 30-hotel catalog: both
+valid ids matched correctly, a one-typo case correctly returned the
+one hit plus the one miss, and an all-invalid case correctly matched
+zero (the 400 path).
+
+**Your call**: given 120 credits left, you chose to refresh only
+Rixos Premium Dubai JBR and One&Only Royal Mirage - the two Dubai
+hotels that returned real offers in the first live test (see "First
+live refresh test" above; the other three returned zero offers that
+time, for a different date window, so skipping them now isn't a
+verdict on them permanently - just the cheaper bet with credits this
+tight). That's 60 credits for this refresh, leaving 60 in reserve.
+
+**GitHub Actions workflow updated to match**: `refresh-staying-api.yml`
+gained a `hotel` input alongside the existing `checkIn`/`checkOut`/
+`city` ones, passed straight through as `&hotel=...` when set. To run
+the Rixos + One&Only refresh: Actions tab -> "Refresh StayingAPI
+prices" -> Run workflow -> leave checkIn/checkOut/city blank, set
+`hotel` to `rixos-premium-jbr,one-and-only-royal-mirage`.
+
+## Live on-demand check on /search (2026-09-01)
+
+You asked directly: "what is the use of having this site if a customer
+sees not detected." Fair question, and it exposed a real gap - almost
+any real date search would hit "not checked," because coverage only
+ever came from deliberate, manual, batch admin refreshes. Talked
+through the tradeoffs (live-check costs credits per search, not per
+refresh; a comparison shopper looks at several hotels before booking
+one, so blanket-checking a whole browse grid would burn credits with
+no revenue behind most of them). Landed on: keep `/browse` (the
+multi-hotel grid) cache-only and cheap - browsing stays free. Make
+`/search` (one specific hotel, someone's already narrowed down to it)
+the one place that checks live, since that's the moment of real
+interest, not idle skimming.
+
+**What it does**: when `/search` loads for a real hotel with no
+`staying_api_cache` row at all for the exact `(hotel, checkIn,
+checkOut)` being viewed, it fires one real StayingAPI check right
+then, instead of showing "no availability" for a date nobody ever
+actually checked. If StayingAPI already had it cached on their own
+side (their 1-hour TTL), the same page load shows real prices
+immediately - no extra wait. Otherwise the page shows "Checking
+real-time prices across sources for these exact dates," polls quietly
+in the background, and updates in place once the check finishes
+(typically under a minute; StayingAPI's own docs allow up to several
+minutes worst case). A date that's already been checked - however
+long ago, including a legitimate "checked, zero offers" result -
+is never re-checked; only a genuinely new, never-seen date pair
+triggers a live call.
+
+**Cost is real and ongoing, not one-time** - flagging this plainly
+because it changes the shape of the credit conversation: every
+never-before-seen date pair a real visitor opens on `/search` now
+spends 30 credits automatically, with no per-request confirmation.
+That's different from the admin refresh routes, which only ever spend
+credits when you deliberately run them. Once this is live, StayingAPI
+spend scales with how many distinct new dates real visitors search,
+not with how often you choose to refresh.
+
+**Concurrency safety**: two visitors opening the same never-before-seen
+`(hotel, checkIn, checkOut)` within moments of each other must not
+both trigger a paid call for it. `ensureLiveCheckTriggered()` in
+`stayingApiRefresh.ts` claims the triple with an atomic
+`INSERT ... ON CONFLICT DO NOTHING` against the existing
+`staying_api_cache_hotel_checkin_idx` unique index *before* calling
+the paid API - only the request whose insert actually lands goes on to
+spend credits; the loser just waits and polls like everyone else.
+Verified directly against local Postgres: two inserts for the same
+triple in quick succession leave exactly one row, and only the
+winner's insert reports a returned id.
+
+**Failure handling**: if the live submit call itself fails (bad key,
+StayingAPI down, network blip), the placeholder row is deleted rather
+than left stuck "pending" forever - the next visitor for that exact
+pair gets a clean retry instead of a permanent dead end. `/search`
+shows an honest "we could not check real-time prices for these dates
+just now" message in that case, distinct from both "checking" and
+"no availability found" (the latter now only shown for a pair that
+was genuinely checked and came back empty - this also resolves the
+older flagged issue where that message conflated "checked, found
+nothing" with "never checked").
+
+**New files**: `src/app/api/live-check-status/route.ts` - public,
+unauthenticated (deliberately - it only ever polls a job that was
+already submitted, never submits a new one, same cost shape as the
+admin collect route's repeated polling). `src/components/
+LiveCheckStatus.tsx` - client component, polls every 4s for up to
+~4 minutes, then shows a "taking longer than usual" fallback rather
+than polling forever; calls `router.refresh()` on any terminal state
+so the server component re-renders with whatever's now in the cache.
+
+**Verified locally** (Postgres + a local `next dev` server + Playwright,
+`STAYINGAPI_KEY` deliberately unset so no real credits were spent
+testing this): a pre-seeded "ready" row renders real prices exactly as
+before (existing flow untouched); a pre-seeded "pending" row shows the
+checking UI, and the client visibly fires a poll request in-browser; a
+hotel/date pair with no row at all correctly claims the placeholder,
+fails cleanly on the missing API key, deletes the placeholder, and
+shows the honest error message - confirmed retrying the same pair
+afterward behaves identically rather than getting stuck; a poll
+against an intentionally-unreachable fake `pollUrl` degrades
+gracefully to "ready, zero offers" rather than hanging, and the page
+correctly shows the accurate "no availability found" message on the
+next load.
+
+**Not yet decided**: this is built, typechecked, and build-verified,
+but not yet pushed or deployed - given the real, ongoing per-search
+cost this introduces, that should be a deliberate call once there's
+clarity on the StayingAPI plan situation (see "Monetization plan"),
+not something that goes live purely because it was finished being
+built.

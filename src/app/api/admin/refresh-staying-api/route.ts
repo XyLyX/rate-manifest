@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { newId } from "@/lib/id";
 import { submitStayingApiJob } from "@/lib/suppliers/stayingApiRefresh";
@@ -42,6 +42,13 @@ import { submitStayingApiJob } from "@/lib/suppliers/stayingApiRefresh";
 // cost at this catalog size, revised." Testing emirate-by-emirate keeps
 // each run to ~150 credits or less.
 //
+// Pass ?hotel=rixos-premium-jbr,one-and-only-royal-mirage (comma-separated
+// hotel ids, matching the `id` column) to target exactly those properties
+// instead of a whole city - added 2026-09-01 once the free tier ran down
+// to 120 credits (4 hotels' worth) and a 5-hotel Dubai refresh no longer
+// fit. Takes priority over ?city= when both are present. See DECISIONS.md,
+// "Per-hotel refresh, added once credits ran low."
+//
 // Refreshing a window more than 30 days out still costs the same credits
 // (this endpoint always compares every seller) but stayingApiAdapter.ts
 // only ever surfaces the hotel's own direct listing from a window that
@@ -74,14 +81,36 @@ export async function GET(request: Request) {
   }
 
   const cityParam = url.searchParams.get("city");
+  const hotelParam = url.searchParams.get("hotel");
+  const hotelIds = hotelParam
+    ? hotelParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : null;
 
   const realHotels = await db.query.hotels.findMany({
-    where: cityParam
-      ? and(eq(schema.hotels.isMockData, false), eq(schema.hotels.city, cityParam))
-      : eq(schema.hotels.isMockData, false),
+    where: hotelIds
+      ? and(eq(schema.hotels.isMockData, false), inArray(schema.hotels.id, hotelIds))
+      : cityParam
+        ? and(eq(schema.hotels.isMockData, false), eq(schema.hotels.city, cityParam))
+        : eq(schema.hotels.isMockData, false),
   });
 
-  if (cityParam && realHotels.length === 0) {
+  let notFoundHotelIds: string[] = [];
+  if (hotelIds) {
+    const foundIds = new Set(realHotels.map((h) => h.id));
+    notFoundHotelIds = hotelIds.filter((id) => !foundIds.has(id));
+    if (realHotels.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: `No real hotels matched any of: ${hotelIds.join(", ")}. Ids must match the hotels.id column exactly.` },
+        { status: 400 }
+      );
+    }
+    // A partial miss isn't fatal - proceed with whatever matched, but the
+    // response below surfaces notFoundHotelIds plainly so a typo doesn't
+    // silently under-spend credits without anyone noticing.
+  } else if (cityParam && realHotels.length === 0) {
     const distinctCities = await db
       .selectDistinct({ city: schema.hotels.city })
       .from(schema.hotels)
@@ -158,7 +187,9 @@ export async function GET(request: Request) {
     ok: true,
     checkIn,
     checkOut,
-    city: cityParam ?? "all",
+    city: hotelIds ? null : (cityParam ?? "all"),
+    hotel: hotelParam ?? null,
+    notFoundHotelIds: hotelIds ? notFoundHotelIds : undefined,
     hotelsSubmitted: results.length,
     results,
   });

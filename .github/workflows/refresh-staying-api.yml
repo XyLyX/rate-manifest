@@ -24,7 +24,10 @@ on:
         description: "Check-out date (YYYY-MM-DD) - optional, defaults to 1 night after check-in"
         required: false
       city:
-        description: "Emirate to refresh - optional, defaults to all 30 hotels (~900 credits). One of: Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman (~150 credits each)"
+        description: "Emirate to refresh - optional, defaults to all 30 hotels (~900 credits). One of: Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman (~150 credits each). Ignored if hotel is set."
+        required: false
+      hotel:
+        description: "Comma-separated hotel ids to refresh instead of a whole city, e.g. rixos-premium-jbr,one-and-only-royal-mirage (~30 credits per hotel). Takes priority over city."
         required: false
 
 jobs:
@@ -44,6 +47,11 @@ jobs:
             # Only spaces need encoding - every emirate name is plain ASCII words.
             CITY_ENCODED=$(echo -n "${{ github.event.inputs.city }}" | sed 's/ /%20/g')
             URL="$URL&city=$CITY_ENCODED"
+          fi
+          if [ -n "${{ github.event.inputs.hotel }}" ]; then
+            # Hotel ids are plain lowercase-hyphenated ascii; the comma
+            # separator needs no encoding in a query string.
+            URL="$URL&hotel=${{ github.event.inputs.hotel }}"
           fi
           curl -sf "$URL" | tee submit-response.json
 
