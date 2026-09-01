@@ -1,0 +1,56 @@
+name: Refresh StayingAPI prices
+
+# Manual only for now - StayingAPI live calls cost real credits and this
+# project is still on the free 300-credit tier (see DECISIONS.md, "Live
+# StayingAPI calls and the refresh architecture"). Run this from the
+# Actions tab (or `gh workflow run refresh-staying-api.yml`) before a demo
+# that needs real prices for specific dates. Add a `schedule:` trigger
+# here once there is a paid StayingAPI plan to support automatic runs.
+#
+# This workflow is the thing that actually waits for a slow StayingAPI job
+# to finish - the two Netlify routes it calls are both fast (each is a
+# single HTTP call, never a wait loop) because Netlify's functions have a
+# hard 60-second limit and a job can take several minutes. So: submit once,
+# then poll the collect endpoint every 20 seconds until nothing is left
+# pending, for up to 20 attempts (~7 minutes total, comfortably above
+# StayingAPI's own stated worst case of "240s+").
+on:
+  workflow_dispatch:
+    inputs:
+      checkIn:
+        description: "Check-in date (YYYY-MM-DD) - optional, defaults to 21 days out"
+        required: false
+      checkOut:
+        description: "Check-out date (YYYY-MM-DD) - optional, defaults to 2 nights after check-in"
+        required: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit refresh requests
+        run: |
+          URL="https://ratemanifest.com/api/admin/refresh-staying-api?secret=${{ secrets.REFRESH_STAYINGAPI_SECRET }}"
+          if [ -n "${{ github.event.inputs.checkIn }}" ]; then
+            URL="$URL&checkIn=${{ github.event.inputs.checkIn }}"
+          fi
+          if [ -n "${{ github.event.inputs.checkOut }}" ]; then
+            URL="$URL&checkOut=${{ github.event.inputs.checkOut }}"
+          fi
+          curl -sf "$URL" | tee submit-response.json
+
+      - name: Poll until every job is ready
+        run: |
+          COLLECT_URL="https://ratemanifest.com/api/admin/collect-staying-api-jobs?secret=${{ secrets.REFRESH_STAYINGAPI_SECRET }}"
+          for i in $(seq 1 20); do
+            echo "--- attempt $i ---"
+            RESPONSE=$(curl -sf "$COLLECT_URL")
+            echo "$RESPONSE" | tee collect-response.json
+            STILL_PENDING=$(echo "$RESPONSE" | grep -o '"stillPending":[0-9]*' | grep -o '[0-9]*$')
+            if [ "$STILL_PENDING" = "0" ]; then
+              echo "All jobs ready."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Gave up after 20 attempts with jobs still pending - check collect-response.json above."

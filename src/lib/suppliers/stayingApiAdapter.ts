@@ -1,92 +1,51 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import type { SearchParams, SupplierAdapter, SupplierOffer } from "./types";
 
 // StayingAPI (stayingapi.com) - real cross-OTA price comparison, the
 // replacement for the Travelpayouts/Hotellook integration after Hotellook
-// shut down for good in October 2025 (see DECISIONS.md, "Travelpayouts:
-// account created, but Hotels Data API isn't live yet" and "Real hotel
-// data: evaluating options beyond Travelpayouts"). One call to their
-// price-compare endpoint returns several real named sellers' prices for a
-// single property at once - verified directly against their live API
-// before this was written, not assumed from docs.
+// shut down for good in October 2025 (see DECISIONS.md).
 //
-// Endpoint shape verified live on 2026-09-01 with a stay_test_ key:
-//   GET https://api.stayingapi.com/v1/price-compare
-//     ?name=<hotel name>&location=<city, region>
-//     &checkIn=YYYY-MM-DD&checkOut=YYYY-MM-DD&currency=AED
-//     Authorization: Bearer <key>
-//   -> { data: { property, checkIn, checkOut, currency, min, median,
-//                offers: [{ ota, totalPrice, currency, url }, ...] },
-//        meta: { environment, sandbox, creditsCharged, warnings, ... } }
+// This adapter is a pure database read - it NEVER calls the live API
+// itself, and never waits on anything. A live, uncached StayingAPI call
+// can take up to several minutes (their own docs: "tens of seconds but
+// can run several minutes (240s+)"; confirmed live on 2026-09-01 against
+// Sofitel Dubai The Palm at ~35s) - far too slow for a page a real
+// visitor is waiting on, and longer than Netlify's own 60-second function
+// limit could ever wait even if it tried. Instead, two admin routes -
+// refresh-staying-api (submits the request) and collect-staying-api-jobs
+// (checks pending jobs, called repeatedly) - do that slow work ahead of
+// time via src/lib/suppliers/stayingApiRefresh.ts, and save the finished
+// result into the staying_api_cache table. This file only ever reads rows
+// with status = "ready" from that table.
 //
-// IMPORTANT: a stay_test_ key returns the SAME deterministic sandbox
-// fixture ("D-Resort Sibenik") for every query, regardless of what hotel
-// was actually asked for - confirmed directly, not a bug in this file.
-// Real results require a stay_live_ key, which StayingAPI only issues
-// once the account's email is verified. See DECISIONS.md.
+// A hotel/date-range combination with no row, or one still "pending", both
+// correctly return [] here, same as every other adapter's "nothing to
+// show" case - it's a cache miss (or a job still in flight), not an
+// error. In practice that means a live search only shows real StayingAPI
+// offers when the visitor's chosen dates happen to match a window the
+// refresh job has already finished for.
 //
-// This only returns real data for hotels that actually exist (StayingAPI
-// resolves against Google Hotels/real OTA listings) - none of Rate
-// Manifest's current seed hotels are real, so this adapter will correctly
-// return [] for all of them until real hotels are added to the `hotels`
-// table with `isMockData: false`. That's expected, not a bug - see
-// DECISIONS.md for the next step once a live key is in hand.
+// Dynamic pricing window: within this many days of check-in, a real
+// hotel's price genuinely moves with demand and is worth comparing across
+// sellers. Further out, third-party OTA "live" prices for a date that far
+// away aren't meaningfully more informative than the hotel's own listed
+// price, and showing them as if freshly compared would overstate how real
+// that comparison is - see DECISIONS.md, "Dynamic pricing window and the
+// direct-rate fallback." So beyond this window, only the hotel's own
+// direct listing survives the filter below - everything else this
+// endpoint returned gets dropped, regardless of what was cached. This is
+// evaluated against today's date at request time, not at refresh time, so
+// a window cached 40 days out starts showing the full comparison on its
+// own once today creeps within 30 days of it - no re-refresh needed.
+const DYNAMIC_PRICING_WINDOW_DAYS = 30;
 
-const STAYINGAPI_BASE_URL = "https://api.stayingapi.com/v1/price-compare";
-
-// StayingAPI's `ota` field identifies the real named seller. Only sellers
-// already in the Supply Ledger (src/db/seed.ts's suppliers) are mapped -
-// anything else (e.g. "google_hotels", which is itself a metasearch
-// aggregator, not a bookable seller) is intentionally skipped rather than
-// invented as a new supplier here. Keyed on a normalized (lowercased,
-// alphanumeric-only) form of the ota string so "Booking.com", "booking",
-// and "booking_com" all match the same entry.
-const OTA_TO_SUPPLIER: Record<string, { slug: string; name: string }> = {
-  bookingcom: { slug: "booking", name: "Booking.com" },
-  booking: { slug: "booking", name: "Booking.com" },
-  expedia: { slug: "expedia", name: "Expedia" },
-  expediacom: { slug: "expedia", name: "Expedia" },
-  agoda: { slug: "agoda", name: "Agoda" },
-  agodacom: { slug: "agoda", name: "Agoda" },
-  hotelscom: { slug: "hotelscom", name: "Hotels.com" },
-  tripcom: { slug: "tripcom", name: "Trip.com" },
-  direct: { slug: "direct", name: "Direct - hotel website" },
-  official: { slug: "direct", name: "Direct - hotel website" },
-};
-
-function normalizeOta(ota: string): string {
-  return ota.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-interface StayingApiOffer {
-  ota: string;
-  totalPrice: number;
-  currency: string;
-  url: string;
-}
-
-interface StayingApiResponse {
-  data?: {
-    property: string;
-    checkIn: string;
-    checkOut: string;
-    currency: string;
-    min: number;
-    median: number;
-    offers: StayingApiOffer[];
-  };
-  meta?: {
-    environment?: string;
-    sandbox?: boolean;
-    warnings?: { code: string; message: string }[];
-  };
-  error?: { message?: string };
-}
-
-function nightsBetween(checkIn: string, checkOut: string): number {
-  const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
-  return diff > 0 ? diff : 1;
+function daysUntil(dateIso: string): number {
+  const target = new Date(dateIso);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  target.setUTCHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
 export const stayingApiAdapter: SupplierAdapter = {
@@ -94,104 +53,37 @@ export const stayingApiAdapter: SupplierAdapter = {
   displayName: "StayingAPI",
 
   async getOffers(params: SearchParams): Promise<SupplierOffer[]> {
-    const apiKey = process.env.STAYINGAPI_KEY;
-    if (!apiKey) {
-      // No credentials configured - same convention as every other
-      // adapter here: return no offers rather than throwing, so one
-      // missing/unconfigured source just means one fewer source checked.
-      return [];
-    }
-
     const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, params.hotelId) });
-    // Only worth calling for a hotel that actually exists in the real
-    // world - StayingAPI resolves against Google Hotels/real listings, so
-    // asking it about a fictional demo property just wastes a credit.
+    // Only real hotels ever have cache rows - the mock hotels never get
+    // refreshed, so this is a cheap early exit rather than a wasted query.
     if (!hotel || hotel.isMockData) return [];
 
-    const room = await db.query.rooms.findFirst({ where: eq(schema.rooms.hotelId, hotel.id) });
-    if (!room) return [];
+    const cached = await db.query.stayingApiCache.findFirst({
+      where: and(
+        eq(schema.stayingApiCache.hotelId, hotel.id),
+        eq(schema.stayingApiCache.checkIn, new Date(params.checkIn)),
+        eq(schema.stayingApiCache.checkOut, new Date(params.checkOut))
+      ),
+    });
+    if (!cached || cached.status !== "ready" || !cached.offersJson) return [];
 
-    const url = new URL(STAYINGAPI_BASE_URL);
-    url.searchParams.set("name", hotel.name);
-    url.searchParams.set("location", `${hotel.area}, ${hotel.city}`);
-    url.searchParams.set("checkIn", params.checkIn);
-    url.searchParams.set("checkOut", params.checkOut);
-    url.searchParams.set("currency", "AED");
-
-    let json: StayingApiResponse;
     try {
-      const res = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        // Keep one slow/unreachable supplier from stalling the whole
-        // search - the other adapters (and the results page) should
-        // never wait on this indefinitely.
-        signal: AbortSignal.timeout(8000),
-      });
-      json = (await res.json()) as StayingApiResponse;
-      if (!res.ok) {
-        console.error(`stayingApiAdapter: HTTP ${res.status}`, json?.error?.message ?? json);
-        return [];
+      const offers = JSON.parse(cached.offersJson) as SupplierOffer[];
+      if (!Array.isArray(offers)) return [];
+
+      if (daysUntil(params.checkIn) > DYNAMIC_PRICING_WINDOW_DAYS) {
+        // Too far out for a real cross-seller comparison to mean much -
+        // only the hotel's own direct listing (if one came back) is shown.
+        return offers.filter((o) => o.supplierSlug === "direct");
       }
+
+      return offers;
     } catch (err) {
-      console.error("stayingApiAdapter: request failed:", err);
+      // Should be unreachable - stayingApiRefresh.ts is the only writer,
+      // and it always writes JSON.stringify(SupplierOffer[]) - but a
+      // corrupt row must never take the results page down.
+      console.error("stayingApiAdapter: cached offers_json failed to parse:", err);
       return [];
     }
-
-    if (json.meta?.sandbox) {
-      // A stay_test_ key was used - the response above is fixture data
-      // for a property that isn't the one that was actually asked about.
-      // Never persist that as if it were a real quote.
-      console.warn(
-        "stayingApiAdapter: sandbox key in use, ignoring fixture response.",
-        json.meta.warnings?.map((w) => w.message).join(" ")
-      );
-      return [];
-    }
-
-    const offers = json.data?.offers ?? [];
-    if (offers.length === 0) return [];
-
-    const nights = nightsBetween(params.checkIn, params.checkOut);
-
-    const result: SupplierOffer[] = [];
-    for (const offer of offers) {
-      const supplier = OTA_TO_SUPPLIER[normalizeOta(offer.ota)];
-      if (!supplier) {
-        // Not a named seller in the Supply Ledger (e.g. Google Hotels
-        // itself, which redirects rather than sells) - skip rather than
-        // inventing a new supplier row on the fly.
-        continue;
-      }
-
-      const nightlyPrice = Math.round(offer.totalPrice / nights);
-      result.push({
-        supplierSlug: supplier.slug,
-        supplierName: supplier.name,
-        roomNormalizedType: room.normalizedType,
-        soldOut: false,
-        currency: offer.currency,
-        nightlyPrice,
-        // StayingAPI's price-compare endpoint returns one all-in total per
-        // OTA, not a nightly/taxes breakdown - taxesFeesPerNight is left
-        // at 0 and totalPrice (the authoritative real figure) is used
-        // as-is rather than reconstructed from an assumed nightly rate.
-        taxesFeesPerNight: 0,
-        totalPrice: offer.totalPrice,
-        cancellation: {
-          // Not returned by this endpoint. Defaulting to "not confirmed
-          // free" rather than fabricating a specific deadline/penalty -
-          // see DECISIONS.md on never fabricating a fact this app hasn't
-          // actually been told.
-          isFreeCancellation: false,
-          deadlineIso: null,
-          penaltyPercentage: null,
-        },
-        // A real deep link straight to that OTA's own listing - no
-        // marker/token needed for this one, unlike Travelpayouts.
-        outboundUrl: offer.url,
-      });
-    }
-
-    return result;
   },
 };

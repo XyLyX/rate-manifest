@@ -4,7 +4,7 @@ import { pool } from "@/db/client";
 // TEMPORARY, ONE-TIME-USE endpoint. Netlify's automated migration mechanism
 // (netlify/database/migrations/...) has repeatedly reported success while
 // creating zero tables in production, and the manual SQL-console workaround
-// couldn't be confirmed either — see DECISIONS.md, "Bug: the migration
+// couldn't be confirmed either - see DECISIONS.md, "Bug: the migration
 // never actually ran." This route runs the exact same schema+seed SQL
 // directly against whatever database the live site is actually connected
 // to at runtime, via the app's own db client, removing every layer of
@@ -14,7 +14,7 @@ import { pool } from "@/db/client";
 // Netlify's env vars, never committed) so this can't be hit by anyone else.
 // Every statement is idempotent (IF NOT EXISTS / ON CONFLICT DO NOTHING),
 // so re-running it is harmless. Delete this route once the table count is
-// confirmed correct — see DECISIONS.md.
+// confirmed correct - see DECISIONS.md.
 export const dynamic = "force-dynamic";
 
 const SCHEMA_SQL = `
@@ -138,6 +138,21 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_type_created_idx ON events (type, created_at);
 
+CREATE TABLE IF NOT EXISTS staying_api_cache (
+  id text PRIMARY KEY,
+  hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  check_in timestamp NOT NULL,
+  check_out timestamp NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  job_id text,
+  poll_url text,
+  offers_json text,
+  refreshed_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS staying_api_cache_hotel_checkin_idx
+  ON staying_api_cache (hotel_id, check_in, check_out);
+
 INSERT INTO suppliers (id, slug, name, integration_type, requires_click_to_reveal, allows_multi_supplier_display, tos_notes)
 VALUES
   ('supplier-booking', 'booking', 'Booking.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),
@@ -145,7 +160,8 @@ VALUES
   ('supplier-agoda', 'agoda', 'Agoda', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),
   ('supplier-hotelscom', 'hotelscom', 'Hotels.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),
   ('supplier-tripcom', 'tripcom', 'Trip.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),
-  ('supplier-direct', 'direct', 'Direct — hotel website', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.')
+  ('supplier-direct', 'direct', 'Direct - hotel website', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),
+  ('supplier-priceline', 'priceline', 'Priceline', 'api_partner', true, true, 'Real data via StayingAPI, when a real hotel has been refreshed.')
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
@@ -158,42 +174,14 @@ VALUES
   ('jbr-beachfront', 'JBR Beachfront Suites', 'Jumeirah Beach Residence', 'Dubai', 4, true, 950)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
+-- Real hotels (is_mock_data = false). mock_base_price stays NULL - the
+-- mock adapter already no-ops for any hotel without one, and these get
+-- real prices from staying_api_cache instead, once refreshed. See
+-- DECISIONS.md, "Real Dubai hotels seeded for StayingAPI."
+INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
 VALUES
-  ('room-marina-skyline', 'marina-skyline', 'double_standard', 2, '1 king bed'),
-  ('room-old-town-courtyard', 'old-town-courtyard', 'double_standard', 2, '1 king bed'),
-  ('room-palm-crescent', 'palm-crescent', 'double_standard', 2, '1 king bed'),
-  ('room-business-bay-central', 'business-bay-central', 'double_standard', 2, '1 king bed'),
-  ('room-al-fahidi-heritage', 'al-fahidi-heritage', 'double_standard', 2, '1 king bed'),
-  ('room-jbr-beachfront', 'jbr-beachfront', 'double_standard', 2, '1 king bed')
-ON CONFLICT (id) DO NOTHING;
-`;
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const secret = url.searchParams.get("secret");
-
-  if (!process.env.DB_INIT_SECRET || secret !== process.env.DB_INIT_SECRET) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
-
-  try {
-    await pool.query(SCHEMA_SQL);
-    const { rows } = await pool.query(
-      "SELECT count(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public'"
-    );
-    const { rows: tableRows } = await pool.query(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
-    );
-    return NextResponse.json({
-      ok: true,
-      tableCount: rows[0]?.count ?? null,
-      tables: tableRows.map((r) => r.table_name),
-    });
-  } catch (err) {
-    return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
-    );
-  }
-}
+  ('sofitel-dubai-the-palm', 'Sofitel Dubai The Palm', 'Palm Jumeirah', 'Dubai', 5, false, NULL),
+  ('address-downtown', 'Address Downtown', 'Downtown Dubai', 'Dubai', 5, false, NULL),
+  ('oberoi-dubai', 'The Oberoi Dubai', 'Business Bay', 'Dubai', 5, false, NULL),
+  ('rixos-premium-jbr', 'Rixos Premium Dubai JBR', 'Jumeirah Beach Residence', 'Dubai', 5, false, NULL),
+  ('ibis-deira-city-centre', 'Ibis Deira City Centre', 'Deira',
