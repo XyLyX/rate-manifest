@@ -700,6 +700,307 @@ actually come up:
 6. **A Resend (or similar) account**, whenever `/admin/price-alerts`
    manual sending becomes the bottleneck - same "worth it once the manual
    step actually hurts" logic as the WhatsApp Business API note above.
+7. **PENDING - run the first refresh workflow.** Everything else is
+   done and confirmed in production: the StayingAPI cache/refresh code
+   is live (commit `f47a2d5`), `staying_api_cache` exists, and
+   `/api/admin/init-db` reports exactly the intended catalog -
+   `hotelCounts: [{isMockData: false, count: 30}, {isMockData: true,
+   count: 6}]` - no leftover rows. `REFRESH_STAYINGAPI_SECRET` is set
+   on Netlify; still needs adding as a GitHub Actions repo secret
+   (Settings -> Secrets and variables -> Actions -> New repository
+   secret, same name/value as on Netlify) if that hasn't been done yet.
+   What's left: run the "Refresh StayingAPI prices" GitHub Actions
+   workflow with `city=Dubai` (the emirate filter added specifically
+   for this - keeps the first test to ~150 credits instead of ~900),
+   wait for `stillPending: 0`, then search one of the 5 Dubai hotels on
+   the live site for the same date window to confirm real prices
+   actually appear end to end.
 
 None of these are urgent for running the app as it stands - they're the
 order real integration work would hit them.
+
+## Live StayingAPI calls and the refresh architecture (2026-09-01)
+
+Confirmed live, with a real key, against a real hotel (Sofitel Dubai The
+Palm): the adapter as originally written could not actually be used the
+way it was built. Two real problems, found by testing against the live
+API rather than assuming from docs:
+
+1. **A live, uncached price-compare call is slow.** It returns `202` plus
+   a job to poll, not an immediate answer - StayingAPI's own docs say a
+   job "usually finishes in tens of seconds but can run several minutes
+   (240s+)"; the one live test took about 35 seconds. That's much too
+   slow for a page a real visitor is waiting on, and it's also longer
+   than a Netlify serverless function is even allowed to run - Netlify's
+   synchronous function limit is a hard, non-configurable 60 seconds on
+   every plan tier.
+2. **Most of what StayingAPI returns isn't a seller this app should show.**
+   Only 3 of 18 offers on the one live test (Expedia, Hotels.com, Agoda)
+   matched the existing Supply Ledger. The rest were smaller resale/
+   metasearch sites (EaseMyTrip, Traveloka, Billabook, Reserving,
+   eDreams, Priceline, Orbitz, Travelocity, CheapTickets, Hotelscombined,
+   momondo, Bluepillow, Evendo, Kiwi.com) plus the hotel's own direct
+   listing, which StayingAPI labels with the hotel's own name as the
+   "ota" string rather than the word "direct."
+
+**The fix - a cache-and-refresh split, not a live-per-search call:**
+
+- `stayingApiAdapter.ts` (called from `runSearch()`, same as every other
+  adapter) is now a pure database read. It never calls the live API and
+  never waits on anything - it just reads the `staying_api_cache` table.
+- `src/lib/suppliers/stayingApiRefresh.ts` holds the actual live-calling
+  logic, split into two fast functions instead of one that waits:
+  `submitStayingApiJob` (one HTTP call - answers immediately if
+  StayingAPI already has this hotel/date cached on its own side, their
+  cache TTL is 1 hour per their docs, otherwise hands back a job to check
+  later) and `pollStayingApiJob` (one HTTP call - checks a job's status
+  once, never loops or sleeps).
+- Two admin routes, same secret-gated pattern as `init-db`:
+  `refresh-staying-api` (phase 1 - submits a request per real hotel for
+  one date window) and `collect-staying-api-jobs` (phase 2 - checks every
+  still-pending row once per call). Both routes are fast by construction
+  - neither can exceed Netlify's 60-second ceiling because neither one
+  waits for a job to finish.
+- The actual waiting happens in `.github/workflows/refresh-staying-api.yml`
+  (GitHub Actions has no such ceiling): it calls the submit route once,
+  then polls the collect route every 20 seconds for up to ~7 minutes,
+  comfortably above StayingAPI's own stated worst case.
+- **Manual trigger only, for now** - no `schedule:` on the workflow. This
+  was an explicit choice to stay on the free 300-credit StayingAPI tier
+  rather than spend it on an automatic cadence. Run it from the Actions
+  tab (or `gh workflow run refresh-staying-api.yml`), optionally passing
+  `checkIn`/`checkOut` inputs to target specific dates before a demo.
+  Add a `schedule:` trigger once there's a reason to pay for one.
+
+**Curated Supply Ledger.** `OTA_TO_SUPPLIER` in `stayingApiRefresh.ts`
+only maps the sellers a "we compared trustworthy real sellers" platform
+should actually show: Booking.com, Expedia, Agoda, Hotels.com, Trip.com,
+Priceline, plus the hotel's own direct listing (detected by comparing the
+`ota` string StayingAPI returns against the hotel's own name, normalized
+- confirmed live: "Sofitel Dubai The Palm" appeared as its own seller).
+Everything else StayingAPI returns is intentionally dropped rather than
+invented as a new Supply Ledger entry for a site this platform hasn't
+vetted.
+
+**Credit cost, concretely.** Each price-compare call costs about 30
+credits regardless of platform-side cache status (their docs: "cache hits
+still bill at the full endpoint tier"). Browsing costs nothing - once a
+hotel/date is cached in `staying_api_cache`, showing it to any number of
+visitors is a plain database read. The only real cost surface is refresh
+frequency times catalog size: 5 hotels x 30 credits = 150 credits per
+full refresh. The free 300 credits cover 2 refreshes total; the $19/mo
+Starter tier (1,900 credits) covers roughly one refresh every 12 days at
+this catalog size; daily refresh would need the $99/mo Pro tier. Refreshing
+more than once an hour is pointless regardless of budget - StayingAPI's
+own cache TTL on this endpoint is 1 hour, so a tighter cadence gets
+identical data at identical cost.
+
+**Real hotels seeded (2026-09-01 update: expanded to all 6 emirates).**
+Originally 5 real Dubai hotels; expanded on request to the top five
+5-star hotels in each of Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah,
+Sharjah and Ajman - 30 real hotels total, all added to `hotels` with
+`isMockData: false` (`mockBasePrice` stays null - the mock adapter
+already no-ops for those). Ibis Deira City Centre (3-star) was dropped
+from the Dubai set since it no longer fits the "top five 5-star"
+criteria the rest of the catalog follows.
+
+**Bug caught, then fixed: dropping a hotel from the INSERT list doesn't
+remove it from production.** Every INSERT in `SCHEMA_SQL` is `ON
+CONFLICT DO NOTHING` - additive only, by design, so re-running init-db
+is always safe. That also means removing a row from the VALUES list
+does nothing to a copy already written by an earlier run - Ibis Deira
+City Centre, seeded by an older version of this route before the
+catalog became "top five 5-star per emirate," stayed in production as
+a 37th, uninvited hotel even after this rewrite. Caught by comparing
+the live property dropdown's count against the expected 36 rather than
+just trusting `ok: true` - a schema-only check (table names, no row
+counts) had already come back clean and would have kept coming back
+clean forever. Fixed two ways: an explicit `DELETE FROM hotels WHERE
+id = 'ibis-deira-city-centre'` added to `SCHEMA_SQL` (permanent, safe
+to leave in - a no-op once the row is gone; `rooms` cascades on delete
+so the matching room row goes with it), and the init-db response now
+also returns `hotelCounts` (real vs. mock, from a live `GROUP BY`) so
+a future mismatch like this shows up in the JSON instead of requiring
+a manual property-dropdown count. If a hotel is ever dropped from the
+catalog again, add an explicit DELETE for it here too - the INSERT
+list alone will never do it.
+
+**Aside: ratemanifest.com served stale data for a few minutes after
+this deploy** even though the deploy itself and the database were
+already correct - fetching the exact deploy's own permalink URL
+showed the right 37 (now 36) hotels immediately, while the
+`ratemanifest.com` alias kept showing the pre-deploy list. Most likely
+Netlify's skew-protection/CDN layer keeping the previous version
+warm briefly after a publish. Not a bug to fix, just worth knowing:
+if a deploy looks like it didn't take effect on the main domain right
+after publishing, check the deploy's own `*.netlify.app` permalink
+before assuming something's actually wrong.
+
+Every hotel name was checked
+against current search results (not pulled from memory) specifically
+to catch closures and rebrands - the same class of mistake as the
+Burj Al Arab renovation check earlier in this project. One rebrand
+was caught this way: the Abu Dhabi hotel long known as "Jumeirah at
+Etihad Towers" became "Conrad Abu Dhabi Etihad Towers" in 2020 and is
+seeded under its current name.
+
+The fifth Dubai slot was originally Atlantis, The Palm; you flagged it
+as closed for renovation. Checked and found otherwise - multiple April
+2026 sources (Khaleej Times, The National, a dedicated Dubai-closures
+tracker) describe only a handful of restaurants and dining venues
+(including "Cloud 22") as temporarily paused for refurbishment, with
+the hotel itself, and its sister property Atlantis The Royal, both
+listed as operating normally. Swapped to One&Only Royal Mirage (Al
+Sufouh) at your instruction anyway rather than push further on the
+discrepancy - confirmed as a real, currently-operating 5-star property
+via its own listings. If you're seeing something more current than
+what turned up here, worth flagging so this note can be corrected too.
+
+Full list seeded (id - name - area - emirate):
+- Dubai: `sofitel-dubai-the-palm` Sofitel Dubai The Palm (Palm Jumeirah); `address-downtown` Address Downtown (Downtown Dubai); `oberoi-dubai` The Oberoi Dubai (Business Bay); `rixos-premium-jbr` Rixos Premium Dubai JBR (Jumeirah Beach Residence); `one-and-only-royal-mirage` One&Only Royal Mirage (Al Sufouh).
+- Abu Dhabi: `emirates-palace-mandarin-oriental` Emirates Palace Mandarin Oriental (Corniche); `rosewood-abu-dhabi` Rosewood Abu Dhabi (Al Maryah Island); `conrad-abu-dhabi-etihad-towers` Conrad Abu Dhabi Etihad Towers (Corniche); `ritz-carlton-abu-dhabi-grand-canal` The Ritz-Carlton Abu Dhabi, Grand Canal (Grand Canal); `hilton-abu-dhabi-yas-island` Hilton Abu Dhabi Yas Island (Yas Island).
+- Fujairah: `al-bahar-hotel-resort-fujairah` Al Bahar Hotel & Resort (Fujairah Corniche); `palace-beach-resort-fujairah` Palace Beach Resort Fujairah; `doubletree-hilton-fujairah-city` DoubleTree by Hilton Fujairah City; `royal-m-hotel-gewan-fujairah` Royal M Hotel by Gewan Fujairah; `al-diar-siji-hotel` Al Diar Siji Hotel.
+- Ras Al Khaimah: `so-ras-al-khaimah` SO/ Ras Al Khaimah Hotel & Resort (Mina Al Arab); `rixos-bab-al-bahr` Rixos Bab Al Bahr (Mina Al Arab); `sofitel-rak-al-hamra` Sofitel Ras Al Khaimah Al Hamra Beach Resort (Al Hamra); `movenpick-al-marjan-island` Movenpick Resort Al Marjan Island (Al Marjan Island); `intercontinental-rak-resort-spa` InterContinental Ras Al Khaimah Resort & Spa (Mina Al Arab).
+- Sharjah: `sheraton-sharjah-beach-resort` Sheraton Sharjah Beach Resort & Spa (Corniche); `chedi-al-bait-sharjah` The Chedi Al Bait, Sharjah (Heritage Area); `pullman-sharjah` Pullman Sharjah; `corniche-hotel-sharjah` Corniche Hotel Sharjah (Buhaira Corniche); `hotel-72-sharjah` 72 Hotel Sharjah (Al Khan Lagoon).
+- Ajman: `bahi-ajman-palace` Bahi Ajman Palace Hotel (Ajman Corniche); `fairmont-ajman` Fairmont Ajman (Ajman Corniche); `dusit-ajman-resort-villas` Dusit Ajman Resort & Villas; `ajman-saray-luxury-collection` Ajman Saray, a Luxury Collection Resort (Ajman Corniche); `oberoi-beach-resort-al-zorah` The Oberoi Beach Resort, Al Zorah.
+
+**Credit cost at this catalog size, revised.** At 30 real hotels, a
+full refresh (every hotel, one date window) is ~900 credits (30 hotels
+x ~30 credits/call) - up from ~150 credits at the original 5-hotel
+Dubai-only catalog. That's already past the entire 300-credit free
+tier in a single refresh, let alone the "2 refreshes on the free tier"
+math from before this expansion. Nothing about the 30-hotel seed itself
+costs credits - only the refresh workflow does, and it's still manual
+(no `schedule:` trigger), so there's no risk of this running up a bill
+on its own.
+
+**City filter on refresh-staying-api, added 2026-09-01.** `GET
+/api/admin/refresh-staying-api` now accepts an optional `?city=`
+param (must match the `city` column exactly - one of Dubai, Abu
+Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman) to submit jobs for
+only that emirate's real hotels instead of all 30 - ~150 credits per
+emirate instead of ~900 for everything. An unrecognized city returns
+`400` with a `validCities` list pulled live from the database rather
+than failing silently or refreshing everything by accident. The
+"Refresh StayingAPI prices" GitHub Actions workflow gained a matching
+optional `city` input, passed straight through - trigger it from the
+Actions tab (or `gh workflow run refresh-staying-api.yml -f
+city=Dubai`) to test one emirate at a time on the free tier before
+committing credits to a full refresh. Verified locally: seeded a test
+database with the real 36-row catalog and confirmed `city=Dubai`
+and `city=Sharjah` each return exactly their 5 hotels, an unknown
+city returns 0 with the correct 6-emirate `validCities` list, and no
+`city` param still returns all 30 - see the tsx script run against a
+local Postgres instance for this exact check.
+
+**Dynamic pricing window and the direct-rate fallback.** A real hotel's
+price only genuinely moves with demand within `DYNAMIC_PRICING_WINDOW_DAYS`
+(30, in `stayingApiAdapter.ts`) of check-in. Beyond that, comparing
+"live" third-party OTA prices for a date that far out isn't meaningfully
+more informative than the hotel's own listed price, so the adapter drops
+every offer except `direct` for a search whose check-in is more than 30
+days away - evaluated against today's date at *read* time, not at
+refresh time, so a window cached 40 days out starts showing the full
+comparison on its own once today creeps within 30 days of it, no
+re-refresh needed. Rack rate itself (the traditional "published standard
+price before discounts") is NOT fetchable from any API - confirmed by
+checking both StayingAPI's docs and general hospitality-industry sources;
+it's each hotel's own internal, often-dynamically-adjusted number, not
+something a live pricing API exposes. The hotel's own direct-website
+price (which StayingAPI does return, at no extra cost beyond the normal
+refresh) is the closest available live proxy, chosen over either manual
+per-hotel data entry or showing nothing at all. **Not yet built:** the
+actual front-end treatment - "labeled clearly as the hotel's own listed
+price, separate from the multi-seller comparison" - is a UI task, not
+touched this session. The backend already returns the right, honest data
+shape (one `direct` offer only, beyond the window); how the results page
+presents that distinctly from a real multi-seller comparison is still
+open.
+
+**What's needed to actually see real prices:** run the
+`refresh-staying-api` workflow (`STAYINGAPI_KEY` is already a live key,
+set in Netlify) for a date window within 30 days, wait for it to report
+`stillPending: 0`, then search one of the 30 real hotels for that same
+window on the live site. See the credit-cost note above before running
+it against the full 30-hotel catalog.
+
+## Property picker: emirate/property search modes (2026-09-01)
+
+The homepage's single flat `<select>` of every hotel (originally 11
+options, the original design) stopped working once the real catalog
+grew to 30 hotels across 6 emirates - 36 options in one dropdown is not
+browsable. Replaced with a small client component,
+`src/components/SearchForm.tsx`, offering two ways to land on the one
+hotel the form still requires:
+
+- **Emirate mode** (default): an "All emirates" / per-emirate `<select>`
+  narrows a second property `<select>` to just that emirate's hotels.
+  Deliberately does NOT jump to a multi-hotel results/compare page -
+  that's the bigger "browse by location" feature discussed and set
+  aside earlier in this project (see the search-by-location thread
+  above); this is just a friendlier way to find one property to search,
+  nothing about the backend search flow changed.
+- **Property mode**: type-ahead text input. Matches hotel name (prefix
+  match ranked above substring match) and area, case-insensitive,
+  capped at 8 suggestions, with an explicit "No matching properties"
+  state rather than an empty void. Click a suggestion to select it.
+
+Both modes end up setting the same hidden `hotel` input the form always
+submitted - `/search`, `runSearch()`, and everything downstream are
+untouched. The submit button is disabled until a hotel is actually
+selected (a hidden input can't use the HTML `required` attribute, so
+this is done in JS) - prevents a submit with no `hotel` param, which the
+old design also technically allowed if a user removed the `required`
+attribute via devtools, though that was never a real-world problem
+before now.
+
+Verified before handoff: `npx tsc --noEmit` clean, a full production
+`next build` against a locally seeded 36-hotel database succeeds, and a
+headless-browser pass (Playwright, screenshots checked) confirmed both
+modes render correctly, the type-ahead narrows and selects properly
+(tested "sof" correctly matching both Sofitel properties), the
+no-match state displays, the submit button's disabled/enabled state
+tracks selection correctly, and the layout holds up at mobile width
+(380px) - no console or page errors in any of it.
+
+## Check-out defaults to the day after check-in (2026-09-01)
+
+Requested fix: the check-out date field should default to one night
+after whatever check-in date is showing, and should keep tracking
+check-in if the user changes it, not just on first page load.
+
+Two parts, both in the files touched by the property-picker work above:
+
+- `src/app/page.tsx`: `defaultCheckOut()` was `today + 16` (two nights
+  past `defaultCheckIn()`'s `today + 14`), for no documented reason.
+  Changed to `today + 15` - exactly one night after check-in, which
+  matches every other "1 night" assumption already in the codebase
+  (StayingAPI adapter, pricing display).
+- `src/components/SearchForm.tsx`: the check-in/check-out `<input
+  type="date">` fields were uncontrolled (`defaultValue` only, set once
+  at mount). Switched both to controlled state (`useState` + `value` +
+  `onChange`) so the relationship can be enforced live, not just at
+  load. A new `handleCheckInChange` snaps check-out to check-in + 1 day
+  whenever the current check-out would land on or before the new
+  check-in; it leaves check-out alone if the existing value is still a
+  valid later date, so nudging check-in by a day or two doesn't
+  collapse a longer stay someone deliberately set. The check-out field
+  also got a `min` (`checkIn + 1 day`) so the native date picker itself
+  refuses an invalid check-out, as a second line of defense beyond the
+  JS logic. Both use the same UTC-safe `addDays()` helper the file
+  already needed one of (parse via `new Date()`, `setUTCHours(0,0,0,0)`,
+  `setUTCDate()`, back out via `toISOString().slice(0,10)`) - matches
+  `stayingApiAdapter.ts`'s existing `daysUntil()` convention, so a date
+  picked here means the same calendar day everywhere downstream.
+
+Verified before handoff: `npx tsc --noEmit` clean, a full production
+`next build` against a fresh seeded database succeeds, and a headless
+Playwright pass drove five explicit cases against a local dev server
+(all passed, zero console/page errors): the page's initial state
+(check-in/check-out one day apart), picking a far-future check-in
+(check-out snaps to the next day), manually setting a longer check-out,
+picking a check-in still before that manual check-out (check-out stays
+put - the "don't clobber a deliberate longer stay" case), and picking a
+check-in past the old check-out (check-out snaps forward again). The
+check-out field's `min` attribute was also confirmed to track check-in
+in the same pass.

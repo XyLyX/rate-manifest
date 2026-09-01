@@ -20,8 +20,12 @@ function defaultCheckIn(): string {
 }
 
 function defaultCheckOut(): string {
+  // One night by default - the day after defaultCheckIn(). SearchForm
+  // keeps this relationship live after page load too: changing check-in
+  // there pushes check-out to the next day whenever the existing value
+  // would otherwise land on or before the new check-in.
   const d = new Date();
-  d.setDate(d.getDate() + 16);
+  d.setDate(d.getDate() + 15);
   return d.toISOString().slice(0, 10);
 }
 

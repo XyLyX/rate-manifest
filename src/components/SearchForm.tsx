@@ -32,6 +32,17 @@ interface SearchFormProps {
 // nearest matches shown underneath. Substring match against name and
 // area, prefix matches ranked first, capped at 8 suggestions so it never
 // dumps the whole catalog back at you.
+// Adds `days` to a YYYY-MM-DD date string, in UTC - the same parsing
+// convention runSearch()/stayingApiAdapter.ts already use for check-in/
+// check-out, so a date typed here means the same calendar day everywhere
+// downstream (no local-timezone drift at the UTC day boundary).
+function addDays(dateIso: string, days: number): string {
+  const d = new Date(dateIso);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFormProps) {
   const [mode, setMode] = useState<"emirate" | "property">("emirate");
 
@@ -41,6 +52,21 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
   const [propertyQuery, setPropertyQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Controlled (not defaultValue) specifically so check-out can follow
+  // check-in: picking a new check-in date that would put the current
+  // check-out on or before it snaps check-out to the next day. Leaves
+  // check-out alone otherwise, so an intentionally longer stay someone
+  // already set isn't clobbered by a small check-in tweak.
+  const [checkIn, setCheckIn] = useState(defaultCheckIn);
+  const [checkOut, setCheckOut] = useState(defaultCheckOut);
+
+  function handleCheckInChange(next: string) {
+    setCheckIn(next);
+    if (next && (!checkOut || checkOut <= next)) {
+      setCheckOut(addDays(next, 1));
+    }
+  }
 
   const emirates = useMemo(() => {
     const unique = Array.from(new Set(hotels.map((h) => h.city)));
@@ -199,11 +225,26 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
 
       <div className="field">
         <label htmlFor="checkin">Check-in</label>
-        <input id="checkin" name="checkin" type="date" defaultValue={defaultCheckIn} required />
+        <input
+          id="checkin"
+          name="checkin"
+          type="date"
+          value={checkIn}
+          onChange={(e) => handleCheckInChange(e.target.value)}
+          required
+        />
       </div>
       <div className="field">
         <label htmlFor="checkout">Check-out</label>
-        <input id="checkout" name="checkout" type="date" defaultValue={defaultCheckOut} required />
+        <input
+          id="checkout"
+          name="checkout"
+          type="date"
+          value={checkOut}
+          min={checkIn ? addDays(checkIn, 1) : undefined}
+          onChange={(e) => setCheckOut(e.target.value)}
+          required
+        />
       </div>
       <button className="btn" type="submit" disabled={!selectedHotelId}>
         Find my rate →
