@@ -262,6 +262,15 @@ VALUES
   ('room-ajman-saray-luxury-collection', 'ajman-saray-luxury-collection', 'double_standard', 2, '1 king bed'),
   ('room-oberoi-beach-resort-al-zorah', 'oberoi-beach-resort-al-zorah', 'double_standard', 2, '1 king bed')
 ON CONFLICT (id) DO NOTHING;
+
+-- Ibis Deira City Centre (3-star) was seeded by an earlier version of this
+-- route, before the real-hotel catalog became "top five 5-star per
+-- emirate." Since every INSERT above is ON CONFLICT DO NOTHING (additive
+-- only), removing it from the INSERT list alone doesn't remove the row
+-- already in production - this explicit, id-scoped DELETE does. Safe to
+-- leave in permanently: a no-op once the row is gone. The rooms table
+-- cascades on delete, so its matching room row goes with it automatically.
+DELETE FROM hotels WHERE id = 'ibis-deira-city-centre';
 `;
 
 export async function GET(request: Request) {
@@ -280,10 +289,17 @@ export async function GET(request: Request) {
     const { rows: tableRows } = await pool.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
     );
+    // Row counts, not just table names - the actual bug this caught once
+    // (a leftover hotel row an ON CONFLICT DO NOTHING insert could never
+    // remove on its own) only showed up by checking counts, not schema.
+    const { rows: hotelCounts } = await pool.query(
+      "SELECT is_mock_data, count(*)::int AS count FROM hotels GROUP BY is_mock_data"
+    );
     return NextResponse.json({
       ok: true,
       tableCount: rows[0]?.count ?? null,
       tables: tableRows.map((r) => r.table_name),
+      hotelCounts: hotelCounts.map((r) => ({ isMockData: r.is_mock_data, count: r.count })),
     });
   } catch (err) {
     return NextResponse.json(
