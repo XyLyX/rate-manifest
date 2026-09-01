@@ -18,10 +18,10 @@ on:
   workflow_dispatch:
     inputs:
       checkIn:
-        description: "Check-in date (YYYY-MM-DD) - optional, defaults to 21 days out"
+        description: "Check-in date (YYYY-MM-DD) - optional, defaults to 14 days out (matches the homepage's own default search)"
         required: false
       checkOut:
-        description: "Check-out date (YYYY-MM-DD) - optional, defaults to 2 nights after check-in"
+        description: "Check-out date (YYYY-MM-DD) - optional, defaults to 1 night after check-in"
         required: false
       city:
         description: "Emirate to refresh - optional, defaults to all 30 hotels (~900 credits). One of: Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman (~150 credits each)"

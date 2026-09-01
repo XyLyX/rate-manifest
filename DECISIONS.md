@@ -1313,3 +1313,38 @@ differently ("Not checked for these dates yet"); the older single-hotel
 message still conflates the two. Small, copy-only fix, not done yet -
 raised once already this session, still your call whether it's worth
 doing now.
+
+## Refresh default date window aligned to the site's own default (2026-09-01)
+
+Real confusion, worth recording precisely: you ran the refresh workflow
+with `checkIn`/`checkOut` left blank, expecting that to mean "no
+specific dates," but the workflow's own default logic silently picked
+21 days out, 2 nights (this was already documented, in the route file's
+own comment, but a comment isn't the same as it actually matching
+anything). The homepage's default search - what anyone landing on the
+site and searching without picking dates actually sees - is a
+different default: 14 days out, 1 night. The two defaults were set
+independently, at different points in this project, and nobody had
+checked whether they agreed. They didn't, which is exactly why the
+browse page's "Not checked for these dates yet" showed up on almost
+every real hotel: the one real refresh that existed didn't cover the
+one date window most visitors would actually hit by default.
+
+**Fixed**: `refresh-staying-api/route.ts`'s blank-dates default changed
+from 21 days out/2 nights to 14 days out/1 night - now computed with
+the exact same arithmetic as `defaultCheckIn()`/`defaultCheckOut()` in
+`src/app/page.tsx`, so a blank-dates refresh and a default homepage
+search now genuinely land on the same window. The GitHub Actions
+workflow's input descriptions were updated to match, so the "Run
+workflow" form no longer describes a default that isn't true. This
+doesn't touch the `checkIn`/`checkOut` query params at all - passing
+explicit dates still works exactly as before, for a scoped demo
+refresh.
+
+**Not yet re-run**: the existing cache row for Rixos Premium Dubai JBR
+and One&Only Royal Mirage still covers the old window (Sep 22-24), not
+the new default (Sep 15-16, relative to 2026-09-01). Running the
+refresh workflow again with dates left blank will populate the window
+that actually matches what visitors see by default - worth doing once
+this deploys, same `city=Dubai` pattern as before to stay well inside
+the free tier.

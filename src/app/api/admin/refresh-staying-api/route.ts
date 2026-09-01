@@ -20,11 +20,19 @@ import { submitStayingApiJob } from "@/lib/suppliers/stayingApiRefresh";
 // Protected by the same long-random-secret pattern as init-db.
 //
 // Submits a request for every real (isMockData: false) hotel, for ONE
-// date window - defaults to 21 days out, 2 nights, or pass
-// ?checkIn=&checkOut= (both YYYY-MM-DD) to target a specific window, e.g.
-// to match dates you're about to demo. A visitor's live search only shows
-// real StayingAPI data if their chosen dates exactly match a window this
-// has been run for - see stayingApiAdapter.ts.
+// date window - defaults to 14 days out, 1 night (matches
+// defaultCheckIn()/defaultCheckOut() in src/app/page.tsx exactly, on
+// purpose: a blank-dates refresh should cover what a visitor sees by
+// default when they land on the site and search, not some other window
+// nobody's default search would ever hit), or pass ?checkIn=&checkOut=
+// (both YYYY-MM-DD) to target a specific window instead, e.g. to match
+// dates you're about to demo. A visitor's live search only shows real
+// StayingAPI data if their chosen dates exactly match a window this has
+// been run for - see stayingApiAdapter.ts. Was 21 days out/2 nights
+// until 2026-09-01 - changed after that mismatch caused real confusion
+// (a blank-dates refresh didn't cover the homepage's own default search
+// window) - see DECISIONS.md, "Refresh default date window aligned to
+// the site's own default."
 //
 // Pass ?city=Dubai (must match the `city` column exactly - one of Dubai,
 // Abu Dhabi, Fujairah, Ras Al Khaimah, Sharjah, Ajman) to only refresh
@@ -58,9 +66,9 @@ export async function GET(request: Request) {
     checkOut = checkOutParam;
   } else {
     const start = new Date();
-    start.setDate(start.getDate() + 21);
+    start.setDate(start.getDate() + 14);
     const end = new Date(start);
-    end.setDate(end.getDate() + 2);
+    end.setDate(end.getDate() + 1);
     checkIn = start.toISOString().slice(0, 10);
     checkOut = end.toISOString().slice(0, 10);
   }
