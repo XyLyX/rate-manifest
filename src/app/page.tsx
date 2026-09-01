@@ -2,6 +2,15 @@ import { db, schema } from "@/db/client";
 import { asc } from "drizzle-orm";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { SearchForm } from "@/components/SearchForm";
+
+// Forces this page to render per-request instead of at build time. Without
+// this, Next tries to prerender it during `next build`, which means the
+// database has to exist and be reachable *at build time* — on Netlify that
+// build runs before the DB is guaranteed to be migrated/seeded, so a build
+// with an empty database fails outright instead of deploying and serving a
+// (temporarily broken) page. See DECISIONS.md, "Bug: the migration never
+// actually ran."
 export const dynamic = "force-dynamic";
 
 function defaultCheckIn(): string {
@@ -37,32 +46,17 @@ export default async function HomePage() {
       </div>
 
       <div className="card search-card">
-        <form className="search-form" action="/search" method="GET">
-          <div className="field">
-            <label htmlFor="hotel">Property</label>
-            <select id="hotel" name="hotel" required defaultValue="">
-              <option value="" disabled>
-                Choose a property…
-              </option>
-              {hotels.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name} — {h.area} ({h.starRating}★)
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="checkin">Check-in</label>
-            <input id="checkin" name="checkin" type="date" defaultValue={defaultCheckIn()} required />
-          </div>
-          <div className="field">
-            <label htmlFor="checkout">Check-out</label>
-            <input id="checkout" name="checkout" type="date" defaultValue={defaultCheckOut()} required />
-          </div>
-          <button className="btn" type="submit">
-            Find my rate →
-          </button>
-        </form>
+        <SearchForm
+          hotels={hotels.map((h) => ({
+            id: h.id,
+            name: h.name,
+            area: h.area,
+            city: h.city,
+            starRating: h.starRating,
+          }))}
+          defaultCheckIn={defaultCheckIn()}
+          defaultCheckOut={defaultCheckOut()}
+        />
       </div>
 
       <section id="how-it-works" className="how-it-works">
