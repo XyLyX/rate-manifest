@@ -1004,3 +1004,115 @@ put - the "don't clobber a deliberate longer stay" case), and picking a
 check-in past the old check-out (check-out snaps forward again). The
 check-out field's `min` attribute was also confirmed to track check-in
 in the same pass.
+
+## Monetization plan (2026-09-01)
+
+Two rounds got us here. Round one was a five-stage revenue ladder
+(affiliate, direct-hotel commission, B2B/API, hotel-side rate
+intelligence, merchant model), with the right core argument that
+affiliate commission should be the first revenue stream, not the whole
+business model - that shape matches how Kayak/Trivago/Skyscanner
+actually evolved. Round two correctly re-framed that ladder around
+three sequential gates instead of five revenue stages, on the
+observation that monetization mechanics don't matter until data, one
+real booking, and profitable acquisition are each separately proven.
+This section is the merged, final version - the plan to actually build
+and act against, not the pitch-deck version of either round.
+
+### The three gates
+
+**Gate 1 - can we get the data?** Real rates, multiple suppliers,
+acceptable cost per search, and commercial rights to actually operate
+on it. This is where StayingAPI sits today: technically wired end to
+end (see "Live StayingAPI calls and the refresh architecture" above),
+but never yet proven against a real refresh with real money on the
+line, and never asked in writing whether a consumer comparison product
+built on their data is something their terms actually permit at
+Rate Manifest's intended scale. **Not yet cleared - this is today's
+literal next action, see below.**
+
+**Gate 2 - can we make money from one real booking?** Not projected
+revenue - one actual tracked commission. The click/outcome pipeline is
+built (`/api/click` logs the click, opens a `bookingOutcomes` row at
+`clicked`), but it currently redirects to `/stub-booking`, not a real
+affiliate link. The blocker is Booking.com's marker, gated behind
+Travelpayouts' per-program review and still not cleared. Travelpayouts'
+published rates put hotel commission around 4-5% (Booking.com
+specifically at 4%) - a planning assumption, never a committed number,
+and never something to multiply by search volume; it only exists once
+a real click converts. **Not yet cleared - blocked on their review, not
+on anything buildable here.**
+
+**Gate 3 - can we acquire customers for less than they're worth?** The
+honest reframe from round two: not "100,000 visitors," but "100 real
+users, measured end to end (search to hotel to click to booking to
+revenue per search to repeat searches), then 1,000, then decide if it
+scales." Nothing here is built or measurable yet because Gates 1 and 2
+aren't cleared - there's no real commission to measure acquisition
+cost against.
+
+### On distribution and the pillars from round two
+
+The reframe that Rate Manifest shouldn't launch as "a hotel comparison
+website" competing head-on for "Dubai hotels" is right, and the named
+pillars are the correct kind of idea: hotel-specific pages
+("Atlantis The Palm - compare rates"), price-banded destination pages,
+WhatsApp as a re-engagement channel rather than a product, data-backed
+content instead of generic travel-blog filler, and giving UAE travel
+businesses direct access before ever pricing a SaaS tier. All of that
+is genuinely Phase 2/3 work - real, but downstream of Gates 1 and 2,
+and none of it is buildable in a way that matters until there's a real
+booking to point to. Filed here as direction, not a current task list.
+
+### Reality check against what's actually built
+
+Round two's "action 4 - build a tiny prototype (search, hotel, rates,
+Rate Signal, click, booking, 20-50 hotels)" is effectively already
+done - 30 real hotels across all 6 emirates, full search/Rate
+Signal/click pipeline live in production. The remaining gap in that
+prototype isn't scope, it's that the click still ends at
+`/stub-booking` (Gate 2) and the rates behind it haven't been refreshed
+against a real StayingAPI call yet (Gate 1). Two things worth keeping
+from round one's critique that neither round has resolved yet, both
+gating later stages, not today's action:
+
+- **"Book Direct, Better"** (recommend direct booking when a hotel's
+  higher price nets out cheaper with breakfast/credits included) needs
+  a `boardBasis` field on `SupplierOffer`
+  (`src/lib/suppliers/types.ts`) that doesn't exist yet - a real,
+  scoped engineering task for whenever Phase 2 is reached, not now.
+- **Hotel-side competitor-rate monitoring** (round one's Phase 4)
+  needs continuous visibility into competitor OTA prices, which runs
+  into the same SERP-scraping legal-gray-area territory already
+  researched and set aside earlier in this project. Still unresolved,
+  still not a near-term problem.
+- **The merchant model** stays last in both rounds, correctly - it's
+  the one stage that becomes a regulated-business decision (UAE trade
+  license scope, possibly DTCM rules for booking intermediaries, plus
+  whatever a payment processor requires), and needs a UAE-licensed
+  lawyer's read, not a decision either of us can make in this project.
+
+### What's actually actionable today
+
+Round two's five actions, checked against real state:
+
+1. **Secure ratemanifest.com** - done.
+2. **Resolve StayingAPI in writing** - not done. Worth sending them a
+   short written question alongside the technical test below: can
+   Rate Manifest legally/commercially operate a consumer hotel
+   comparison product on their data at the intended scale, and what
+   does real pricing look like past the free 300-credit tier. This is
+   the same underlying ask as the still-open "StayAPI written
+   clarification" item logged earlier in this file.
+3. **Get affiliate approval** - not done, not blocked on us. Still
+   waiting on Travelpayouts' Booking.com marker review.
+4. **Build the prototype** - already done (see above); nothing new to
+   build here.
+5. **Test acquisition with real users** - not started, and correctly
+   not a coding task - your network, UAE travel contacts, WhatsApp,
+   LinkedIn, not SEO-and-wait.
+
+The one piece of this that's actually gated on work happening right
+now, this session, is proving Gate 1 technically: running the pending
+StayingAPI refresh for real data and confirming it flows through to
+the live site. That's what's being finished next.
