@@ -186,4 +186,90 @@ export const priceTracking = pgTable(
     id: text("id").primaryKey(),
     hotelId: text("hotel_id")
       .notNull()
-      .references(() =>
+      .references(() => hotels.id, { onDelete: "cascade" }),
+    checkIn: timestamp("check_in", { mode: "date" }).notNull(),
+    checkOut: timestamp("check_out", { mode: "date" }).notNull(),
+    email: text("email").notNull(),
+    // The customer's own minimum-drop threshold, in AED, before we'd
+    // consider it worth interrupting them.
+    minDropAed: real("min_drop_aed").notNull(),
+    // The cheapest total found at the moment they opted in - every later
+    // check compares against this, not against the previous check, so a
+    // slow multi-step slide down still triggers once the cumulative drop
+    // clears their threshold.
+    baselineTotal: real("baseline_total").notNull(),
+    // "active" | "triggered" | "sent" | "cancelled"
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+    triggeredAt: timestamp("triggered_at", { mode: "date" }),
+    triggeredTotal: real("triggered_total"),
+    sentAt: timestamp("sent_at", { mode: "date" }),
+  },
+  (t) => [index("price_tracking_hotel_dates_status_idx").on(t.hotelId, t.checkIn, t.checkOut, t.status)]
+);
+
+// StayingAPI's live price-compare endpoint answers slowly the first time
+// (an uncached query returns 202 + a job that takes up to ~35 seconds to
+// finish, confirmed live on 2026-09-01 - see DECISIONS.md, "Live
+// StayingAPI calls and the refresh architecture") - far too slow for a
+// page a real visitor is waiting on. This table is the fix: a background
+// job (src/app/api/admin/refresh-staying-api/route.ts) does that slow live
+// call ahead of time and stores the finished result here, in the exact
+// shape a SupplierOffer needs - including outboundUrl and cancellation
+// terms, neither of which any other table in this schema persists.
+// stayingApiAdapter.ts (the one a live search actually calls) only ever
+// reads this table; it never calls the live API itself.
+//
+// A live StayingAPI job can take "tens of seconds but can run several
+// minutes (240s+)" per their own docs, while a Netlify serverless function
+// has a hard, non-configurable 60-second limit - so nothing here can just
+// wait inside one request for a job to finish. Instead this table doubles
+// as a small job queue: refresh-staying-api submits the request and, if
+// StayingAPI answers 202 (uncached), writes status "pending" with the
+// jobId/pollUrl and returns immediately; collect-staying-api-jobs (called
+// repeatedly by the GitHub Actions workflow, which has no 60s ceiling)
+// checks each pending job once per call and flips it to "ready" once
+// StayingAPI's job finishes. stayingApiAdapter.ts only ever reads "ready"
+// rows.
+export const stayingApiCache = pgTable(
+  "staying_api_cache",
+  {
+    id: text("id").primaryKey(),
+    hotelId: text("hotel_id")
+      .notNull()
+      .references(() => hotels.id, { onDelete: "cascade" }),
+    checkIn: timestamp("check_in", { mode: "date" }).notNull(),
+    checkOut: timestamp("check_out", { mode: "date" }).notNull(),
+    // "pending" while StayingAPI's own job is still running, "ready" once
+    // offersJson holds a finished result (including "finished with zero
+    // offers" or "the job failed" - both still count as ready, so a dead
+    // job doesn't get polled forever).
+    status: text("status").notNull().default("pending"),
+    jobId: text("job_id"),
+    pollUrl: text("poll_url"),
+    // JSON-encoded SupplierOffer[], null until status = "ready" - same
+    // "encode as text" convention as events.metadata below.
+    offersJson: text("offers_json"),
+    refreshedAt: timestamp("refreshed_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [uniqueIndex("staying_api_cache_hotel_checkin_idx").on(t.hotelId, t.checkIn, t.checkOut)]
+);
+
+// Instrumentation: every SEARCH / RESULTS_VIEWED / RATE_REVEALED /
+// OUTBOUND_CLICK gets one row here. This table's aggregates are exactly the
+// columns the D4 MVP Measurement Log (Rate-Manifest-Economics.xlsx) expects
+// to be pasted in, once there's real traffic to measure.
+export const events = pgTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    // "search" | "results_viewed" | "rate_revealed" | "outbound_click"
+    type: text("type").notNull(),
+    sessionId: text("session_id").notNull(),
+    hotelId: text("hotel_id").references(() => hotels.id, { onDelete: "set null" }),
+    supplierId: text("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    metadata: text("metadata"), // JSON-encoded extra context
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [index("events_type_created_idx").on(t.type, t.createdAt)]
+);

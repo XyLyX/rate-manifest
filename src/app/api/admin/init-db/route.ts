@@ -184,4 +184,50 @@ VALUES
   ('address-downtown', 'Address Downtown', 'Downtown Dubai', 'Dubai', 5, false, NULL),
   ('oberoi-dubai', 'The Oberoi Dubai', 'Business Bay', 'Dubai', 5, false, NULL),
   ('rixos-premium-jbr', 'Rixos Premium Dubai JBR', 'Jumeirah Beach Residence', 'Dubai', 5, false, NULL),
-  ('ibis-deira-city-centre', 'Ibis Deira City Centre', 'Deira',
+  ('ibis-deira-city-centre', 'Ibis Deira City Centre', 'Deira', 'Dubai', 3, false, NULL)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
+VALUES
+  ('room-marina-skyline', 'marina-skyline', 'double_standard', 2, '1 king bed'),
+  ('room-old-town-courtyard', 'old-town-courtyard', 'double_standard', 2, '1 king bed'),
+  ('room-palm-crescent', 'palm-crescent', 'double_standard', 2, '1 king bed'),
+  ('room-business-bay-central', 'business-bay-central', 'double_standard', 2, '1 king bed'),
+  ('room-al-fahidi-heritage', 'al-fahidi-heritage', 'double_standard', 2, '1 king bed'),
+  ('room-jbr-beachfront', 'jbr-beachfront', 'double_standard', 2, '1 king bed'),
+  ('room-sofitel-dubai-the-palm', 'sofitel-dubai-the-palm', 'double_standard', 2, '1 king bed'),
+  ('room-address-downtown', 'address-downtown', 'double_standard', 2, '1 king bed'),
+  ('room-oberoi-dubai', 'oberoi-dubai', 'double_standard', 2, '1 king bed'),
+  ('room-rixos-premium-jbr', 'rixos-premium-jbr', 'double_standard', 2, '1 king bed'),
+  ('room-ibis-deira-city-centre', 'ibis-deira-city-centre', 'double_standard', 2, '1 king bed')
+ON CONFLICT (id) DO NOTHING;
+`;
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const secret = url.searchParams.get("secret");
+
+  if (!process.env.DB_INIT_SECRET || secret !== process.env.DB_INIT_SECRET) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  try {
+    await pool.query(SCHEMA_SQL);
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public'"
+    );
+    const { rows: tableRows } = await pool.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    );
+    return NextResponse.json({
+      ok: true,
+      tableCount: rows[0]?.count ?? null,
+      tables: tableRows.map((r) => r.table_name),
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
+}
