@@ -1987,3 +1987,32 @@ homepage link in `KLOOK_LINK`. Same purpose as before (the fallback/
 primary CTA underneath the Tours Widget), just a landing spot that
 actually shows Dubai results instead of requiring the visitor to
 search again themselves once they arrive on Klook.
+
+## Hotels note: refreshed link, new label, lime text (2026-09-01)
+
+Three small requested changes to the "also on Klook" hotels note in
+`KlookTripSection`:
+
+1. `KLOOK_HOTELS_LINK` regenerated - `https://klook.tpm.lv/O3Coxqyz`
+   replacing the original `RqxKw5oy`, same intent (Klook's Dubai
+   hotels listing).
+2. Link label changed from "Search hotels on Klook" to "Browse
+   Hotels" - kept the trailing arrow for consistency with every other
+   CTA on the page ("Browse Klook →", "Find my rate →").
+3. `.klook-also-hotels`'s body text color changed from `--text-dim`
+   to `--lime` (acid lime, the existing brand token already used for
+   the section's own eyebrow and elsewhere as the "intelligence
+   layer" marker). The link inside it stays tangerine, unchanged -
+   keeps the actionable link visually distinct from the surrounding
+   lime body text rather than blending in.
+
+Also reported live: the Klook Tours Widget isn't visibly rendering on
+the deployed site yet, while the fallback "Browse Klook" button
+correctly shows in its place - exactly the resilience the fallback
+was built for, but the widget itself still needs diagnosing. Asked
+the user to check DevTools (Console for script errors, Network tab
+filtered to "tpwgts" to see whether the request even fires) since
+this domain was never reachable to inspect directly from this
+environment - still waiting on that before concluding whether it's an
+ad blocker, a domain-verification issue on Travelpayouts' side, or
+something else.

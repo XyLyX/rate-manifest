@@ -1094,7 +1094,7 @@ input:focus {
 
 .klook-also-hotels {
   font-size: 0.78rem;
-  color: var(--text-dim);
+  color: var(--lime);
   margin: 0.75rem 0 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);

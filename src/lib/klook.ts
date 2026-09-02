@@ -48,16 +48,16 @@ export const KLOOK_EXPERIENCE_CATEGORIES = [
 export const SHOW_KLOOK_HOTELS_NOTE = true;
 
 // A second, dedicated link for the hotels note above - generated the same
-// way as KLOOK_LINK (Travelpayouts' Links tool), but pointed specifically
-// at Klook's Dubai hotels listing (https://www.klook.com/en-US/hotels/
-// city/78-dubai-hotels/) rather than the generic homepage. Deliberately
-// the Dubai-scoped page, not Klook's global hotels page - everything else
-// in this section, including its own "Complete your Dubai trip" copy, is
-// Dubai-specific, so sending someone to a worldwide hotel search from here
-// would be a mismatch. Kept separate from KLOOK_LINK so the two CTAs point
-// at what they actually say they point at, and so Travelpayouts' own
-// per-link analytics can tell experiences clicks apart from hotels clicks.
-export const KLOOK_HOTELS_LINK = "https://klook.tpm.lv/RqxKw5oy";
+// way as KLOOK_LINK (Travelpayouts' Links tool), pointed specifically at
+// Klook's Dubai hotels listing rather than the generic homepage or a
+// worldwide hotels page - everything else in this section, including its
+// own "Complete your Dubai trip" copy, is Dubai-specific, so a worldwide
+// hotel search from here would be a mismatch. Kept separate from
+// KLOOK_LINK so the two CTAs point at what they actually say they point
+// at, and so Travelpayouts' own per-link analytics can tell experiences
+// clicks apart from hotels clicks. Regenerated 2026-09-01 (O3Coxqyz
+// replacing the original RqxKw5oy) - same intent, refreshed link.
+export const KLOOK_HOTELS_LINK = "https://klook.tpm.lv/O3Coxqyz";
 
 // Travelpayouts' "Specific City/Category Tours Widget" for Klook - a
 // third-party script that renders real, live Klook product cards (name,

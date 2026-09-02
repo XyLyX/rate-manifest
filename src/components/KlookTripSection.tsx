@@ -60,7 +60,7 @@ export function KlookTripSection() {
           you, you can search this stay on Klook as well - unlike the offers above, that listing is not one Rate
           Manifest has independently checked.{" "}
           <a href={KLOOK_HOTELS_LINK} target="_blank" rel="noopener noreferrer">
-            Search hotels on Klook →
+            Browse Hotels →
           </a>
         </p>
       )}
