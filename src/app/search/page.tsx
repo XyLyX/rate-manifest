@@ -6,6 +6,8 @@ import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
 import { KlookTripSection } from "@/components/KlookTripSection";
+import { ThingsToDoSection } from "@/components/ThingsToDoSection";
+import { searchThingsToDo } from "@/lib/viator/searchThingsToDo";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
@@ -65,6 +67,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const available = result.offers.filter((o) => !o.soldOut);
   const soldOut = result.offers.filter((o) => o.soldOut);
+
+  // Things To Do (Viator) - see DECISIONS.md, "Decision: build a native
+  // Viator Things To Do integration." Same gating as KlookTripSection
+  // below (real hotels only, not mid live-check) so a visitor still
+  // watching the "Checking real-time prices..." spinner doesn't also
+  // trigger a Viator call for a page they haven't finished loading yet.
+  // Runs live per search rather than through a cache table - Viator's own
+  // docs say /products/search must not be used to ingest/cache the
+  // catalog, and Basic Access doesn't have the bulk endpoint that would
+  // be for, so a direct per-search call is the documented usage pattern
+  // here, not a shortcut. Never throws - searchThingsToDo() degrades to
+  // [] on any failure, same as every other supplier in this app.
+  const thingsToDoProducts =
+    !result.hotel.isMockData && liveCheck.kind !== "checking"
+      ? await searchThingsToDo({
+          destinationName: result.hotel.city,
+          startDate: checkIn,
+          endDate: checkOut,
+          currency: "AED",
+        })
+      : [];
 
   return (
     <div className="shell">
@@ -133,6 +156,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           make it disappear along with everything else whenever StayingAPI
           credits run out, which defeats the point of it being a separate
           monetization path in the first place. */}
+      {!result.hotel.isMockData && liveCheck.kind !== "checking" && <ThingsToDoSection products={thingsToDoProducts} />}
+
       {!result.hotel.isMockData && liveCheck.kind !== "checking" && <KlookTripSection />}
 
       <Footer />

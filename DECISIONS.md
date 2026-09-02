@@ -2016,3 +2016,274 @@ this domain was never reachable to inspect directly from this
 environment - still waiting on that before concluding whether it's an
 ad blocker, a domain-verification issue on Travelpayouts' side, or
 something else.
+
+## Klook API/data-feed access researched, not currently available (2026-09-02)
+
+The user relayed a multi-part external strategy discussion arguing
+RateManifest should keep StayingAPI as the hotel engine and add Klook
+as a real second vertical ("Things to Do"), ideally with Klook's
+inventory rendered in RateManifest's own cards/search/filters rather
+than an affiliate widget or deep link - and asked directly what
+Klook actually exposes via Travelpayouts versus directly, since one
+part of that discussion claimed Klook's affiliate page describes
+"advanced partners" getting data feeds, API, and white-label access.
+
+Checked two primary sources rather than taking that claim at face
+value:
+
+1. Travelpayouts publishes its own list of exactly which brands offer
+   API/data-feed access to partners (support article "Brands that
+   provide access to APIs and data feeds for Travelpayouts
+   partners"). Klook is not on it. What is: Aviasales, Kiwi.com, Omio
+   (flights/trains/buses), GetTransfer (transfers), Airalo (eSIM),
+   and - notably for a "Things to Do" vertical - Tiqets, WeGoTrip, and
+   Viator. So through Travelpayouts specifically, the honest answer
+   is no, not today.
+2. Klook's own official public API documentation
+   (klook.gitbook.io/openapi) is explicit about direction: it's
+   written for "merchants, reservation systems & channel managers who
+   are looking to integrate with Klook," to get their own inventory
+   listed and sold through Klook's channels. That's the same finding
+   as the earlier research this project already did (Klook's partner
+   page + an independent AltexSoft technical writeup) - the API
+   Klook documents publicly is supplier-in, not distribution-out.
+
+Could not verify the specific "advanced partners... data feeds, API,
+white-label" wording against affiliate.klook.com directly - the page
+is JS-rendered and only returned metadata through the fetch tool
+available here. A few third-party "we integrate any OTA API" vendor
+sites (adivaha.com, technoheaven.com) do claim a Klook distribution
+API exists, but those are marketing pages for XML/API-integration
+services sold to travel agencies, not Klook's own documentation, and
+should be weighed accordingly - they were not treated as
+confirmation.
+
+Where this leaves the Klook integration, concretely: Level 1 (deep
+links, `KLOOK_LINK`/`KLOOK_HOTELS_LINK`) and Level 2 (the
+Travelpayouts Tours Widget, `KLOOK_TOURS_WIDGET_SRC` - real live
+Klook prices, just rendered by Klook's own script rather than
+RateManifest's cards) are what's actually available and already
+built. Level 3 - Klook's inventory pulled into RateManifest's own
+database/cards/filters the way StayingAPI's is - is not confirmed
+available; getting it would mean directly approaching Klook's
+partnerships team with the "we're a comparison platform, not a
+content affiliate" pitch, an outreach worth making but not something
+to build the architecture around yet, since approval isn't
+guaranteed for a project this size. If a real Level-3 "Things to Do"
+vertical is wanted sooner, Viator or Tiqets via Travelpayouts is the
+path that is confirmed available today - Klook is not currently a
+like-for-like option for that.
+
+Separately, the "don't replace StayingAPI, add Klook as an additional
+vertical rather than a substitute" framing in that same discussion is
+already how this was built, not a change still needed - the hotel
+comparison flow (`runSearch`, `ensureLiveCheckTriggered`, the Supply
+Ledger) has not been touched by any of the Klook work, and
+`KlookTripSection` only ever renders alongside it, gated by
+`SHOW_KLOOK_HOTELS_NOTE` as a one-line off-switch if it doesn't earn
+its keep. The one genuinely new idea in that discussion - restructuring
+the site itself into "Hotels | Things to Do" top-level categories
+with their own nav and landing pages, instead of Klook appearing only
+as a block under a hotel's search results - is a real, larger,
+undecided change, not yet built.
+
+## Decision: build a native Viator Things To Do integration, starting on Basic access (2026-09-02)
+
+Following the Klook and Viator/Tiqets research above, the user decided
+to proceed with Viator's own Affiliate API (not Klook, not
+Travelpayouts' thin Viator feed) as the first genuinely
+RateManifest-native Things To Do supplier - product data rendered in
+RateManifest's own cards, the same shape StayingAPI already has for
+hotels, rather than an affiliate widget. Klook stays live as-is
+(Tours Widget + deep links) alongside it, not replaced.
+
+Signup is at https://partners.viator.com/signup?mcid=66150&program=
+affiliate - Viator's own line is "by creating an affiliate account,
+you'll immediately get Basic Access to our API," free, no approval.
+Creating that account has to happen on the user's side, not mine -
+account creation for a third-party service is outside what I do
+regardless of instruction. Once the account and API key exist, the
+key goes directly into Netlify's site environment variables (never
+pasted into chat, never committed to a file) - only the variable
+name gets shared so the code can reference `process.env.<NAME>`.
+
+Scope agreed for the first build, deliberately small - prove the
+pipeline works before expanding it:
+
+```
+Viator API -> Viator adapter -> normalized product model ->
+RateManifest DB/cache -> RateManifest card -> Viator booking/deep link
+```
+
+One destination search, real Viator products (title, image,
+description, rating/review count, live price, live availability,
+outbound booking link), rendered as RateManifest's own card - not a
+full Things To Do platform, not category browsing, not filtering/
+sorting yet. Full Access (bulk real-time availability, at
+StayingAPI's scale) only gets requested from Viator once this small
+version is proven reliable.
+
+Reviewed the existing Supplier adapter shape
+(`src/lib/suppliers/types.ts`, `stayingApiAdapter.ts`) before starting
+design work: `SupplierOffer`/`SupplierAdapter` are hotel-specific
+(`nightlyPrice`, `roomNormalizedType`, `cancellation`, etc.) and don't
+fit a tour/activity product - Viator needs its own parallel model
+(`ViatorProduct` or similar), not a forced fit into the hotel Supply
+Ledger's types. StayingAPI's async job/cache pattern exists
+specifically because its live calls take up to minutes, far past
+Netlify's 60-second function limit - Basic-access Viator's
+product/availability endpoints are documented as ordinary synchronous
+REST calls, so they may not need that same slow-job dance, but actual
+latency needs checking once real API access exists before assuming a
+StayingAPI-style refresh/cache job is even necessary versus a plain
+per-search live call.
+
+Not yet done: the account doesn't exist yet, so no adapter code has
+been written. Waiting on the user to sign up and add the API key to
+Netlify's environment variables before implementation starts.
+
+## Viator adapter: started, blocked on confirming exact endpoint paths (2026-09-02)
+
+The user signed up for Viator's Affiliate API, generated a sandbox
+Basic-access key (#B07A, up to 24h to activate), and set it in
+Netlify's environment variables as `VIATOR_SANDBOX_API_KEY` (added to
+`.env.example` alongside `VIATOR_PRODUCTION_API_KEY` for later, same
+pattern as `STAYINGAPI_KEY`).
+
+Built `src/lib/viator/` as a new, separate directory from
+`src/lib/suppliers/` - not a SupplierAdapter, per the "Things To Do
+needs its own model" note in the earlier decision above:
+
+- `types.ts` - `ThingsToDoProduct`, the normalized product model for
+  this vertical (title, image, description, rating/reviewCount,
+  fromPrice/currency, confirmedAvailable, bookingUrl, checkedAt).
+- `client.ts` - the low-level authenticated fetch wrapper. Only built
+  from pieces confirmed directly against Viator's own docs: sandbox
+  base URL `https://api.sandbox.viator.com/partner` (seen as a live
+  example in Viator's "modified-since" guide), production base URL
+  `https://api.viator.com/partner` (confirmed via a third-party
+  integration doc), the `exp-api-key` auth header, and the required
+  `Accept: application/json;version=2.0` version header (Viator's docs
+  say omitting it returns a 400). Prefers `VIATOR_PRODUCTION_API_KEY`
+  over `VIATOR_SANDBOX_API_KEY` automatically if both are ever set, so
+  going live later is a Netlify env var change, not a code change.
+
+Deliberately did NOT write the product-search or destination-lookup
+calls yet. Multiple fetches of Viator's own documentation pages
+(docs.viator.com/partner-api, partnerresources.viator.com) returned
+inconsistent endpoint paths for the same operations across separate
+fetches - "/products/search" vs "/search/products" for search,
+"/products/{product-code}" vs "/product" for product detail,
+"/availability/schedules/{product-code}" vs "/availability/check" vs
+"/available/products" for availability - almost certainly because
+these are complex, JS-rendered/tabbed reference pages that don't
+extract cleanly as flat text, not because the API itself is
+inconsistent. Rather than hardcode a guess with a real chance of being
+wrong (which would fail silently or confusingly once the key
+activates), asked the user to pull the authoritative source instead:
+the OpenAPI specification the Keys & Access page's own copy says is
+"available to assist the integration," likely under the portal's
+"Resources" tab (seen alongside "Keys & Access" in the account
+screenshots) - or the Postman collection, if that's what's offered
+instead. Also tried Claude in Chrome to read the authenticated portal
+directly rather than guess from public search results - not connected
+in this environment, so that route wasn't available.
+
+Once that spec (or even just the endpoint list/example responses
+copy-pasted or screenshotted from it) is available, the destination
+resolver and product-search call can be written with confidence in one
+pass rather than iterated against guesses. Nothing has been tested
+against the real API yet either way - the sandbox key isn't active yet
+(up to 24h), and its value was never shared with this environment by
+design.
+
+## Viator adapter: confirmed against the real OpenAPI spec, built, and verified locally (2026-09-02)
+
+The user pulled the actual OpenAPI spec from their Viator dashboard's
+Resources tab and shared it (`openapi.json`, Viator Partner API 2.0) -
+this resolved every gap flagged in the previous entry. Confirmed
+directly from the spec, not guessed:
+
+- Servers: production `https://api.viator.com/partner`, sandbox
+  `https://api.sandbox.viator.com/partner` - matches what `client.ts`
+  already had.
+- `GET /destinations` (not `/taxonomy/destinations` - no such prefix
+  exists in the real spec) returns the full destination list
+  (`destinationId` as an int64, `name`, `type` enum including
+  `"CITY"`/`"COUNTRY"`, `parentDestinationId`). Viator's own docs say
+  to refresh this weekly, not per search.
+- `POST /products/search` request: `{ filtering: { destination,
+  startDate, endDate, ... }, sorting, pagination, currency }`, where
+  `filtering.destination` is the destinationId as a **string**.
+  Response: `{ products: ProductSummary[], totalCount }` (the spec's
+  own `required` list names the count field `total`, but the actual
+  property is `totalCount` - a real inconsistency in Viator's spec,
+  handled defensively rather than trusted literally).
+- `ProductSummary` fields used: `productCode`, `title`, `description`,
+  `images[].variants[].url` (picking the largest variant of the
+  cover image), `reviews.combinedAverageRating` /
+  `reviews.totalReviews`, `pricing.currency` /
+  `pricing.summary.fromPrice`, and `productUrl` - confirmed to already
+  be a "pre-formatted Viator link" carrying this account's affiliate
+  attribution, so RateManifest never constructs or appends its own
+  tracking parameters (same "don't touch it" rule Viator's own docs
+  state: modifying it can void the commission attribution).
+- `POST /availability/check` needs a single `travelDate` (not a
+  range) plus `paxMix` (passenger counts) - it's a per-product,
+  per-date, immediately-before-booking confirmation, not something to
+  call once per card on a destination-search page. Left unbuilt for
+  this small first version - `ThingsToDoProduct.confirmedAvailable`
+  stays `false` and is documented as the next real step, not a filled
+  placeholder.
+
+Built on top of the already-shipped `client.ts`:
+`src/lib/viator/destinations.ts` (`resolveDestinationId`, in-memory
+cached) and `src/lib/viator/searchThingsToDo.ts` (the one live call:
+resolve destination, `POST /products/search`, map to
+`ThingsToDoProduct[]`, never throws - any failure degrades to `[]`
+same as every other supplier adapter in this app). Deliberately no
+database/cache table for this, unlike StayingAPI - Viator's own docs
+say `/products/search` "must not be used to ingest the catalog," and
+Basic Access doesn't have the bulk `/products/modified-since`
+endpoint that would be for anyway, so a live call per search is the
+documented intended usage here, not a shortcut taken to save time.
+
+Also built `src/components/ThingsToDoSection.tsx` - RateManifest's own
+card grid (image, title, rating/reviews, from-price, book link), kept
+visually and structurally separate from `KlookTripSection` since Klook
+is still link/widget-based (Level 1/2) while this is genuinely
+RateManifest-native data (Level 3) - conflating them into one
+component would blur a distinction worth keeping. Wired into
+`/search`, gated the same way as `KlookTripSection` (real hotels only,
+not mid live-check).
+
+Verified locally (local Postgres, real seeded hotels, `next dev` on
+port 3103/3104, no shortcuts):
+
+1. Logic verified in isolation first, before touching the page: a
+   `tsx` script with a mocked `fetch` fed the adapter a realistic
+   sample `/products/search` response (built from the spec's own field
+   names) plus one deliberately malformed product with no price -
+   confirmed the malformed one is dropped, the request body/headers
+   are shaped exactly as documented, the largest image variant is
+   picked, and `productUrl` passes through completely untouched.
+2. With no Viator key configured: `/search` for a real hotel returns
+   200, renders normally, and the Things To Do section correctly does
+   not appear (no crash, no hydration error) - safe to ship as-is even
+   before the sandbox key finishes activating.
+3. With a deliberately fake key set: `/search` still returns 200 and
+   renders correctly. The real failure reason logged was
+   `403: Host not in allowlist: api.sandbox.viator.com` - this
+   sandbox's own network egress proxy blocks that host, the same
+   limitation already hit with `tpwgts.com` for the Klook widget. So a
+   genuine success response from Viator's API has not been (and
+   cannot be) observed from this environment - only that failures of
+   every kind degrade safely rather than breaking the page. The real
+   test - whether the sandbox key returns real Dubai products once
+   it's active - needs to happen on the deployed Netlify site (which
+   isn't behind this sandbox's egress block), the same way the Klook
+   widget was ultimately real-world-tested there rather than here.
+
+`npx tsc --noEmit` clean throughout, no new em-dashes introduced (only
+ones already present in `search/page.tsx`/`globals.css` from earlier
+work, unchanged).
