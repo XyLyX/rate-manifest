@@ -3,8 +3,12 @@ import { runSearch } from "@/lib/search";
 import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
+import { getPriceInsight } from "@/lib/priceInsight";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
+import { VerifiedRatePanel, type VerifiedRateState } from "@/components/VerifiedRatePanel";
+import { PriceInsightPanel } from "@/components/PriceInsightPanel";
+import { RateManifestVerdict } from "@/components/RateManifestVerdict";
 import { KlookTripSection } from "@/components/KlookTripSection";
 import { ThingsToDoSection } from "@/components/ThingsToDoSection";
 import { searchThingsToDo } from "@/lib/viator/searchThingsToDo";
@@ -68,6 +72,22 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const available = result.offers.filter((o) => !o.soldOut);
   const soldOut = result.offers.filter((o) => o.soldOut);
 
+  // Phase 1 (Layer A) - see DECISIONS.md, "Phase 1 (Layer A): Verified
+  // Rate panel, Is this a good price?, RateManifest Verdict (2026-09-03)."
+  // showComparison mirrors the exact condition ResultsList itself is
+  // rendered under below - the verdict and price-history panels only make
+  // sense when there's an actual comparison to summarize.
+  const showComparison = liveCheck.kind !== "checking" && liveCheck.kind !== "error" && available.length > 0;
+
+  // Cache-only read, same as every other panel here - never triggers a
+  // new lookup. Only run when there's something to compare against;
+  // skipped entirely during "checking"/"error" so those states don't pay
+  // for a query whose answer nothing on screen would use yet.
+  const priceInsight = showComparison ? await getPriceInsight(result.hotel.id, checkIn, result.cheapestTotal) : null;
+
+  const verifiedState: VerifiedRateState =
+    liveCheck.kind === "ready" ? (available.length > 0 ? "verified" : "no-availability") : "not-checked";
+
   // Things To Do (Viator) - see DECISIONS.md, "Decision: build a native
   // Viator Things To Do integration." Same gating as KlookTripSection
   // below (real hotels only, not mid live-check) so a visitor still
@@ -114,24 +134,49 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         )}
       </div>
 
+      {/* Verified Rate panel - real hotels only. See VerifiedRatePanel.tsx
+          for why mock hotels skip this entirely (the .demo-banner above
+          already says the prices are simulated). */}
+      {!result.hotel.isMockData && liveCheck.kind !== "checking" && (
+        <VerifiedRatePanel
+          state={verifiedState}
+          sourcesChecked={result.sourcesChecked}
+          checkedAt={result.offers[0]?.checkedAt ?? null}
+        />
+      )}
+
       {liveCheck.kind === "checking" ? (
         <LiveCheckStatus hotelId={result.hotel.id} checkIn={checkIn} checkOut={checkOut} />
+      ) : showComparison ? (
+        <>
+          {/* Non-null: showComparison already guarantees available.length > 0. */}
+          <RateManifestVerdict offer={available[0]!} sourcesChecked={result.sourcesChecked} />
+          {priceInsight && <PriceInsightPanel insight={priceInsight} />}
+          <ResultsList
+            searchId={result.searchId}
+            hotelId={result.hotel.id}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            offers={available}
+            averageTotal={result.averageTotal}
+            cheapestTotal={result.cheapestTotal}
+          />
+        </>
       ) : liveCheck.kind === "error" ? (
-        <p className="empty-state">
-          We could not check real-time prices for these dates just now - please try again in a moment.
-        </p>
-      ) : available.length === 0 ? (
-        <p className="empty-state">No availability found across the sources we checked for these dates.</p>
+        // Real hotels only ever land here (ensureLiveCheckTriggered
+        // returns "not-applicable" for mock hotels, never "error") - the
+        // VerifiedRatePanel above already carries this message ("Not
+        // checked yet"), so nothing further renders.
+        null
       ) : (
-        <ResultsList
-          searchId={result.searchId}
-          hotelId={result.hotel.id}
-          checkIn={checkIn}
-          checkOut={checkOut}
-          offers={available}
-          averageTotal={result.averageTotal}
-          cheapestTotal={result.cheapestTotal}
-        />
+        // available.length === 0 with a completed check. Real hotels: the
+        // VerifiedRatePanel above already carries this message ("Checked,
+        // nothing available"). Mock hotels render no VerifiedRatePanel, so
+        // they still need this plain-text fallback for the rare case every
+        // simulated provider's own sold-out roll landed true.
+        result.hotel.isMockData && (
+          <p className="empty-state">No availability found across the sources we checked for these dates.</p>
+        )
       )}
 
       {liveCheck.kind !== "checking" && liveCheck.kind !== "error" && soldOut.length > 0 && (

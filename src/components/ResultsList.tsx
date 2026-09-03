@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DisplayOffer } from "@/lib/search";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
+import { buildDealFactors } from "@/lib/scoring/factors";
 import { TrackPrice } from "./TrackPrice";
 
 interface ResultsListProps {
@@ -76,49 +77,6 @@ function FreshnessBadge({ checkedAt }: { checkedAt: string | null }) {
 
   if (!label) return null;
   return <span className="offer-freshness">Checked {label}</span>;
-}
-
-// Factors shown in "Why this deal?" — every one of these is backed by a
-// real field on the offer. Deliberately does NOT include breakfast/board
-// basis: that isn't tracked anywhere in the supplier adapter data model
-// yet, and showing a green "Breakfast included" tick with nothing behind
-// it would be exactly the kind of fabricated signal DECISIONS.md rules
-// out. Room "equivalence" is safe to state as a structural fact — every
-// offer compared here is already for the same normalized room type, by
-// construction, before scoring ever runs (see bestDealScore.ts).
-function buildFactors(offer: DisplayOffer) {
-  const isCheapest = offer.reasons.some((r) => r.text.startsWith("Lowest total price"));
-  return [
-    {
-      label: "Price",
-      positive: isCheapest,
-      text: isCheapest ? "Lowest total price of the offers checked" : "Within the range of offers checked",
-    },
-    {
-      label: "Cancellation",
-      positive: offer.isFreeCancellation,
-      text: offer.isFreeCancellation ? "Free cancellation" : "Non-refundable",
-    },
-    {
-      label: "Taxes & fees",
-      positive: true,
-      text: "Included in the total shown",
-    },
-    {
-      label: "Room",
-      positive: true,
-      text: "Same normalized room type across every offer compared",
-    },
-    {
-      label: "Supplier",
-      positive: offer.hasReliabilityData ? (offer.reliabilityScore ?? 0) >= 0.8 : null,
-      text: offer.hasReliabilityData
-        ? (offer.reliabilityScore ?? 0) >= 0.8
-          ? "Strong track record on completed bookings"
-          : "Reliability data available, mixed track record"
-        : "New partner — reliability data building",
-    },
-  ];
 }
 
 function OfferRow({
@@ -225,7 +183,7 @@ function OfferRow({
             <div className="why-panel-title">Rate Manifest analysis</div>
             <table className="why-table">
               <tbody>
-                {buildFactors(offer).map((f) => (
+                {buildDealFactors(offer).map((f) => (
                   <tr key={f.label}>
                     <td>{f.label}</td>
                     <td>

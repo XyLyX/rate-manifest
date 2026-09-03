@@ -34,3 +34,13 @@ export type PriceTrackingStatus = (typeof PRICE_TRACKING_STATUSES)[number];
 // "new partner — reliability data building" empty state (Blueprint,
 // Section A) rather than a number computed from too little data.
 export const MIN_BOOKING_OUTCOMES_FOR_RELIABILITY_SCORE = 10;
+
+// Same honesty rule, applied to price_history: "Is this a good price?"
+// (see src/lib/priceInsight.ts) only computes a lowest/highest/average
+// range once at least this many distinct calendar days of observation
+// exist for the exact (hotel, checkIn) pair. Below the threshold the UI
+// must show "not enough observations yet," never a range built from one
+// or two data points dressed up as a trend - see DECISIONS.md, "Phase 1
+// (Layer A): Verified Rate panel, Is this a good price?, RateManifest
+// Verdict (2026-09-03)."
+export const MIN_OBSERVATION_DAYS_FOR_PRICE_INSIGHT = 3;

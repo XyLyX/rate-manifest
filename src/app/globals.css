@@ -1356,6 +1356,224 @@ input:focus {
 }
 
 /* ==========================================================================
+   Phase 1 (Layer A) - Verified Rate panel, Is this a good price?,
+   RateManifest Verdict (2026-09-03). See DECISIONS.md for the full entry
+   and src/app/search/page.tsx for how these three compose on /search.
+   ========================================================================== */
+
+/* --- Verified Rate panel --- */
+
+.verified-rate-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin: 1rem 0;
+}
+
+.verified-rate-panel.verified {
+  border-color: var(--positive);
+}
+
+.verified-rate-panel.pending {
+  border-color: var(--warning);
+}
+
+.verified-rate-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.verified-rate-icon.verified {
+  background: var(--positive);
+}
+
+.verified-rate-icon.neutral {
+  background: var(--text-secondary);
+}
+
+.verified-rate-icon.pending {
+  background: var(--warning);
+}
+
+.verified-rate-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.verified-rate-sub {
+  font-size: 0.83rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
+  line-height: 1.4;
+}
+
+/* --- Is this a good price? --- */
+
+.price-insight-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  margin: 1rem 0;
+}
+
+.price-insight-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.price-insight-body {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.price-insight-panel.sparse {
+  border-style: dashed;
+}
+
+.price-insight-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.price-insight-stat-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.price-insight-stat-value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- RateManifest Verdict --- */
+
+.rate-verdict-panel {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ring-color, var(--lime));
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin: 1rem 0;
+}
+
+.rate-verdict-ring {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(var(--ring-color, var(--lime)) calc(var(--score) * 3.6deg), var(--border) 0deg);
+}
+
+.rate-verdict-ring-inner {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rate-verdict-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+}
+
+.rate-verdict-headline {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-top: 0.15rem;
+}
+
+.rate-verdict-factors {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.rate-verdict-factors li {
+  position: relative;
+  padding-left: 0.9rem;
+}
+
+.rate-verdict-factors li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.4em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal-good);
+}
+
+.rate-verdict-footnote {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 640px) {
+  .rate-verdict-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ==========================================================================
    Homepage redesign (2026-09-03) - matches a full-layout mockup the user
    pasted directly ("this is how i want the homepage layout. same to same.
    exact design."). See page.tsx's own top-of-file comment and
