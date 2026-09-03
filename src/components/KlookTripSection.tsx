@@ -5,27 +5,29 @@ import {
   KLOOK_HOTELS_WIDGET_CONFIG,
   KLOOK_HOTELS_WIDGET_SCRIPT_SRC,
   KLOOK_LINK,
-  KLOOK_TOURS_WIDGET_SRC,
   SHOW_KLOOK_HOTELS_NOTE,
 } from "@/lib/klook";
+import { KlookToursWidgetMount } from "./KlookToursWidgetMount";
 
 // Shown after a real hotel's search results, regardless of whether an
 // offer was found - see DECISIONS.md, "Klook's accommodation program,
 // added to try," and "Klook Tours Widget."
 //
-// The widget below is a third-party script (Travelpayouts' Klook Tours
-// Widget) that renders real, live product cards - real names, ratings,
-// prices - sourced from Klook itself, not written by us. Loaded via
-// next/script with strategy="lazyOnload" so it never competes with the
-// page's own load, and so it only touches the DOM after React has already
-// hydrated (this component has no client-side state and nothing above it
-// re-renders once it mounts, so there's nothing for the widget's DOM
-// insertions to collide with). It was never inspected directly - the
-// domain isn't reachable from this environment - so the plain "Browse
-// Klook" link/button stays as a guaranteed fallback for anyone whose
-// browser blocks the widget script (ad blockers commonly flag exactly
-// this kind of third-party affiliate-widget domain), and the category
-// list stays as the text description either way.
+// The widget below (KlookToursWidgetMount) is a third-party script
+// (Travelpayouts' Klook Tours Widget) that renders real, live product
+// cards - real names, ratings, prices - sourced from Klook itself, not
+// written by us. Loaded via next/script with strategy="lazyOnload" so it
+// never competes with the page's own load. Its own JS does not respect
+// wherever the <script> tag sits in the DOM - confirmed by live
+// inspection, it appends its generated wrapper straight onto
+// document.body - so KlookToursWidgetMount also runs a MutationObserver
+// that claims that wrapper node the moment it appears and moves it back
+// into this card. See that file's own comment, and DECISIONS.md, "Klook
+// Tours Widget DOM placement fix (2026-09-03)," for the full story. The
+// plain "Browse Here" link/button below stays as a guaranteed fallback for
+// anyone whose browser blocks the widget script (ad blockers commonly
+// flag exactly this kind of third-party affiliate-widget domain), and the
+// category list stays as the text description either way.
 //
 // The second block (klook-also-hotels) is Klook's own hotel/accommodation
 // offering - see DECISIONS.md, "Klook hotels, brought back with explicit
@@ -67,11 +69,9 @@ export function KlookTripSection() {
         Rate Manifest only compares hotel rates - for everything else around the trip, Klook covers{" "}
         {KLOOK_EXPERIENCE_CATEGORIES.join(", ").toLowerCase()}.
       </p>
-      <div className="klook-widget-mount">
-        <Script id="klook-tours-widget" src={KLOOK_TOURS_WIDGET_SRC} strategy="lazyOnload" />
-      </div>
+      <KlookToursWidgetMount />
       <a className="btn-ghost klook-cta" href={KLOOK_LINK} target="_blank" rel="noopener noreferrer">
-        Browse Klook →
+        Browse Here →
       </a>
       <p className="klook-disclosure">
         Klook is a separate partner from the hotel comparison above - booked and paid for on Klook, not through
@@ -104,7 +104,7 @@ export function KlookTripSection() {
             <Script id="klook-hotels-widget" src={KLOOK_HOTELS_WIDGET_SCRIPT_SRC} strategy="lazyOnload" />
           </div>
           <a className="klook-also-hotels-link" href={KLOOK_HOTELS_LINK} target="_blank" rel="noopener noreferrer">
-            Browse Hotels on Klook →
+            Browse HOTELS →
           </a>
         </div>
       )}

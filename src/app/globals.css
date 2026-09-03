@@ -1078,8 +1078,25 @@ input:focus {
   max-width: 46rem;
 }
 
+/* Both Klook widgets (Tours here, Hotels below) render inside an iframe
+   that Klook's own script controls - real content, with a plain white
+   background we cannot restyle from our CSS (iframe internals are
+   cross-origin, out of reach - there is no dark-theme option in Klook's
+   own widget generator either, confirmed while regenerating the hotels
+   widget). Rather than leave that white iframe floating directly on the
+   site's near-black card - which reads as a rendering glitch - it gets a
+   deliberately light frame around it (off-white background, rounded
+   corners, soft shadow) so the white content looks like an intentional
+   inset panel/window instead. This does not make the cards themselves
+   dark (not achievable), but it stops the white from looking broken.
+   See DECISIONS.md, "Klook widget framing on the dark theme (2026-09-03)." */
 .klook-widget-mount {
   margin: 0.25rem 0 1rem;
+  padding: 0.75rem;
+  background: #f5f3ef;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  min-height: 116px;
 }
 
 .klook-cta {
@@ -1107,12 +1124,20 @@ input:focus {
 
 /* Mounts Klook's Dynamic Hotel Widget - see KLOOK_HOTELS_WIDGET_CONFIG in
    src/lib/klook.ts. The <ins> itself is sized by Klook's own generated
-   data-cardH/data-lgH values once the loader script fills it; this wrapper
-   just gives it breathing room from the intro text and fallback link on
-   either side, and a min-height so the section doesn't visibly jump once
-   the (lazy-loaded) widget script fills the placeholder in. */
+   data-cardH/data-lgH values once the loader script fills it; a min-height
+   keeps the section from visibly jumping once the (lazy-loaded) widget
+   script fills the placeholder in. Same off-white framing as
+   .klook-widget-mount above and for the same reason - this widget's cards
+   are also a Klook-controlled white iframe with no dark-theme option, so
+   the frame is what keeps that white looking deliberate rather than like
+   a rendering glitch. See DECISIONS.md, "Klook widget framing on the dark
+   theme (2026-09-03)." */
 .klook-hotels-widget-mount {
   margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  background: #f5f3ef;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
   min-height: 126px;
 }
 
