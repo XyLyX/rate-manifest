@@ -1093,14 +1093,31 @@ input:focus {
 }
 
 .klook-also-hotels {
-  font-size: 0.78rem;
-  color: var(--lime);
   margin: 0.75rem 0 0;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border);
 }
 
-.klook-also-hotels a {
+.klook-also-hotels-intro {
+  font-size: 0.78rem;
+  color: var(--lime);
+  margin: 0 0 0.75rem;
+  max-width: 46rem;
+}
+
+/* Mounts Klook's Dynamic Hotel Widget - see KLOOK_HOTELS_WIDGET_CONFIG in
+   src/lib/klook.ts. The <ins> itself is sized by Klook's own generated
+   data-cardH/data-lgH values once the loader script fills it; this wrapper
+   just gives it breathing room from the intro text and fallback link on
+   either side, and a min-height so the section doesn't visibly jump once
+   the (lazy-loaded) widget script fills the placeholder in. */
+.klook-hotels-widget-mount {
+  margin: 0 0 0.75rem;
+  min-height: 126px;
+}
+
+.klook-also-hotels-link {
+  font-size: 0.78rem;
   color: var(--tangerine);
 }
 

@@ -2287,3 +2287,146 @@ port 3103/3104, no shortcuts):
 `npx tsc --noEmit` clean throughout, no new em-dashes introduced (only
 ones already present in `search/page.tsx`/`globals.css` from earlier
 work, unchanged).
+
+## Live check: pipeline works end to end, waiting on key activation (2026-09-02)
+
+Checked the deployed function logs on Netlify (Functions -> Next.js
+Server Handler) after a real search on ratemanifest.com. Confirmed
+the whole chain runs correctly in production: the function read
+`VIATOR_SANDBOX_API_KEY`, called Viator's real API (`GET
+/destinations` - no egress block this time, unlike this sandbox
+environment), got a real structured response back
+(`401 UNAUTHORIZED, "Invalid API Key"`), and `searchThingsToDo`
+caught it, logged it (`ERROR searchThingsToDo failed: ...`), and
+returned `[]` - the page rendered normally in 902ms with no crash,
+same as every other supplier adapter's failure mode in this app.
+
+Most likely cause: Viator's own dashboard said sandbox keys can take
+up to 24 hours to activate, and this key is only a few hours old - a
+not-yet-active key and a genuinely wrong key both come back as the
+same generic 401 from Viator's side, so this isn't distinguishable
+from the error alone. Left as-is; the user will check the same log
+line again later once the activation window has passed. If the exact
+same 401 persists past 24 hours, the next step is comparing the
+value in Netlify's env var character-for-character against what
+Viator's dashboard shows (never by pasting the value anywhere in this
+conversation) rather than assuming it's still just activation delay.
+
+No code change made - nothing here indicates a bug in the adapter
+itself, only that a live, valid key hasn't been confirmed working
+yet.
+
+## Correction: the Klook API conclusion overreached (2026-09-02)
+
+The earlier entry above ("Klook API/data-feed access researched, not
+currently available") and what got said out loud in this session both
+stated the conclusion too strongly - "there is no version of pull
+Klook's catalog into our own site that Klook currently offers us, at
+any tier, self-serve or otherwise." That's broader than what was
+actually verified, and the user was right to push back on it.
+
+What was actually confirmed, and still holds:
+
+1. Klook's own public OpenAPI documentation
+   (klook.gitbook.io/openapi) is supplier-in only - built for
+   merchants/reservation systems to list their inventory into Klook,
+   not for a partner to pull Klook's catalog out.
+2. Klook does not appear on Travelpayouts' published list of brands
+   offering API/data-feed access through Travelpayouts (Viator,
+   Tiqets, WeGoTrip are the Tours & Activities brands listed; Klook
+   isn't).
+
+What that does NOT establish, and shouldn't have been implied: that
+Klook has no distribution API anywhere, under any arrangement,
+public or private. The user surfaced a Travelpayouts blog post - a
+Q&A recap from a Klook webinar, URL:
+travelpayouts.com/blog/qa-from-the-webinar-how-to-earn-on-travel-in-the-new-normal-with-klook -
+that reportedly states Klook offers a direct-sales API integration
+separate from the Travelpayouts affiliate programme. Tried to verify
+this directly: WebFetch returned only page metadata (title, viewport
+tag) with no article body twice in a row, and web.archive.org is
+blocked by this environment's own content-fetching policy - so the
+exact wording could not be independently confirmed either way. Two
+things are worth weighing regardless of whether the quote is exact:
+the page's own title phrase ("...in the New Normal...") is
+characteristic COVID-era webinar language, meaning this is very
+likely a 2020/2021-dated source - a partner-access answer from that
+period is not guaranteed to still be true four-plus years later; and
+even if accurate as reported, "Klook offers a direct-sales API to
+someone" is not the same claim as "Klook will grant RateManifest,
+specifically, access to it."
+
+Corrected position for the record: Klook's publicly documented
+OpenAPI is not the distribution API RateManifest needs, and Klook is
+not on Travelpayouts' current published API/data-feed list - both
+still true and directly verified. Whether a separate, direct
+Klook-to-RateManifest integration exists and is obtainable is
+genuinely unresolved, not a settled "no." The only way to actually
+resolve it is asking Klook directly - not something to keep
+researching secondhand.
+
+Decided: email Klook directly (via business@ratemanifest.com, per
+the existing B2B-outreach convention) with a specific, concrete ask -
+not "can we be an affiliate" (already have that), but whether a
+direct catalog/pricing/availability integration is available to a
+platform RateManifest's size, and on what terms. This does not block
+or compete with the Viator work already shipped - `ThingsToDoProduct`
+or a Klook equivalent is just another supplier feeding the same
+`ThingsToDoSection` card UI, the same way StayingAPI and
+Travelpayouts both already feed the hotel comparison. Continuing to
+verify the Viator integration (waiting on its sandbox key) and
+sending the Klook outreach are parallel tracks, not sequential ones.
+
+## Klook Dynamic Hotel Widget (2026-09-03)
+
+While waiting on Klook's reply to the Corporate Affiliate Partnership
+enquiry (see the entry above), the user explored Klook's Affiliate
+Dashboard directly (My Ads -> Other tools -> Hotels -> Dynamic
+Widgets) and generated a real, working widget for Dubai hotels -
+live preview confirmed three real cards (The S Hotel Al Barsha, Rove
+Expo City, Park Regis Business Bay Hotel) with real star tiers,
+ratings, review counts, and AED prices. This is Klook's own
+first-party affiliate infrastructure, reached through the same
+Travelpayouts-mediated Klook program access already used for
+KLOOK_LINK/KLOOK_HOTELS_LINK/KLOOK_TOURS_WIDGET_SRC - not a
+separately created Klook account, and not the direct-API question
+above, which is still open.
+
+Integrated into the existing klook-also-hotels block in
+KlookTripSection.tsx (see src/lib/klook.ts for the full generated
+config: KLOOK_HOTELS_WIDGET_SCRIPT_SRC,
+KLOOK_HOTELS_WIDGET_CONFIG). Mechanically different from the
+Travelpayouts Tours Widget already on the page: this is an
+<ins class="klk-aff-widget" data-*> placeholder that
+affiliate.klook.com's loader script scans the DOM for and fills with
+a real iframe, rather than one self-contained <script src="...">
+tag - so it needs both the loader script and the placeholder
+element, and the placeholder's data-* attribute names are kept in
+Klook's exact generated mixed case (data-cardH, data-lgH,
+data-edgeValue) for literal fidelity to what Klook generated (HTML
+attribute matching is case-insensitive regardless, so this isn't
+functionally required, just deliberate).
+
+City is Dubai (data-cid="78", the same destination id already used
+as city_id=78 in KLOOK_TOURS_WIDGET_SRC), 3 cards (data-amount="3",
+matching the Tours Widget's amount=3), currency AED (set explicitly
+to match every other price on the site). Dashboard-side ad-tracking
+labels used when generating it: search-page-hotels-note / hotels /
+dubai.
+
+KLOOK_HOTELS_LINK is kept directly below the widget as a second,
+guaranteed fallback - same reasoning as the Tours Widget's existing
+fallback link: affiliate.klook.com was never reachable from the dev
+environment to inspect directly, and ad blockers commonly flag this
+class of third-party affiliate-widget domain. The block's framing
+(smaller type, "not independently verified" in the copy, no primary
+button) is unchanged - this is real Klook data now instead of a bare
+link, but it's still Klook's own listing, not one RateManifest has
+checked, and the section still shouldn't read as another row in the
+verified comparison above it.
+
+Not yet confirmed live on production: this environment's own network
+egress blocks affiliate.klook.com the same way it blocked
+tpwgts.com and api.sandbox.viator.com earlier, so only integration
+correctness (types, JSX, config values) was verified here - real
+rendering needs checking on the live site after deploy.
