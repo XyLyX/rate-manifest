@@ -1083,19 +1083,25 @@ input:focus {
    background we cannot restyle from our CSS (iframe internals are
    cross-origin, out of reach - there is no dark-theme option in Klook's
    own widget generator either, confirmed while regenerating the hotels
-   widget). Rather than leave that white iframe floating directly on the
-   site's near-black card - which reads as a rendering glitch - it gets a
-   deliberately light frame around it (off-white background, rounded
-   corners, soft shadow) so the white content looks like an intentional
-   inset panel/window instead. This does not make the cards themselves
-   dark (not achievable), but it stops the white from looking broken.
-   See DECISIONS.md, "Klook widget framing on the dark theme (2026-09-03)." */
+   widget). An earlier attempt tried an off-white (#f5f3ef) frame to
+   "blend" the white away - that failed visibly: #f5f3ef is close enough
+   to the iframe's actual white that the two read as one continuous white
+   block, so it looked like nothing had changed at all. Replaced with a
+   frame that goes the other way - dark, matching the site's own nested
+   card language (same var(--card)/var(--border)/border-radius as
+   .klook-section itself) - so the white iframe sits inside a visibly
+   bordered dark "window," clearly separated from the page around it,
+   instead of trying and failing to hide the color it can't change. Uses
+   --ink (darker than the section's own --card) rather than --card itself,
+   so the frame visibly recedes behind the white iframe instead of just
+   matching its parent with only a border to show for it. See
+   DECISIONS.md, "Klook widget framing, corrected (2026-09-03)." */
 .klook-widget-mount {
   margin: 0.25rem 0 1rem;
   padding: 0.75rem;
-  background: #f5f3ef;
+  background: var(--ink);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
   min-height: 116px;
 }
 
@@ -1130,14 +1136,15 @@ input:focus {
    .klook-widget-mount above and for the same reason - this widget's cards
    are also a Klook-controlled white iframe with no dark-theme option, so
    the frame is what keeps that white looking deliberate rather than like
-   a rendering glitch. See DECISIONS.md, "Klook widget framing on the dark
-   theme (2026-09-03)." */
+   a rendering glitch. Same corrected --ink/--border frame as
+   .klook-widget-mount above, not the earlier near-white one - see
+   DECISIONS.md, "Klook widget framing, corrected (2026-09-03)." */
 .klook-hotels-widget-mount {
   margin: 0 0 0.75rem;
   padding: 0.75rem;
-  background: #f5f3ef;
+  background: var(--ink);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
   min-height: 126px;
 }
 
