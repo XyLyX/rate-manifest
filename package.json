@@ -15,9 +15,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/inter": "^5.3.0",
-    "@fontsource/space-grotesk": "^5.3.0",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@netlify/database": "^2.0.0",
     "drizzle-orm": "^0.45.2",
     "next": "^16.3.3",

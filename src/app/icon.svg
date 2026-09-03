@@ -1,6 +1,12 @@
+<!-- Colors updated 2026-09-03 to match the new white/indigo brand palette
+     (see DECISIONS.md, "Rebrand: white/indigo palette (2026-09-03)") -
+     same white background + primary/positive bars as Logo.tsx's LogoMark,
+     the background square swapped from the old dark --ink to white rather
+     than kept dark, for consistency with the mark as it now renders
+     everywhere else on the site. -->
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#101114"/>
-  <rect x="8" y="34" width="12" height="22" rx="2" fill="#ff5a36"/>
-  <rect x="26" y="20" width="12" height="36" rx="2" fill="#ff5a36"/>
-  <rect x="44" y="6" width="12" height="50" rx="2" fill="#c8f31d"/>
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <rect x="8" y="34" width="12" height="22" rx="2" fill="#635bff"/>
+  <rect x="26" y="20" width="12" height="36" rx="2" fill="#635bff"/>
+  <rect x="44" y="6" width="12" height="50" rx="2" fill="#10b981"/>
 </svg>

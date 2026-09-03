@@ -1,41 +1,74 @@
 :root {
   /* Hints the browser that this page's native controls (select boxes,
-     date-picker icons, scrollbars) should default to dark chrome. Without
-     this, some browsers render a transparent <select> background as if it
-     sat on a light page, which made "Choose a property..." nearly
-     invisible on Windows Chrome/Edge — light text on a light native box. */
-  color-scheme: dark;
+     date-picker icons, scrollbars) should default to light chrome.
+     Flipped from "dark" 2026-09-03 along with the rest of the palette
+     below - see DECISIONS.md, "Rebrand: white/indigo palette
+     (2026-09-03)." Left as "dark" here would fight the new light theme
+     the same way "light" fought the old dark one (the original reason
+     this line exists at all - light-on-light native controls on Windows
+     Chrome/Edge). */
+  color-scheme: light;
 
-  /* Brand palette — Electric Tangerine + Acid Lime + Deep Ink.
-     Usage ratio (v3, "flip"): tangerine (+ a lime glow) is the dominant
-     page background everywhere — homepage, results, stub-booking, admin.
-     Every piece of actual content sits inside a dark ink/card "shell" that
-     floats on top of that field, so the existing dark-surface contrast
-     system (text/text-dim on --card, --ink) is untouched — only what's
-     visible *around* the shell changed. Lime keeps its job marking the
-     "intelligence" layer (best-deal tags, save badges, the RM Signal ring)
-     plus a top accent stripe on the shell itself. */
-  --ink: #101114;
-  --card: #191b20;
-  --border: #30323a;
-  --text: #f7f5ef;
-  --text-dim: #a8a9b0;
+  /* New brand palette, 2026-09-03 - white surfaces + indigo primary,
+     replacing "Deep Ink / Electric Tangerine / Acid Lime." See
+     DECISIONS.md, "Rebrand: white/indigo palette (2026-09-03)," for the
+     full reasoning and the mockup this was built from. These are the
+     tokens new code should reference directly. */
+  --primary: #635bff;
+  --primary-hover: #5146e5;
+  --accent: #06b6d4;
+  --positive: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --text-primary: #111827;
+  --text-secondary: #64748b;
+  --surface: #ffffff;
+  --surface-alt: #f6f8fb;
+  --border-color: #e2e8f0;
 
-  --tangerine: #ff5a36;
-  --lime: #c8f31d;
+  /* Legacy token names, aliased to the palette above rather than deleted -
+     every existing var(--tangerine)/var(--ink)/etc. reference across this
+     file and every component keeps working unchanged. New code should
+     prefer the tokens above, not add new uses of these. --ink and --card
+     keep their old relative roles (--ink is the "recessed/nested" surface,
+     one step off the page; --card is the raised card/section surface) so
+     the shell/klook-widget-mount contrast pattern built under the old
+     palette still holds, just lighter. --tangerine, the old single
+     brand/CTA color, maps to the new --primary (indigo) - every button,
+     link, and highlight that used to render tangerine now renders indigo
+     with no further edits. --lime, the old "intelligence layer" marker
+     (verified badges, best-deal tags, the shell's top accent stripe),
+     maps to --positive - closest semantic match in the new palette. */
+  --ink: var(--surface-alt);
+  --card: var(--surface);
+  --border: var(--border-color);
+  --text: var(--text-primary);
+  --text-dim: var(--text-secondary);
+  --tangerine: var(--primary);
+  --lime: var(--positive);
 
-  /* Semantic signal colors — deliberately separate from the brand accents
+  /* Semantic signal colors - deliberately separate from the brand accents
      above, so "strong buy / fair / wait" reads as status, not as another
-     brand color competing with tangerine and lime. */
-  --signal-good: #3ddc84;
-  --signal-fair: #f5c344;
-  --signal-wait: #ff6b6b;
+     brand color competing with primary/accent. Mapped onto the new
+     palette's own positive/warning/error trio rather than kept as
+     separate hand-picked hues, since they mean the same three states. */
+  --signal-good: var(--positive);
+  --signal-fair: var(--warning);
+  --signal-wait: var(--error);
 
-  /* Font families loaded via @fontsource (see layout.tsx) — always paired
-     with a system fallback stack in case a weight fails to load. */
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  /* Font families loaded via @fontsource (see layout.tsx) - always paired
+     with a system fallback stack in case a weight fails to load. Switched
+     2026-09-03 from a three-family system (Space Grotesk/Inter/IBM Plex
+     Mono) to one family, Plus Jakarta Sans, at every weight - see
+     DECISIONS.md. All three variables point at the same family on
+     purpose: the new brand spec's type scale names one face across every
+     role (H1 down to captions/labels), not a separate display or mono
+     face. Kept as three variables rather than collapsed to one so every
+     existing font-family: var(--font-*) reference across this file still
+     resolves without individual edits - only the value changed. */
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 * {
@@ -49,12 +82,19 @@ body {
 }
 
 body {
-  /* The flip: tangerine dominates, with a soft acid-lime glow bleeding in
-     from the top corner — flat, poster-like color fields rather than a
-     muddy blend, since every legible bit of text lives in the dark shell
-     below, not directly on this background. */
-  background: radial-gradient(circle at 100% -12%, var(--lime) 0%, transparent 42%), var(--tangerine);
-  background-attachment: fixed;
+  /* Was "the flip" - tangerine dominant with a lime glow filling the whole
+     viewport behind a dark shell. Removed 2026-09-03 along with the rest
+     of the old palette (see DECISIONS.md, "Rebrand: white/indigo palette
+     (2026-09-03)") - a bold color field filling the page is exactly the
+     "neon SaaS" look the new brand direction explicitly said to avoid, and
+     the mockup it was built from shows a plain, calm page background
+     instead. --surface-alt (not --surface) on purpose: the .shell card
+     below sets its own background: var(--card) (= --surface, pure white),
+     so the page needs to read as one shade off pure white for that card
+     to still visibly separate from the page around it, the same
+     page/card relationship the old dark palette had (--ink page-level,
+     --card shell-level) just inverted in lightness rather than removed. */
+  background: var(--surface-alt);
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.55;
@@ -73,7 +113,13 @@ a {
   border: 1px solid var(--border);
   border-top: 4px solid var(--lime);
   border-radius: 20px;
-  box-shadow: 0 28px 64px -28px rgba(0, 0, 0, 0.55);
+  /* Shadow alpha cut from 0.55 to 0.10 (and re-tinted off pure black)
+     2026-09-03 for the light-theme rebrand - a shadow tuned for a card
+     floating on a bold dark-theme background reads as a heavy black smudge
+     on a near-white page; a soft, low-alpha shadow tinted toward
+     --text-primary is the standard "floating white card" treatment. See
+     DECISIONS.md, "Rebrand: white/indigo palette (2026-09-03)." */
+  box-shadow: 0 20px 48px -24px rgba(17, 24, 39, 0.1);
 }
 
 @media (max-width: 720px) {
@@ -281,7 +327,10 @@ a {
   border-radius: 6px;
   max-height: 260px;
   overflow-y: auto;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  /* Same light-theme shadow re-tint as .shell above - see that rule's
+     comment and DECISIONS.md, "Rebrand: white/indigo palette
+     (2026-09-03)." */
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.12);
 }
 
 .property-suggestions li {
@@ -304,7 +353,10 @@ a {
 
 .property-suggestions li button:hover,
 .property-suggestions li button:focus {
-  background: rgba(255, 90, 54, 0.14);
+  /* Same rgba-of-old-tangerine-to-new-primary swap as .btn-ghost:hover
+     above - see that rule's comment and DECISIONS.md, "Rebrand:
+     white/indigo palette (2026-09-03)." */
+  background: rgba(99, 91, 255, 0.14);
   outline: none;
 }
 
@@ -360,7 +412,12 @@ input:focus {
 }
 
 .btn:hover {
-  background: #ff7452;
+  /* Was a hardcoded lighter-tangerine (#ff7452) hover shade - replaced
+     2026-09-03 with the new palette's own named hover token rather than
+     hand-picking a new hardcoded color, since --primary-hover (#5146e5)
+     already exists for exactly this. See DECISIONS.md, "Rebrand:
+     white/indigo palette (2026-09-03)." */
+  background: var(--primary-hover);
 }
 
 .btn-ghost {
@@ -372,7 +429,14 @@ input:focus {
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 90, 54, 0.1);
+  /* Was a hardcoded rgba of the old tangerine hex - replaced 2026-09-03
+     with an rgba of the new --primary (#635bff = rgb(99, 91, 255)), same
+     0.1 alpha wash. A var()-based color can't be passed into rgba()
+     directly in CSS, so this stays a literal rgb triple rather than a
+     token reference - kept in sync with --primary by comment, not by
+     the cascade. See DECISIONS.md, "Rebrand: white/indigo palette
+     (2026-09-03)." */
+  background: rgba(99, 91, 255, 0.1);
 }
 
 .btn-whatsapp {
@@ -783,7 +847,10 @@ input:focus {
   padding: 1.25rem 2rem;
   flex-wrap: wrap;
   gap: 1rem;
-  box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.6);
+  /* Same light-theme shadow re-tint as .shell above - see that rule's
+     comment and DECISIONS.md, "Rebrand: white/indigo palette
+     (2026-09-03)." */
+  box-shadow: 0 12px 24px -18px rgba(17, 24, 39, 0.14);
 }
 
 @media (max-width: 720px) {

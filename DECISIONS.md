@@ -2804,3 +2804,118 @@ widget's iframe needs a live affiliate.klook.com connection this
 dev/build environment doesn't have). Verified with a clean
 `npx tsc --noEmit` and `npm run build`; visual result to be checked
 against the live deploy once pushed.
+
+## Rebrand: white/indigo palette (2026-09-03)
+
+The user pasted a full design mockup (palette sheet, typography
+scale, button/badge/icon specimens, and four labeled screen
+mockups: Homepage/Search, Hotel Detail, Things To Do/Klook, Mobile)
+along with a long written proposal, evidently drafted with the help
+of another AI tool given its citation format. The proposal covered
+two separate kinds of change bundled together: a full visual
+rebrand from the existing dark "Deep Ink / Electric Tangerine /
+Acid Lime" palette to a white background with an indigo primary and
+a small set of new product features layered on top of the existing
+pages (a "Rate Manifest Score" with Price/Flexibility/
+Inclusions/Confidence sub-scores, "intelligence cards", a price
+trend chart, a redesigned result card with a "Why?" expansion).
+
+Flagged plainly before touching anything: this reverses two prior
+explicit brand decisions made earlier in this same project - the
+original Deep Ink/Tangerine/Lime palette the user specified from
+scratch, and "Brand system v2"'s later refinement including "the
+flip" (tangerine/lime dominant background, dark shell floating on
+top). Asked the user directly via two questions rather than
+assuming: (1) whether the white/indigo switch was the actual call
+or just exploratory, and (2) how to handle the new-feature half of
+the proposal. Answers: switch the palette now; scope the new
+features together with the still-outstanding Decision Intelligence
+roadmap response rather than building them ad hoc from one mockup.
+This entry covers only the palette/typography switch. The features
+question is answered separately and does not touch code yet.
+
+Palette mapping, old value to new:
+
+  --tangerine (#ff5a36, "Electric Tangerine") -> --primary (#635bff)
+  --lime (#c8f31d, "Acid Lime")                -> --positive (#10b981)
+  --ink (near-black shell background)          -> --surface-alt (#f6f8fb)
+  --card (dark card background)                -> --surface (#ffffff)
+  body text color                              -> --text-primary (#111827)
+  dimmed/secondary text color                  -> --text-secondary (#64748b)
+  border color                                 -> --border-color (#e2e8f0)
+
+New tokens with no old equivalent: --primary-hover (#5146e5, button
+hover state, previously a hardcoded #ff7452), --accent (#06b6d4, held
+in reserve, not yet used anywhere), --warning (#f59e0b) and --error
+(#ef4444) formalizing what --signal-fair/--signal-wait already meant
+informally.
+
+Implementation approach: rather than rewrite every call site across
+globals.css (about 1300 lines) and every component that references
+--tangerine/--ink/--card/etc. directly, the new semantic tokens were
+defined first, then every old variable name was aliased to point at
+a new one (--tangerine: var(--primary); --ink: var(--surface-alt);
+and so on) instead of being deleted. This means every existing rule
+in the file automatically inherited the new palette with zero risk
+of a missed call site, at the cost of the file still containing the
+old names as aliases rather than a fully renamed codebase - a
+follow-up cleanup pass could rename call sites to the new token
+names directly and drop the aliases, but that's cosmetic and not
+required for the rebrand to be correct.
+
+Structural changes beyond the color swap:
+
+- Removed "the flip" - the full-viewport tangerine/lime radial
+  gradient background with `background-attachment: fixed` that made
+  the dark .shell read as a floating card on top of a bright
+  background. body now sits on a flat --surface-alt with no
+  gradient, matching the mockup's plain light background.
+- Softened every box-shadow that was tuned for a dark background
+  (.shell, .property-suggestions dropdown, .nav-bar) from heavy
+  near-black shadows (up to rgba(0,0,0,0.6)) to much lighter
+  rgba(17,24,39,0.1-0.14) shadows appropriate to a white surface -
+  the old shadow values would have read as harsh, muddy smudges on
+  white rather than the soft elevation they gave the dark shell.
+- Hover states that referenced the old tangerine hex directly
+  (.btn:hover, .btn-ghost:hover, .property-suggestions li
+  button:hover/:focus) now reference --primary-hover / --primary
+  instead of hardcoded old-palette hex values.
+- .btn-whatsapp and its hover state were deliberately left
+  untouched - those are WhatsApp's own brand green/near-black, not
+  part of Rate Manifest's palette, and were never in scope.
+- Typography switched from three families (Space Grotesk display,
+  Inter body, IBM Plex Mono for labels/numbers) to a single family,
+  Plus Jakarta Sans, at four weights (400/500/600/700), matching the
+  mockup's type scale which names one family across every role.
+  --font-display/--font-body/--font-mono all now point at the same
+  family. Implemented via @fontsource (npm-distributed static font
+  files, installed via `npm install @fontsource/plus-jakarta-sans`
+  and `npm uninstall @fontsource/space-grotesk @fontsource/inter
+  @fontsource/ibm-plex-mono`) rather than next/font/google, for the
+  same reason as the original font choice: no live fetch to
+  fonts.googleapis.com needed at build time.
+- Logo mark (Logo.tsx's inline SVG) and the favicon (icon.svg) had
+  their hardcoded hex values updated to match: the two shorter bars
+  from tangerine (#ff5a36) to primary (#635bff), the tallest bar
+  from lime (#c8f31d) to positive (#10b981), and icon.svg's
+  background square from the old dark --ink value to white. Both
+  are intentionally still hardcoded hex rather than CSS variables -
+  standalone inline SVG with no access to globals.css's custom
+  properties, and the mark's colors are meant to stay fixed
+  regardless of what background it sits on.
+
+Explicitly NOT done in this pass, per the user's second answer:
+none of the new-feature mockup content (Rate Manifest Score,
+intelligence cards, price trend chart, redesigned "Why?" result
+card) was built. Those are scoped together with the Decision
+Intelligence roadmap response, addressed separately.
+
+Verified with `npx tsc --noEmit` and `npm run build`, both clean.
+Additionally spun up a local Postgres instance and `next start`,
+and used Playwright to screenshot the homepage and a search results
+page locally before delivery - both rendered the new palette
+correctly (white background, indigo logo/buttons/labels, green
+verified-state accents, softened shadows); the Klook widget sections
+themselves couldn't be visually validated with real iframe content
+in this offline local environment, only their surrounding page
+chrome and spacing.
