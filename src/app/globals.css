@@ -1138,14 +1138,35 @@ input:focus {
    the frame is what keeps that white looking deliberate rather than like
    a rendering glitch. Same corrected --ink/--border frame as
    .klook-widget-mount above, not the earlier near-white one - see
-   DECISIONS.md, "Klook widget framing, corrected (2026-09-03)." */
+   DECISIONS.md, "Klook widget framing, corrected (2026-09-03)."
+
+   Widened 2026-09-03 to bleed past .klook-section's own 1.5rem padding and
+   .shell's 2rem/1.25rem padding (see DECISIONS.md, "Klook hotels widget
+   widened to fix 2+1 card wrap (2026-09-03)") - this is the one Klook
+   widget on the page where the card count (4, longer hotel-name titles)
+   doesn't fit Klook's own internal card-width logic at the section's
+   normal ~845px content width, wrapping 2 cards then 1. Every other
+   section on /search (results, Things To Do, the essentials widget above
+   this one) stays at the shell's normal width on purpose - this is a
+   deliberate, isolated exception for the one widget that needed it, not a
+   new page-wide pattern. Negative margins reach exactly to .shell's
+   border edge (padding-sum: 1.5rem klook-section + 2rem shell desktop,
+   1.5rem + 1.25rem mobile - see the max-width:720px override below) rather
+   than an arbitrary bigger number, so the frame lines up flush with the
+   card boundary instead of floating at a random width. */
 .klook-hotels-widget-mount {
-  margin: 0 0 0.75rem;
+  margin: 0 -3.5rem 0.75rem;
   padding: 0.75rem;
   background: var(--ink);
   border: 1px solid var(--border);
   border-radius: 10px;
   min-height: 126px;
+}
+
+@media (max-width: 720px) {
+  .klook-hotels-widget-mount {
+    margin: 0 -2.75rem 0.75rem;
+  }
 }
 
 .klook-also-hotels-link {

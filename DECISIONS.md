@@ -2714,3 +2714,93 @@ Mechanical notes:
   real destination/tag to target.
 
 Verified with a clean `npx tsc --noEmit` and `npm run build`.
+
+## Klook widget white cards - accepted as a hard limit (2026-09-03)
+
+Closes a loop that went through three rounds without landing on the
+real answer: the user asked for the Klook widget cards to be black
+like Viator's grid three separate times (the framing attempts under
+"Klook widget framing on the dark theme" and "Klook widget framing,
+corrected" above), and each time the fix shipped was a dark frame
+AROUND the widget, not a dark card ITSELF - because the frame is all
+that's reachable from this app's CSS.
+
+Checked directly against the live site this time instead of
+guessing from another screenshot: getComputedStyle on the deployed
+page confirms the frame is genuinely dark (.klook-widget-mount and
+.klook-hotels-widget-mount both rgb(16,17,20), matching --ink
+exactly, with the --border outline). The frame fix is real and
+working. What can't be fixed is the card face inside it - Klook's
+own affiliate widget renders inside a cross-origin iframe
+(affiliate.klook.com), and the card markup, including its white
+background, is entirely Klook's, with no theme parameter exposed in
+their widget generator (checked directly in the generator UI - no
+dark-mode option exists). There is no CSS selector on
+ratemanifest.com that can reach inside that iframe - this isn't a
+missed style, it's outside what's possible without either a
+different embedding mechanism from Klook (none offered) or
+abandoning the iframe widget for native cards built from Klook's own
+data (blocked on direct API access - see "Klook direct-API access
+question," open, Corporate Affiliate Partnership enquiry submitted,
+awaiting reply).
+
+For comparison, checked why Viator's own grid reads as fully dark:
+.things-to-do-card has NO background of its own
+(getComputedStyle: transparent) - the card is just a photo plus text
+sitting directly on the section's dark background, never a white
+tile to begin with. That's not a styling technique that transfers to
+Klook's widget - Klook's cards are a genuine white rounded-corner
+component with their own internal layout, not text-on-dark-bg like
+Viator's.
+
+Decision, given directly by the user once this was explained
+plainly: keep both Klook widgets as they are (dark frame, white
+cards inside) rather than removing the visual widgets in favor of
+text-only fallback links. No further CSS work on this - the frame is
+the ceiling of what's achievable here.
+
+## Klook hotels widget widened to fix 2+1 card wrap (2026-09-03)
+
+The user flagged the hotels widget's four cards (Bvlgari Resort
+Dubai, Four Seasons Resort Dubai at Jumeirah Beach, Mandarin Oriental
+Jumeira Dubai, plus a fourth behind "See more") wrapping as 2 cards
+then 1, instead of one line. Checked live rather than guessing:
+.klook-widget-mount (essentials, 3 shorter-title cards) and
+.klook-hotels-widget-mount (hotels, 4 longer-title cards) measured
+the exact same container width - 845px - yet only the hotels one
+wraps. Same width, different wrap point: that rules out our
+container being too narrow in absolute terms and points at Klook's
+own internal per-card sizing inside the iframe (almost certainly
+driven by "Four Seasons Resort Dubai at Jumeirah Beach" and similar
+longer hotel titles needing more per-card width than the essentials
+widget's shorter ones) - the same kind of cross-origin-iframe
+internal, we-can't-reach-it-with-CSS territory as the white card
+color question just above, EXCEPT that this one has a real lever we
+actually control: the container's width itself, unlike a color that
+is baked into Klook's markup regardless of container size.
+
+Explained the tradeoff to the user before touching anything: widening
+just this one widget's container means it stops matching the page's
+otherwise-consistent 960px content width (results, Things To Do, the
+essentials widget right above it all stay put) - and even then,
+there's no guarantee Klook's opaque internal breakpoints actually
+resolve to one line just because more pixels are available. User
+chose to try it anyway.
+
+Implementation: .klook-hotels-widget-mount gets negative left/right
+margins sized to exactly cancel the padding of its two ancestors -
+.klook-section's 1.5rem plus .shell's own padding (2rem desktop,
+1.25rem under the existing 720px breakpoint) - so the widget's frame
+bleeds out flush with .shell's border edge rather than stopping at
+the normal in-card margin, and doesn't float at an arbitrary
+in-between width. Nothing else in the block moved - the intro copy,
+essentials widget, and Browse Here/hotels-note copy stay at the
+normal width, so only this one widget visually breaks the column.
+
+Not yet confirmed whether this actually resolves the wrap - that
+depends on Klook's own script, which only renders once the page is
+live (nothing here can preview it without deploying, since the
+widget's iframe needs a live affiliate.klook.com connection this
+dev/build environment doesn't have). Verified with a clean
+`npx tsc --noEmit` and `npm run build`; visual result to be checked
+against the live deploy once pushed.
