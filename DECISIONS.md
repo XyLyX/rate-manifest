@@ -2530,3 +2530,122 @@ hand in the Klook Affiliate Dashboard (My Ads -> Other tools ->
 Hotels -> Dynamic Widgets -> Hotel selection: "By property," search
 and add each desired 5-star property, then "Save and generate code"),
 or ask for another automated attempt.
+
+## Klook widget framing, corrected (2026-09-03)
+
+The first attempt at framing the Klook widgets (an off-white
+#f5f3ef background) failed visibly - confirmed by the user's
+screenshot of the live site, still reading as plain white with no
+visible change. Root cause: #f5f3ef is close enough to the iframe's
+actual white that the "frame" and the iframe content blended into one
+continuous white block - the fix was invisible in practice, not just
+subtle.
+
+Corrected to the opposite approach: .klook-widget-mount and
+.klook-hotels-widget-mount now use var(--ink) (#101114, darker than
+the section's own var(--card), #191b20) with a var(--border) outline
+- the same dark "nested card" language already used elsewhere on the
+site, just one shade darker so it visibly recedes rather than
+matching its parent exactly. This makes the white iframe content sit
+inside a clearly bordered dark frame - visibly intentional - instead
+of trying (and failing) to make the white itself less white, which
+isn't achievable from our CSS regardless of which frame color is
+chosen (iframe internals stay cross-origin, out of reach). If this
+still doesn't read as intentional enough once live, the remaining
+honest options are unchanged from the note above: ask Klook about a
+dark-theme widget variant, or eventually replace the iframe widgets
+with native cards built from Klook's own data (blocked on the open
+direct-API access question).
+
+## Confirmed: no Tours Widget duplication bug (2026-09-03)
+
+User asked "why 2 times the things to do widget" after the DOM
+placement fix shipped. Checked directly against the live site's DOM
+(Claude in Chrome): the Tours Widget's wrapper renders exactly once,
+correctly moved into .klook-widget-mount (1 child, as expected), with
+zero copies left on document.body - the placement fix is working
+correctly, not causing a duplicate. What the user is actually seeing
+is real: Viator's native "Things To Do Nearby" section and Klook's
+Tours Widget both promote overlapping content (desert safaris,
+tours) on the same page, one above the other - this is the exact
+open question already logged as task #17 ("Decide what happens to
+the Klook redirect block now that Viator gives a native alternative")
+-  raised again here by the user noticing the redundancy directly.
+Still undecided - see the next entry once a decision is made.
+
+## Klook Tours Widget removed - redundant with native Viator (2026-09-03)
+
+Decision, given directly by the user: remove the Klook Tours Widget
+entirely rather than keep working on its overlap with Viator's native
+Things To Do section (see the previous entry). Reasoning, as the user
+put it: Viator's native section already covers tours/activities
+better than Klook's widget does, so the widget was pure redundancy,
+not a second useful option. Kept: the Klook hotels widget below it
+(unrelated to this decision), and the categories Klook still covers
+that Viator doesn't - airport transfers, transport, SIM/eSIM.
+
+Changes:
+- KlookToursWidgetMount.tsx deleted outright (the MutationObserver-
+  based DOM placement fix from earlier today is moot with the widget
+  gone - no longer needed, but the reasoning stays documented above
+  under "Klook Tours Widget DOM placement fix (2026-09-03)" for the
+  record, in case a tours widget is ever reconsidered).
+- KLOOK_TOURS_WIDGET_SRC removed from klook.ts (old URL kept as a
+  comment for reference).
+- KLOOK_EXPERIENCE_CATEGORIES narrowed from five categories to three:
+  "Airport transfers", "Transport", "SIM/eSIM" - dropping "Activities
+  & experiences" and "Tours & attractions", the two Viator now covers.
+- KlookTripSection.tsx: removed the widget mount from the JSX: the
+  "Browse Here" button is now this block's only CTA, directly after
+  the intro paragraph, rather than a fallback sitting next to a
+  widget.
+- Verified with a clean `npx tsc --noEmit` and `npm run build` after
+  all of the above.
+
+## Klook hotel widget switched to a hand-picked 5-star static widget (2026-09-03)
+
+Closes the open star-rating problem from "Klook hotel widget star-
+rating: found the mechanism, not yet applied (2026-09-03)" above -
+the user completed the "By property" flow themselves in the Klook
+Affiliate Dashboard (browser automation on that flow had failed
+repeatedly - see that entry) and sent back the new embed code.
+
+The new widget is mechanically different from the old one, not just
+a re-curated version of it: the old config used Klook's "By
+destination" mode (prod "hotel_dynamic_widget", cid "78" for Dubai),
+where Klook's own algorithm picks which hotels to show - this is
+what surfaced the 3-star Rove Expo City alongside 5-star properties
+in the first place. The new config uses "By property" mode (prod
+"hotel_static_widget", no cid/tid at all) - the user hand-searched
+and added specific named properties in the dashboard, so the widget
+now has a fixed list baked into its ad id rather than an algorithm
+choosing per visit.
+
+Live preview at generation time (screenshotted by the user) confirmed
+four real 5-star ("Luxury") Dubai cards: Bvlgari Resort Dubai, Four
+Seasons Resort Dubai at Jumeirah Beach, Mandarin Oriental Jumeira
+Dubai, and a fourth reachable via the widget's own "See more" - no
+3-star or 4-star properties visible, which is exactly the "primarily
+5-star" outcome the user asked for. Klook's own "By property" form
+doesn't expose a star-rating filter - the curation is entirely from
+which named properties the user chose to add, which is also why this
+had to be done by hand rather than through a config change.
+
+KLOOK_HOTELS_WIDGET_CONFIG in klook.ts updated: new adid ("1413948",
+replacing "1413929"), amount raised from 3 to 4 (matching the number
+of hand-picked properties), prod changed to "hotel_static_widget",
+cid and tid dropped (not present in the new generated code - a
+static widget has no destination to target). cardH/padding/lgH/
+edgeValue and the loader script URL (KLOOK_HOTELS_WIDGET_SCRIPT_SRC)
+are unchanged - same layout, same loader, different hotel selection
+mechanism feeding it. Verified with a clean `npx tsc --noEmit` and
+`npm run build`.
+
+Open question for later, not blocking this: the user said the
+4-star tier should also show ("primarily 5-star by default and 4-
+star properties only"), and this widget currently shows only what
+the user added when testing the "By property" flow (looked 5-star
+in the preview). Whether to add 4-star properties to this same
+static widget, or leave it 5-star-only for now, is the user's call
+whenever they're back in the Klook dashboard - not something to
+guess at here.

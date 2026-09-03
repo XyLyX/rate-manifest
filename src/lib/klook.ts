@@ -27,13 +27,16 @@ export const KLOOK_LINK = "https://klook.tpm.lv/JaftNQHL";
 // Manifest does," which is exactly the confusion to avoid. A hotel-specific
 // Klook path, if built later, is a separate, clearly distinct surface, not
 // a line item here.
-export const KLOOK_EXPERIENCE_CATEGORIES = [
-  "Activities & experiences",
-  "Tours & attractions",
-  "Airport transfers",
-  "Transport",
-  "SIM/eSIM",
-] as const;
+//
+// Also narrowed 2026-09-03 (see DECISIONS.md, "Klook Tours Widget removed
+// - redundant with native Viator (2026-09-03)") to drop "Activities &
+// experiences" and "Tours & attractions" - once the Viator integration
+// shipped its own native Things To Do cards, keeping those two words here
+// (next to the Klook Tours Widget that used to sit below this copy) meant
+// the page effectively advertised the same category of content twice, from
+// two different suppliers, right next to each other. What's left is
+// exactly what Klook still covers and Viator doesn't.
+export const KLOOK_EXPERIENCE_CATEGORIES = ["Airport transfers", "Transport", "SIM/eSIM"] as const;
 
 // 2026-09-01: reversed the "leave hotels out entirely" decision above -
 // the user opted to build the Klook hotels/accommodation path too and
@@ -59,79 +62,84 @@ export const SHOW_KLOOK_HOTELS_NOTE = true;
 // replacing the original RqxKw5oy) - same intent, refreshed link.
 export const KLOOK_HOTELS_LINK = "https://klook.tpm.lv/O3Coxqyz";
 
-// Travelpayouts' "Specific City/Category Tours Widget" for Klook - a
-// third-party script that renders real, live Klook product cards (name,
-// rating, review count, real price) for a given city/category, with the
-// referral marker baked in. This is the actual answer to the "no
-// fabricated numbers" constraint everywhere else in this file: real prices
-// sourced live from Klook itself, not written by us. See DECISIONS.md,
-// "Klook Tours Widget" entries.
-//
-// city_id=78 is Dubai, category=4 is whatever category the user selected
-// in the Travelpayouts widget builder when this was generated - swapping
-// categories later is just regenerating the widget and replacing this one
-// URL, nothing else in the integration needs to change.
-export const KLOOK_TOURS_WIDGET_SRC =
-  "https://tpwgts.com/content?currency=AED&trs=568981&shmarker=772385&locale=en&city_id=78&category=4&amount=3&powered_by=true&campaign_id=137&promo_id=4497";
+// Travelpayouts' "Specific City/Category Tours Widget" for Klook used to
+// live here (KLOOK_TOURS_WIDGET_SRC, a third-party script rendering real
+// Klook experience cards - Desert Safari Tours, eSIM, etc.). Removed
+// 2026-09-03 - once Viator's native Things To Do section shipped its own
+// real cards for the same kind of content, this widget was showing the
+// user a second "tours in Dubai" list right below the first one, from a
+// different supplier. See DECISIONS.md, "Klook Tours Widget removed -
+// redundant with native Viator (2026-09-03)," for the full reasoning
+// (including the DOM-placement bug that was fixed the same day this was
+// removed - moot now, but documented there for the record). The old URL,
+// for reference if this is ever reconsidered:
+// https://tpwgts.com/content?currency=AED&trs=568981&shmarker=772385&locale=en&city_id=78&category=4&amount=3&powered_by=true&campaign_id=137&promo_id=4497
 
 // Klook's own "Dynamic Widgets" tool for Hotels - generated directly in the
 // Klook Affiliate Dashboard (My Ads -> Other tools -> Hotels -> Dynamic
-// Widgets), separate from the Travelpayouts-mediated Tours Widget above.
-// Mechanically different, not just a second copy of the same pattern: this
-// is Klook's own affiliate infrastructure (affiliate.klook.com), reached
-// through the same Travelpayouts-mediated Klook program access used
-// everywhere else in this file - see DECISIONS.md, "Klook Dynamic Hotel
-// Widget (2026-09-03)." The loader script scans the DOM for
-// `.klk-aff-widget` elements and fills each one with a real iframe, rather
-// than the Tours Widget's single self-contained <script src="...content?..."
-// > tag - so this needs BOTH the loader script (once) AND a placeholder
-// <ins> element with the data-* config below (see KlookTripSection.tsx).
+// Widgets). This is Klook's own affiliate infrastructure
+// (affiliate.klook.com), reached through the same Travelpayouts-mediated
+// Klook program access used everywhere else in this file - see
+// DECISIONS.md, "Klook Dynamic Hotel Widget (2026-09-03)" and "Klook hotel
+// widget switched to a hand-picked 5-star static widget (2026-09-03)."
+// This loader script itself is unchanged by that second decision - it's
+// the same URL for both the original destination-algorithm ("dynamic")
+// widget and the current hand-picked ("static") one below, since the
+// "Dynamic Widgets" tool is Klook's name for the whole generator, covering
+// both selection modes. It scans the DOM for `.klk-aff-widget` elements
+// and fills each one with a real iframe, so this needs BOTH the loader
+// script (once) AND a placeholder <ins> element with the data-* config
+// below (see KlookTripSection.tsx).
 export const KLOOK_HOTELS_WIDGET_SCRIPT_SRC =
   "https://affiliate.klook.com/widget/fetch-iframe-init.js";
 
 // The <ins class="klk-aff-widget"> placeholder's data-* config, exactly as
 // generated by the Klook dashboard form - kept as one object rather than
 // separate constants so the values stay visibly tied to the single "Save
-// and generate code" action that produced them together. Live preview at
-// generation time confirmed three real Dubai hotel cards (The S Hotel Al
-// Barsha, Rove Expo City, Park Regis Business Bay Hotel) with real ratings,
-// review counts, and AED prices - this is not a mock/sample config.
+// and generate code" action that produced them together.
 //
-// - adid: this Rate Manifest Klook affiliate account's ad id.
-// - cid "78": Klook's Dubai destination id - same id already used as
-//   city_id=78 in KLOOK_TOURS_WIDGET_SRC above, so both widgets on this
-//   page are pointed at the same city.
-// - amount "3": three cards, matching the Tours Widget's amount=3 above -
-//   kept equal so neither section visually dominates the other.
+// Replaced 2026-09-03 (see DECISIONS.md, "Klook hotel widget switched to a
+// hand-picked 5-star static widget (2026-09-03)"). The original config
+// above (prod "hotel_dynamic_widget", cid "78") was Klook's own
+// destination-level algorithm picking Dubai hotels automatically - it
+// surfaced a 3-star property (Rove Expo City) alongside 5-star ones, which
+// is what prompted this replacement. This config was built in Klook's "By
+// property" mode instead: the user hand-searched and added specific 5-star
+// Dubai properties in the Klook Affiliate Dashboard, so the resulting
+// widget - "hotel_static_widget" - has no destination id at all (no cid,
+// no tid: there's no algorithm left to target, just the fixed property
+// list baked into this ad id). Live preview at generation time confirmed
+// four real 5-star ("Luxury") Dubai cards: Bvlgari Resort Dubai, Four
+// Seasons Resort Dubai at Jumeirah Beach, Mandarin Oriental Jumeira Dubai,
+// and a fourth shown only via the widget's own "See more" - this is not a
+// mock/sample config.
+//
+// - adid "1413948": a new ad id, distinct from the old dynamic widget's
+//   "1413929" - Klook issues a fresh ad id per "Save and generate code"
+//   action, so this identifies this specific static, hand-picked ad.
+// - amount "4": four hand-picked properties, up from the old dynamic
+//   widget's 3 - the count is whatever the user added in "By property"
+//   mode, not a fixed layout choice.
 // - currency "AED": set explicitly rather than left on Klook's default, to
 //   match every other price shown on Rate Manifest.
 // - cardH/padding/lgH/edgeValue: Klook's own generated layout sizing for
-//   this widget - not something to hand-tune, since these numbers are
-//   whatever the loader script's iframe expects for a 3-card AED layout at
-//   generation time. Left exactly as generated.
-// - lang left "" (Klook's own "User Browser Language" default) and tid left
-//   "" (not offered/required in this form) - both exactly as generated,
-//   neither one blank by omission.
-// - prod "hotel_dynamic_widget": identifies this as the Hotels dynamic
-//   widget product to Klook's loader, as opposed to a Things To Do widget.
-//
-// Label 1/2/3 (set in the Klook dashboard form itself, not part of this
-// data-* config - Klook's own ad performance tracking, per the dashboard's
-// tooltip: "track and identify your ads... by ad placement, activity
-// category, destination, or else"): "search-page-hotels-note" (placement -
-// this is the /search page's Klook hotels note), "hotels" (category),
-// "dubai" (destination). Recorded here for reference in case the widget is
-// ever regenerated and these should be reused.
+//   this widget - not something to hand-tune, unchanged from the previous
+//   config since the card layout itself didn't change, only which
+//   properties fill it.
+// - lang left "" (Klook's own "User Browser Language" default) - exactly
+//   as generated, blank by generation rather than by omission.
+// - prod "hotel_static_widget": identifies this as a static (hand-picked
+//   property list) Hotels widget to Klook's loader, as opposed to the
+//   previous "hotel_dynamic_widget" (destination-algorithm) or a Things To
+//   Do widget.
 export const KLOOK_HOTELS_WIDGET_CONFIG = {
-  adid: "1413929",
+  adid: "1413948",
   lang: "",
   currency: "AED",
   cardH: "126",
   padding: "92",
   lgH: "470",
   edgeValue: "655",
-  cid: "78",
-  tid: "",
-  amount: "3",
-  prod: "hotel_dynamic_widget",
+  amount: "4",
+  prod: "hotel_static_widget",
 } as const;

@@ -7,27 +7,25 @@ import {
   KLOOK_LINK,
   SHOW_KLOOK_HOTELS_NOTE,
 } from "@/lib/klook";
-import { KlookToursWidgetMount } from "./KlookToursWidgetMount";
 
 // Shown after a real hotel's search results, regardless of whether an
 // offer was found - see DECISIONS.md, "Klook's accommodation program,
-// added to try," and "Klook Tours Widget."
+// added to try."
 //
-// The widget below (KlookToursWidgetMount) is a third-party script
-// (Travelpayouts' Klook Tours Widget) that renders real, live product
-// cards - real names, ratings, prices - sourced from Klook itself, not
-// written by us. Loaded via next/script with strategy="lazyOnload" so it
-// never competes with the page's own load. Its own JS does not respect
-// wherever the <script> tag sits in the DOM - confirmed by live
-// inspection, it appends its generated wrapper straight onto
-// document.body - so KlookToursWidgetMount also runs a MutationObserver
-// that claims that wrapper node the moment it appears and moves it back
-// into this card. See that file's own comment, and DECISIONS.md, "Klook
-// Tours Widget DOM placement fix (2026-09-03)," for the full story. The
-// plain "Browse Here" link/button below stays as a guaranteed fallback for
-// anyone whose browser blocks the widget script (ad blockers commonly
-// flag exactly this kind of third-party affiliate-widget domain), and the
-// category list stays as the text description either way.
+// The top block used to carry a Travelpayouts Tours Widget with real
+// Klook experience cards (desert safaris, tours) - removed 2026-09-03
+// once Viator's own native Things To Do section (ThingsToDoSection.tsx,
+// rendered above this component on /search) started covering that same
+// ground with real cards of its own. Keeping both meant the page showed
+// two "tours in Dubai" lists back to back, from two different suppliers -
+// see DECISIONS.md, "Klook Tours Widget removed - redundant with native
+// Viator (2026-09-03)." KLOOK_EXPERIENCE_CATEGORIES was narrowed the same
+// day to match: just what Klook still covers and Viator doesn't (airport
+// transfers, transport, SIM/eSIM). The "Browse Here" link is now this
+// block's only CTA rather than a fallback next to a widget - it points at
+// KLOOK_LINK, a real (if generic) Dubai search-results page, not a deep
+// link to any one of those categories - see KLOOK_LINK's own comment for
+// why that's an honest tradeoff rather than an oversight.
 //
 // The second block (klook-also-hotels) is Klook's own hotel/accommodation
 // offering - see DECISIONS.md, "Klook hotels, brought back with explicit
@@ -39,28 +37,34 @@ import { KlookToursWidgetMount } from "./KlookToursWidgetMount";
 // that framing is what makes it safe to show on the same domain, without
 // needing the separate-domain plan that's on hold for later.
 //
-// As of 2026-09-03 this block also carries Klook's own Dynamic Hotel
-// Widget - real Klook hotel cards (name, star tier, rating, review count,
-// AED price), sourced live from Klook the same way the Tours Widget above
-// sources live Klook experience cards. Mechanically different from that
-// widget though: this is an <ins class="klk-aff-widget"> placeholder that
-// affiliate.klook.com's loader script (KLOOK_HOTELS_WIDGET_SCRIPT_SRC)
-// scans the DOM for and fills with a real iframe, rather than a single
-// self-contained <script src="...content?..."> tag - so both the loader
-// script AND the placeholder element are required, and the placeholder's
-// data-* attribute names must stay in the exact mixed case Klook generated
-// (data-cardH, data-lgH, data-edgeValue) - HTML attribute matching is
-// case-insensitive, so this is about literal fidelity to what Klook
-// generated, not a functional requirement. The <ins> element's fallback
-// content (a plain "Klook.com" link) is Klook's own fallback for when the
-// loader script doesn't run - kept as-is rather than customized.
+// As of 2026-09-03 this block also carries Klook's own Hotel Widget - real
+// Klook hotel cards (name, star tier, rating, review count, AED price),
+// sourced live from Klook. This is an <ins class="klk-aff-widget">
+// placeholder that affiliate.klook.com's loader script
+// (KLOOK_HOTELS_WIDGET_SCRIPT_SRC) scans the DOM for and fills with a real
+// iframe, so both the loader script (once) AND the placeholder element are
+// required, and the placeholder's data-* attribute names stay in the exact
+// mixed case Klook generated (data-cardH, data-lgH, data-edgeValue) - HTML
+// attribute matching is case-insensitive, so this is about literal
+// fidelity to what Klook generated, not a functional requirement. The
+// <ins> element's fallback content (a plain "Klook.com" link) is Klook's
+// own fallback for when the loader script doesn't run - kept as-is rather
+// than customized.
+//
+// Switched 2026-09-03 from Klook's destination-algorithm widget to a
+// hand-picked "By property" one - see DECISIONS.md, "Klook hotel widget
+// switched to a hand-picked 5-star static widget (2026-09-03)," and
+// KLOOK_HOTELS_WIDGET_CONFIG's own comment in klook.ts for the full
+// reasoning. The only visible effect here: no data-cid/data-tid attributes
+// - the static widget has no destination to target, just the fixed
+// property list baked into its ad id.
 //
 // KLOOK_HOTELS_LINK stays below the widget as a second, guaranteed
-// fallback (same reasoning as the Tours Widget above: this domain was
-// never reachable from the dev environment to inspect directly, and
-// ad-blockers commonly flag third-party affiliate-widget domains) so a
-// visitor whose browser blocks the widget still has a real, working path
-// to Klook's hotel search rather than a silently empty section.
+// fallback: this domain was never reachable from the dev environment to
+// inspect directly, and ad-blockers commonly flag third-party
+// affiliate-widget domains, so a visitor whose browser blocks the widget
+// still has a real, working path to Klook's hotel search rather than a
+// silently empty section.
 export function KlookTripSection() {
   return (
     <div className="klook-section">
@@ -69,7 +73,6 @@ export function KlookTripSection() {
         Rate Manifest only compares hotel rates - for everything else around the trip, Klook covers{" "}
         {KLOOK_EXPERIENCE_CATEGORIES.join(", ").toLowerCase()}.
       </p>
-      <KlookToursWidgetMount />
       <a className="btn-ghost klook-cta" href={KLOOK_LINK} target="_blank" rel="noopener noreferrer">
         Browse Here →
       </a>
@@ -94,8 +97,6 @@ export function KlookTripSection() {
               data-padding={KLOOK_HOTELS_WIDGET_CONFIG.padding}
               data-lgH={KLOOK_HOTELS_WIDGET_CONFIG.lgH}
               data-edgeValue={KLOOK_HOTELS_WIDGET_CONFIG.edgeValue}
-              data-cid={KLOOK_HOTELS_WIDGET_CONFIG.cid}
-              data-tid={KLOOK_HOTELS_WIDGET_CONFIG.tid}
               data-amount={KLOOK_HOTELS_WIDGET_CONFIG.amount}
               data-prod={KLOOK_HOTELS_WIDGET_CONFIG.prod}
             >
