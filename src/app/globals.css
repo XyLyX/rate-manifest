@@ -1354,3 +1354,453 @@ input:focus {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   Homepage redesign (2026-09-03) - matches a full-layout mockup the user
+   pasted directly ("this is how i want the homepage layout. same to same.
+   exact design."). See page.tsx's own top-of-file comment and
+   DECISIONS.md, "Homepage redesign: matching the pasted mockup," for what
+   was carried over exactly vs. deliberately adapted and why.
+
+   This is the one page on the site that breaks out of .shell's single
+   card layout - the mockup's hero and trust strip run edge-to-edge, which
+   a 960px bordered card can't do. .home-page has no max-width of its own;
+   .home-content (below) restores a centered, readable container for
+   everything under the trust strip, at 1160px rather than .shell's 960px
+   - intentionally a bit wider, to match the mockup's airier grid, not a
+   copy-paste of .shell's own number.
+   ========================================================================== */
+
+.home-page {
+  background: var(--surface-alt);
+  min-height: 100vh;
+}
+
+.home-hero-band {
+  background: linear-gradient(180deg, #eef1ff 0%, var(--surface-alt) 100%);
+  padding-bottom: 3.5rem;
+}
+
+/* --- Nav, homepage variant: sits directly on the hero band instead of
+   forming the top edge of .shell (see NavBar.tsx's own comment). --- */
+
+.nav-bar-home {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 1.25rem clamp(1.25rem, 4vw, 3rem);
+  background: rgba(238, 241, 255, 0.82);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.nav-tab {
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-tab:hover {
+  color: var(--text);
+}
+
+.nav-tab.active {
+  color: var(--primary);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+}
+
+/* --- Hero --- */
+
+.home-hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 2.5rem;
+  align-items: center;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 1.5rem clamp(1.25rem, 4vw, 3rem) 0;
+}
+
+.home-hero-copy .hero-eyebrow {
+  color: var(--primary);
+}
+
+.home-hero-copy .hero-eyebrow::before {
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+
+.home-hero-copy h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.2vw, 3rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.85rem;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+
+.home-hero-copy p {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  max-width: 30rem;
+  margin: 0;
+}
+
+.home-hero-art-wrap {
+  position: relative;
+}
+
+.hero-art {
+  width: 100%;
+  height: auto;
+  border-radius: 20px;
+  display: block;
+}
+
+.rate-verified-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  box-shadow: 0 12px 24px -12px rgba(17, 24, 39, 0.22);
+  max-width: 13rem;
+}
+
+.rate-verified-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--positive);
+  color: #ffffff;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.rate-verified-badge-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rate-verified-badge-sub {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .home-hero-inner {
+    grid-template-columns: 1fr;
+  }
+  .home-hero-art-wrap {
+    max-width: 22rem;
+    margin: 0 auto;
+  }
+}
+
+/* --- Floating search card --- */
+
+.home-search-card {
+  max-width: 1000px;
+  margin: 2rem auto 0;
+  padding: 1.4rem clamp(1.1rem, 3vw, 1.8rem);
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px -20px rgba(17, 24, 39, 0.18);
+}
+
+@media (max-width: 720px) {
+  .home-search-card {
+    margin: 1.5rem 1rem 0;
+  }
+}
+
+/* --- Trust strip --- */
+
+.home-trust-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.5rem;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
+}
+
+.trust-item {
+  text-align: center;
+}
+
+.trust-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--primary);
+  margin-bottom: 0.6rem;
+}
+
+.trust-item-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.trust-item-sub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .home-trust-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- Content container below the trust strip --- */
+
+.home-content {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 4vw, 3rem) 3rem;
+}
+
+.home-content .how-it-works,
+.home-content .footnote {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.home-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 3rem 0 1.25rem;
+  flex-wrap: wrap;
+}
+
+.home-section-heading h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+  color: var(--text-primary);
+}
+
+.home-section-heading p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.section-view-all {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-view-all:hover {
+  color: var(--primary-hover);
+}
+
+/* --- Explore Dubai --- */
+
+.explore-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.explore-card {
+  display: block;
+  border-radius: 16px;
+  padding: 1.75rem;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border-color);
+  min-height: 12rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.explore-card-hotels {
+  background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
+}
+
+.explore-card-things {
+  background: linear-gradient(135deg, #e0f2fe 0%, #ecfdf5 100%);
+}
+
+.explore-card-eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  margin-bottom: 0.6rem;
+}
+
+.explore-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.explore-card p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.25rem;
+  max-width: 26rem;
+}
+
+.explore-card-cta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+@media (max-width: 720px) {
+  .explore-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Top Hotels grid, homepage variant --- */
+
+.home-hotel-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1000px) {
+  .home-hotel-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .home-hotel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.home-hotel-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.home-hotel-card-image {
+  height: 7rem;
+  background: linear-gradient(135deg, var(--primary) 0%, #8b85ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-hotel-card-image span {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.home-hotel-card .hotel-card-demo {
+  top: 0.7rem;
+  right: 0.7rem;
+  background: var(--surface);
+}
+
+.home-hotel-card .hotel-card-name,
+.home-hotel-card .hotel-card-meta,
+.home-hotel-card .home-hotel-card-badges,
+.home-hotel-card .hotel-card-price {
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
+}
+
+.home-hotel-card .hotel-card-name {
+  margin-top: 0.9rem;
+  padding-right: 1.1rem;
+}
+
+.home-hotel-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+
+.home-hotel-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.home-hotel-badge-good {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.home-hotel-card-cta {
+  margin: 0.9rem 1.1rem 1.1rem;
+  width: calc(100% - 2.2rem);
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 0.9rem;
+  box-sizing: border-box;
+}
+
+/* --- Klook cross-sell band --- */
+
+.home-klook-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 3rem 0;
+  padding: 1.75rem 2rem;
+  background: linear-gradient(135deg, #eef2ff 0%, #ecfdf5 100%);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+}
+
+.home-klook-band h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.2rem 0 0;
+  color: var(--text-primary);
+  max-width: 26rem;
+}

@@ -11,6 +11,19 @@ export interface BrowseHotelResult {
   isMockData: boolean;
   sourcesChecked: number;
   cheapestTotal: number | null;
+  // Real, computed from this hotel's own cached offers only (cheapest vs.
+  // the average of every source checked for the SAME hotel/dates) - never
+  // a cross-hotel or fabricated "market rate" comparison. Null whenever
+  // there are fewer than two offers to average, since a "below average"
+  // claim needs something to be below. See homepage "Top Hotels" card -
+  // DECISIONS.md, "Homepage redesign: real savings badge, not a fabricated one."
+  percentBelowAverage: number | null;
+  // True only if at least one cached, available offer's own cancellations
+  // row says isFreeCancellation - never assumed. StayingAPI itself doesn't
+  // return real cancellation terms today (see stayingApiRefresh.ts), so
+  // this is realistically only ever true for mock hotels until that
+  // changes - which is the honest, current state, not a bug.
+  hasFreeCancellationOffer: boolean;
 }
 
 export interface BrowseResult {
@@ -57,6 +70,16 @@ export async function browseCity(city: string, checkIn: string, checkOut: string
       const sourcesChecked = new Set(offers.map((o) => o.supplierSlug)).size;
       const cheapestTotal = available.length ? Math.min(...available.map((o) => o.totalPrice)) : null;
 
+      let percentBelowAverage: number | null = null;
+      if (available.length >= 2 && cheapestTotal != null) {
+        const averageTotal = available.reduce((sum, o) => sum + o.totalPrice, 0) / available.length;
+        if (averageTotal > 0) {
+          const pct = Math.round(((averageTotal - cheapestTotal) / averageTotal) * 100);
+          if (pct > 0) percentBelowAverage = pct; // never show "0% below" as if it were a finding
+        }
+      }
+      const hasFreeCancellationOffer = available.some((o) => o.cancellation.isFreeCancellation);
+
       return {
         id: hotel.id,
         name: hotel.name,
@@ -66,6 +89,8 @@ export async function browseCity(city: string, checkIn: string, checkOut: string
         isMockData: hotel.isMockData,
         sourcesChecked,
         cheapestTotal,
+        percentBelowAverage,
+        hasFreeCancellationOffer,
       };
     })
   );
