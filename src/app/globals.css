@@ -1573,6 +1573,289 @@ input:focus {
   }
 }
 
+.rate-verdict-hotel {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-top: 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   The Analyse This Hotel gate + full Intelligence journey (2026-09-04).
+   See DECISIONS.md, "The Analyse This Hotel gate (2026-09-04)." Covers:
+   /hotel's free pre-analysis gate, "Your Hotel" (step 1, shown on both
+   /hotel and /search), the Rate Verified stat row, the price-standing
+   label, Why This Deal, the Where To Book heading, and Before You Book.
+   ========================================================================== */
+
+/* --- Your Hotel (step 1) --- */
+
+.your-hotel-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.2rem 1.3rem;
+  margin: 1.25rem 0 0;
+}
+
+.your-hotel-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+}
+
+.your-hotel-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--text);
+  margin-top: 0.2rem;
+}
+
+.your-hotel-meta {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+.your-hotel-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.your-hotel-stat-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.15rem;
+}
+
+.your-hotel-stat-value {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- /hotel's free Analyse This Hotel gate --- */
+
+.analyse-gate-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  background: var(--card);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  padding: 1.3rem 1.4rem;
+  margin: 1rem 0;
+}
+
+.analyse-gate-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.analyse-gate-copy {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0.35rem 0 0;
+  max-width: 34rem;
+  line-height: 1.5;
+}
+
+.analyse-gate-cta {
+  flex: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .analyse-gate-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* --- Rate Verified stat row (step 2) --- */
+
+.verified-rate-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  margin-top: 0.15rem;
+}
+
+.verified-rate-stat {
+  font-size: 0.83rem;
+  color: var(--text-dim);
+}
+
+.verified-rate-stat-price {
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Price standing label (step 3) --- */
+
+.price-insight-standing {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--standing-color, var(--text));
+  margin-bottom: 0.4rem;
+}
+
+/* --- Why This Deal (step 4) --- */
+
+.why-deal-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  margin: 1rem 0;
+}
+
+.why-deal-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.6rem;
+}
+
+.why-deal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.87rem;
+  color: var(--text);
+}
+
+.why-deal-list li {
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+.why-deal-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--signal-good);
+  font-weight: 700;
+}
+
+/* --- Where To Book heading (step 5) --- */
+
+.where-to-book-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  margin: 1.4rem 0 0.5rem;
+}
+
+/* --- Before You Book (steps 8-9) --- */
+
+.before-you-book-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.3rem 1.4rem;
+  margin: 1rem 0;
+}
+
+.before-you-book-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+  margin-bottom: 0.7rem;
+}
+
+.before-you-book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.before-you-book-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.before-you-book-check {
+  color: var(--signal-good);
+  font-weight: 700;
+  flex: none;
+}
+
+.before-you-book-label {
+  color: var(--text-dim);
+  min-width: 6.5rem;
+}
+
+.before-you-book-value {
+  color: var(--text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.before-you-book-recheck {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.before-you-book-recheck-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+
+.before-you-book-recheck-body {
+  font-size: 0.83rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0 0 0.7rem;
+  max-width: 34rem;
+}
+
+.before-you-book-footnote {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
 /* ==========================================================================
    Homepage redesign (2026-09-03) - matches a full-layout mockup the user
    pasted directly ("this is how i want the homepage layout. same to same.

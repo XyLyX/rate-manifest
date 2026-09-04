@@ -1,14 +1,20 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/db/client";
 import { runSearch } from "@/lib/search";
 import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import { getPriceInsight } from "@/lib/priceInsight";
+import { humanizeRoomType } from "@/lib/roomType";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
+import { YourHotelSummary } from "@/components/YourHotelSummary";
 import { VerifiedRatePanel, type VerifiedRateState } from "@/components/VerifiedRatePanel";
 import { PriceInsightPanel } from "@/components/PriceInsightPanel";
+import { WhyThisDealPanel } from "@/components/WhyThisDealPanel";
 import { RateManifestVerdict } from "@/components/RateManifestVerdict";
+import { BeforeYouBookPanel } from "@/components/BeforeYouBookPanel";
 import { KlookTripSection } from "@/components/KlookTripSection";
 import { ThingsToDoSection } from "@/components/ThingsToDoSection";
 import { searchThingsToDo } from "@/lib/viator/searchThingsToDo";
@@ -19,6 +25,18 @@ interface SearchPageProps {
   searchParams: Promise<{ hotel?: string; checkin?: string; checkout?: string }>;
 }
 
+// The "RateManifest Intelligence" page - Stage 2, only ever reached via
+// /hotel's "Analyse This Hotel" link (see src/app/hotel/page.tsx and
+// DECISIONS.md, "The Analyse This Hotel gate (2026-09-03)"). This is the
+// one place in the app that spends a StayingAPI credit. The section order
+// below follows the canonical Intelligence journey given in chat
+// 2026-09-03: Your Hotel -> Rate Verified -> Is This A Good Price? -> Why
+// This Deal -> Where To Book -> RateManifest Verdict -> Before You Book ->
+// Book. "Should you book now or wait" and "What are you really getting"
+// (comparing offers, not just prices) are Phase 2/3 per that same message
+// - explicitly deferred until there's either enough price_history volume
+// or enough real per-offer attribute data to make them honest, not built
+// here yet.
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const hotelId = params.hotel;
@@ -69,6 +87,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     metadata: { searchId: result.searchId, sourcesChecked: result.sourcesChecked },
   });
 
+  // "Your Hotel" (step 1) needs the room row too - occupancy and room
+  // type aren't part of SearchResult.hotel. Same read every /hotel page
+  // load already does; cheap, zero StayingAPI cost.
+  const room = await db.query.rooms.findFirst({ where: eq(schema.rooms.hotelId, result.hotel.id) });
+  const roomTypeLabel = room ? humanizeRoomType(room.normalizedType) : "Standard room";
+  const occupancy = room?.occupancy ?? 2;
+
   const available = result.offers.filter((o) => !o.soldOut);
   const soldOut = result.offers.filter((o) => o.soldOut);
 
@@ -84,9 +109,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   // skipped entirely during "checking"/"error" so those states don't pay
   // for a query whose answer nothing on screen would use yet.
   const priceInsight = showComparison ? await getPriceInsight(result.hotel.id, checkIn, result.cheapestTotal) : null;
+  const belowHistoricalAverage =
+    priceInsight?.hasEnoughData === true && priceInsight.percentVsAverage != null && priceInsight.percentVsAverage > 0;
 
   const verifiedState: VerifiedRateState =
     liveCheck.kind === "ready" ? (available.length > 0 ? "verified" : "no-availability") : "not-checked";
+
+  const currentUrl = `/search?hotel=${result.hotel.id}&checkin=${checkIn}&checkout=${checkOut}`;
 
   // Things To Do (Viator) - see DECISIONS.md, "Decision: build a native
   // Viator Things To Do integration." Same gating as KlookTripSection
@@ -120,21 +149,20 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </div>
       )}
 
-      <div className="results-header">
-        <h1>{result.hotel.name}</h1>
-        <div className="results-meta">
-          {result.hotel.area} · {result.hotel.starRating}-star · {result.nights} night
-          {result.nights > 1 ? "s" : ""} · {checkIn} → {checkOut}
-        </div>
-        {liveCheck.kind !== "checking" && (
-          <div className="summary-stat">
-            {result.sourcesChecked} source{result.sourcesChecked === 1 ? "" : "s"} checked
-            {result.cheapestTotal != null && ` — best from AED ${Math.round(result.cheapestTotal).toLocaleString("en-AE")}`}
-          </div>
-        )}
-      </div>
+      {/* Step 1: Your Hotel - free, shown regardless of live-check state. */}
+      <YourHotelSummary
+        hotelName={result.hotel.name}
+        area={result.hotel.area}
+        city={result.hotel.city}
+        starRating={result.hotel.starRating}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        nights={result.nights}
+        occupancy={occupancy}
+        roomTypeLabel={roomTypeLabel}
+      />
 
-      {/* Verified Rate panel - real hotels only. See VerifiedRatePanel.tsx
+      {/* Step 2: Rate Verified - real hotels only. See VerifiedRatePanel.tsx
           for why mock hotels skip this entirely (the .demo-banner above
           already says the prices are simulated). */}
       {!result.hotel.isMockData && liveCheck.kind !== "checking" && (
@@ -142,6 +170,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           state={verifiedState}
           sourcesChecked={result.sourcesChecked}
           checkedAt={result.offers[0]?.checkedAt ?? null}
+          cheapestTotal={result.cheapestTotal}
+          nights={result.nights}
         />
       )}
 
@@ -150,8 +180,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       ) : showComparison ? (
         <>
           {/* Non-null: showComparison already guarantees available.length > 0. */}
-          <RateManifestVerdict offer={available[0]!} sourcesChecked={result.sourcesChecked} />
           {priceInsight && <PriceInsightPanel insight={priceInsight} />}
+          <WhyThisDealPanel offer={available[0]!} belowHistoricalAverage={belowHistoricalAverage} />
+
+          <div className="where-to-book-heading">Where to book</div>
           <ResultsList
             searchId={result.searchId}
             hotelId={result.hotel.id}
@@ -160,6 +192,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             offers={available}
             averageTotal={result.averageTotal}
             cheapestTotal={result.cheapestTotal}
+          />
+
+          <RateManifestVerdict offer={available[0]!} hotelName={result.hotel.name} sourcesChecked={result.sourcesChecked} />
+          <BeforeYouBookPanel
+            hotelName={result.hotel.name}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            occupancy={occupancy}
+            roomTypeLabel={roomTypeLabel}
+            offer={available[0]!}
+            checkedAt={result.offers[0]?.checkedAt ?? null}
+            currentUrl={currentUrl}
           />
         </>
       ) : liveCheck.kind === "error" ? (

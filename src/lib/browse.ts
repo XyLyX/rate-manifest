@@ -54,46 +54,71 @@ function nightsBetween(checkIn: string, checkOut: string): number {
  * nobody actually made - only clicking through to a specific property's
  * own page counts as a real search.
  */
+type HotelRow = typeof schema.hotels.$inferSelect;
+
+// Shared by browseCity() and browseHotel() (added 2026-09-03 for the free
+// "Your Hotel" pre-analysis page - see DECISIONS.md, "The Analyse This
+// Hotel gate") - the exact same read-only, zero-credit computation, pulled
+// out so a single-hotel lookup doesn't have to fetch every hotel in a city
+// just to throw the rest away.
+async function computeBrowseHotel(hotel: HotelRow, checkIn: string, checkOut: string): Promise<BrowseHotelResult> {
+  const settled = await Promise.allSettled(
+    SUPPLIER_ADAPTERS.map((adapter) => adapter.getOffers({ hotelId: hotel.id, checkIn, checkOut }))
+  );
+  const offers = settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+  const available = offers.filter((o) => !o.soldOut);
+  const sourcesChecked = new Set(offers.map((o) => o.supplierSlug)).size;
+  const cheapestTotal = available.length ? Math.min(...available.map((o) => o.totalPrice)) : null;
+
+  let percentBelowAverage: number | null = null;
+  if (available.length >= 2 && cheapestTotal != null) {
+    const averageTotal = available.reduce((sum, o) => sum + o.totalPrice, 0) / available.length;
+    if (averageTotal > 0) {
+      const pct = Math.round(((averageTotal - cheapestTotal) / averageTotal) * 100);
+      if (pct > 0) percentBelowAverage = pct; // never show "0% below" as if it were a finding
+    }
+  }
+  const hasFreeCancellationOffer = available.some((o) => o.cancellation.isFreeCancellation);
+
+  return {
+    id: hotel.id,
+    name: hotel.name,
+    area: hotel.area,
+    city: hotel.city,
+    starRating: hotel.starRating,
+    isMockData: hotel.isMockData,
+    sourcesChecked,
+    cheapestTotal,
+    percentBelowAverage,
+    hasFreeCancellationOffer,
+  };
+}
+
 export async function browseCity(city: string, checkIn: string, checkOut: string): Promise<BrowseResult> {
   const hotels = await db.query.hotels.findMany({
     where: eq(schema.hotels.city, city),
     orderBy: [desc(schema.hotels.starRating), asc(schema.hotels.name)],
   });
 
-  const results = await Promise.all(
-    hotels.map(async (hotel): Promise<BrowseHotelResult> => {
-      const settled = await Promise.allSettled(
-        SUPPLIER_ADAPTERS.map((adapter) => adapter.getOffers({ hotelId: hotel.id, checkIn, checkOut }))
-      );
-      const offers = settled.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-      const available = offers.filter((o) => !o.soldOut);
-      const sourcesChecked = new Set(offers.map((o) => o.supplierSlug)).size;
-      const cheapestTotal = available.length ? Math.min(...available.map((o) => o.totalPrice)) : null;
-
-      let percentBelowAverage: number | null = null;
-      if (available.length >= 2 && cheapestTotal != null) {
-        const averageTotal = available.reduce((sum, o) => sum + o.totalPrice, 0) / available.length;
-        if (averageTotal > 0) {
-          const pct = Math.round(((averageTotal - cheapestTotal) / averageTotal) * 100);
-          if (pct > 0) percentBelowAverage = pct; // never show "0% below" as if it were a finding
-        }
-      }
-      const hasFreeCancellationOffer = available.some((o) => o.cancellation.isFreeCancellation);
-
-      return {
-        id: hotel.id,
-        name: hotel.name,
-        area: hotel.area,
-        city: hotel.city,
-        starRating: hotel.starRating,
-        isMockData: hotel.isMockData,
-        sourcesChecked,
-        cheapestTotal,
-        percentBelowAverage,
-        hasFreeCancellationOffer,
-      };
-    })
-  );
+  const results = await Promise.all(hotels.map((hotel) => computeBrowseHotel(hotel, checkIn, checkOut)));
 
   return { city, nights: nightsBetween(checkIn, checkOut), hotels: results };
+}
+
+/**
+ * Single-hotel version of browseCity() - the data source for the free
+ * "Your Hotel" page (src/app/hotel/page.tsx), which has to show something
+ * real (whatever's already cached) before the visitor has spent anything
+ * on an "Analyse This Hotel" click. Same zero-credit, cache-only reads -
+ * never triggers a live StayingAPI call. Returns null only if the hotel
+ * itself doesn't exist.
+ */
+export async function browseHotel(
+  hotelId: string,
+  checkIn: string,
+  checkOut: string
+): Promise<BrowseHotelResult | null> {
+  const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
+  if (!hotel) return null;
+  return computeBrowseHotel(hotel, checkIn, checkOut);
 }

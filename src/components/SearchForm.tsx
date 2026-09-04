@@ -21,8 +21,11 @@ interface SearchFormProps {
 // emirates, a single flat <select> (the original design) became unusable
 // - see DECISIONS.md, "Property picker: emirate/property search modes."
 // Both modes end up doing the exact same thing: setting the hidden
-// `hotel` input this form actually submits. The backend (/search, then
-// runSearch()) is untouched - this is presentation only.
+// `hotel` input this form actually submits. Submits to /hotel, not
+// /search directly - see DECISIONS.md, "The Analyse This Hotel gate
+// (2026-09-03)": /hotel is the free recap + "Analyse This Hotel" gate,
+// and only that page's own link goes on to /search, where the real
+// (credit-spending) comparison happens.
 //
 // "Emirate" mode narrows a second <select> to one emirate at a time
 // (default "All emirates" shows every hotel) rather than jumping straight
@@ -113,7 +116,7 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
   }
 
   return (
-    <form className="search-form" action="/search" method="GET">
+    <form className="search-form" action="/hotel" method="GET">
       <div className="field property-field">
         <div className="mode-toggle" role="tablist" aria-label="Search by">
           <button

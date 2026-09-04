@@ -40,6 +40,13 @@ interface VerifiedRatePanelProps {
   state: VerifiedRateState;
   sourcesChecked: number;
   checkedAt: string | null;
+  // Only meaningful (and only passed) in the "verified" state - the
+  // cheapest available total and the stay length it covers, so this panel
+  // can lead with the actual number ("AED X for N nights") rather than
+  // just a source count. Null-safe: renders without a price line if
+  // either is missing for some reason.
+  cheapestTotal: number | null;
+  nights: number | null;
 }
 
 // Same "compute after mount" pattern as ResultsList's FreshnessBadge, and
@@ -57,7 +64,7 @@ function formatAge(checkedAtIso: string): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function VerifiedRatePanel({ state, sourcesChecked, checkedAt }: VerifiedRatePanelProps) {
+export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTotal, nights }: VerifiedRatePanelProps) {
   const [age, setAge] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,9 +79,17 @@ export function VerifiedRatePanel({ state, sourcesChecked, checkedAt }: Verified
         </span>
         <div>
           <div className="verified-rate-title">Verified Rate</div>
-          <div className="verified-rate-sub">
-            {age ? `Checked ${age}` : "Checked"} · {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} compared
-            · availability confirmed
+          <div className="verified-rate-stats">
+            {cheapestTotal != null && nights != null && (
+              <span className="verified-rate-stat verified-rate-stat-price">
+                AED {Math.round(cheapestTotal).toLocaleString("en-AE")} for {nights} night{nights === 1 ? "" : "s"}
+              </span>
+            )}
+            <span className="verified-rate-stat">Availability confirmed</span>
+            <span className="verified-rate-stat">
+              {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} compared
+            </span>
+            <span className="verified-rate-stat">{age ? `Checked ${age}` : "Checked"}</span>
           </div>
         </div>
       </div>

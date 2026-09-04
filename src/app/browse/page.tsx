@@ -89,7 +89,7 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
         {result.hotels.map((hotel) => (
           <Link
             key={hotel.id}
-            href={`/search?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
+            href={`/hotel?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
             className="hotel-card"
           >
             {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}

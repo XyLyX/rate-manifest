@@ -212,7 +212,7 @@ export default async function HomePage() {
               {topHotels.map((hotel) => (
                 <Link
                   key={hotel.id}
-                  href={`/search?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
+                  href={`/hotel?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
                   className="hotel-card home-hotel-card"
                 >
                   <div className="home-hotel-card-image" aria-hidden="true">
@@ -249,7 +249,7 @@ export default async function HomePage() {
                       <span className="hotel-card-price-note">Not checked for these dates yet</span>
                     )}
                   </div>
-                  <span className="btn btn-block home-hotel-card-cta">View rates →</span>
+                  <span className="btn btn-block home-hotel-card-cta">View hotel →</span>
                 </Link>
               ))}
             </div>
