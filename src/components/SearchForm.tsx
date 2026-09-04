@@ -27,10 +27,16 @@ interface SearchFormProps {
 // and only that page's own link goes on to /search, where the real
 // (credit-spending) comparison happens.
 //
-// "Emirate" mode narrows a second <select> to one emirate at a time
-// (default "All emirates" shows every hotel) rather than jumping straight
-// to a multi-hotel results/compare page - that bigger "browse by
-// location" feature is intentionally still deferred, see DECISIONS.md.
+// "Emirate/City" mode narrows a second <select> to one emirate or city at a
+// time (default "All emirates/cities" shows every hotel) rather than
+// jumping straight to a multi-hotel results/compare page - that bigger
+// "browse by location" feature is intentionally still deferred, see
+// DECISIONS.md. Labeled "Emirate/City" rather than just "Emirate" so the
+// picker doesn't read as UAE-only - see DECISIONS.md, "Emirate/City
+// labeling (2026-09-04)": the catalog is Dubai/UAE-heavy today, but
+// nothing about this picker (it just lists whatever distinct `city` values
+// are actually in the hotels table) is UAE-specific, and the label
+// shouldn't imply otherwise as the catalog grows.
 //
 // "Property" mode is a type-ahead: type part of a name, pick from the
 // nearest matches shown underneath. Substring match against name and
@@ -126,7 +132,7 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
             className={mode === "emirate" ? "mode-tab active" : "mode-tab"}
             onClick={() => switchMode("emirate")}
           >
-            Emirate
+            Emirate/City
           </button>
           <button
             type="button"
@@ -142,14 +148,14 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
         {mode === "emirate" ? (
           <div className="emirate-picker">
             <select
-              aria-label="Emirate"
+              aria-label="Emirate or city"
               value={selectedEmirate}
               onChange={(e) => {
                 setSelectedEmirate(e.target.value);
                 setSelectedHotelId("");
               }}
             >
-              <option value="">All emirates</option>
+              <option value="">All emirates/cities</option>
               {emirates.map((city) => (
                 <option key={city} value={city}>
                   {city}

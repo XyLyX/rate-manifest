@@ -2015,15 +2015,106 @@ input:focus {
   }
 }
 
-/* --- Floating search card --- */
-
-.home-search-card {
+/* --- Klook homepage browsing panel (2026-09-04) --- see
+   KlookHomeBrowse.tsx and DECISIONS.md, "Klook browsing moved to the top
+   of the homepage (2026-09-04)." Same floating-card language as
+   .home-search-card below (max-width 1000px, white surface, rounded,
+   elevated shadow) since this is now the more prominent of the two - it
+   comes first in the markup, above .home-search-card, so a visitor's eye
+   lands here first without either card fighting the other for attention
+   via mismatched styling. */
+.klook-home-browse {
   max-width: 1000px;
   margin: 2rem auto 0;
+  padding: 1.5rem clamp(1.1rem, 3vw, 1.8rem);
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px -20px rgba(17, 24, 39, 0.18);
+}
+
+.klook-home-eyebrow {
+  margin-bottom: 0.6rem;
+}
+
+.klook-home-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.klook-home-body {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  max-width: 46rem;
+  margin: 0 0 1.1rem;
+}
+
+/* Same dark-recede-behind-a-white-iframe framing as .klook-hotels-widget-mount
+   on /search (see that class's own long comment for why) - this is the
+   exact same Klook-controlled iframe, just mounted a second time on a
+   different page. */
+.klook-home-widget-mount {
+  margin: 0 0 1.1rem;
+  padding: 0.75rem;
+  background: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 126px;
+}
+
+.klook-home-cta {
+  margin-bottom: 0.9rem;
+}
+
+.klook-home-disclosure {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  max-width: 46rem;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .klook-home-browse {
+    margin: 1.5rem 1rem 0;
+  }
+}
+
+/* --- Floating search card --- */
+
+/* Demoted 2026-09-04 to a specific, secondary job - see the JSX comment in
+   page.tsx and DECISIONS.md, "Klook browsing moved to the top of the
+   homepage (2026-09-04)." Visual weight (white card, shadow, max-width)
+   is deliberately unchanged from before - it's still a real, useful tool,
+   just no longer the first thing on the page - only the new heading above
+   the form is new, saying plainly what this card is actually for. */
+.home-search-card {
+  max-width: 1000px;
+  margin: 1.5rem auto 0;
   padding: 1.4rem clamp(1.1rem, 3vw, 1.8rem);
   background: var(--surface);
   border-radius: 16px;
   box-shadow: 0 24px 48px -20px rgba(17, 24, 39, 0.18);
+}
+
+.home-search-card-heading {
+  margin-bottom: 0.9rem;
+}
+
+.home-search-card-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+.home-search-card-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 @media (max-width: 720px) {

@@ -7,7 +7,8 @@ import { Footer } from "@/components/Footer";
 import { SearchForm } from "@/components/SearchForm";
 import { HeroArt } from "@/components/HeroArt";
 import { IconBolt, IconShieldCheck, IconStar, IconScales, IconLink } from "@/components/TrustIcons";
-import { KLOOK_HOTELS_LINK } from "@/lib/klook";
+import { KlookHomeBrowse } from "@/components/KlookHomeBrowse";
+import { KLOOK_LINK } from "@/lib/klook";
 
 // Forces this page to render per-request instead of at build time. Without
 // this, Next tries to prerender it during `next build`, which means the
@@ -116,7 +117,27 @@ export default async function HomePage() {
           </div>
         </div>
 
+        {/* Primary homepage browsing surface - see DECISIONS.md, "Klook
+            browsing moved to the top of the homepage (2026-09-04)." Comes
+            before RateManifest's own picker below on purpose: chat,
+            2026-09-04, "why is rate manifest first?????" - Klook's real
+            hotel inventory is now the first thing a visitor sees and can
+            browse, at zero StayingAPI cost. */}
+        <KlookHomeBrowse />
+
+        {/* RateManifest's own picker - demoted to a specific, secondary
+            job: once someone already has a property in mind (from the
+            Klook browsing above, or anywhere else), this is where they get
+            RateManifest's verified rate for it. It was never a broad
+            "browse the market" tool to begin with - see SearchForm.tsx's
+            own comment - so the honest fix here is framing, not a rebuild:
+            a plain heading says what it's for instead of implying it's the
+            homepage's main search. */}
         <div className="home-search-card">
+          <div className="home-search-card-heading">
+            <div className="home-search-card-eyebrow">Already know the hotel?</div>
+            <p className="home-search-card-sub">Look it up here for RateManifest&apos;s verified rate.</p>
+          </div>
           <SearchForm
             hotels={hotels.map((h) => ({
               id: h.id,
@@ -178,7 +199,7 @@ export default async function HomePage() {
               <span className="explore-card-cta">View Hotels →</span>
             </Link>
             <a
-              href={KLOOK_HOTELS_LINK}
+              href={KLOOK_LINK}
               target="_blank"
               rel="noopener noreferrer sponsored"
               className="explore-card explore-card-things"
@@ -261,7 +282,7 @@ export default async function HomePage() {
             <div className="explore-card-eyebrow">More than just hotels</div>
             <h3>Discover tours, activities, and experiences in Dubai</h3>
           </div>
-          <a href={KLOOK_HOTELS_LINK} target="_blank" rel="noopener noreferrer sponsored" className="btn btn-ghost">
+          <a href={KLOOK_LINK} target="_blank" rel="noopener noreferrer sponsored" className="btn btn-ghost">
             Explore Things To Do →
           </a>
         </section>
