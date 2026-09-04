@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
 export interface SearchFormHotel {
@@ -17,31 +16,31 @@ interface SearchFormProps {
   defaultCheckOut: string;
 }
 
-// Two ways in, one required field underneath. With 36 hotels across 6
-// emirates, a single flat <select> (the original design) became unusable
-// - see DECISIONS.md, "Property picker: emirate/property search modes."
-// Both modes end up doing the exact same thing: setting the hidden
-// `hotel` input this form actually submits. Submits to /hotel, not
-// /search directly - see DECISIONS.md, "The Analyse This Hotel gate
-// (2026-09-03)": /hotel is the free recap + "Analyse This Hotel" gate,
-// and only that page's own link goes on to /search, where the real
-// (credit-spending) comparison happens.
+// Property-only lookup - see DECISIONS.md, "SearchForm simplified to a
+// single Property lookup (2026-09-04)." Chat, 2026-09-04: "under 'already
+// know the hotel' - just keep one tab for 'Property' with a memory
+// selection below it as he types. (we dont need emirates or choose a
+// property, etc, as he is coming to rate manifest after selecting the
+// hotel to verify rate.)"
 //
-// "Emirate/City" mode narrows a second <select> to one emirate or city at a
-// time (default "All emirates/cities" shows every hotel) rather than
-// jumping straight to a multi-hotel results/compare page - that bigger
-// "browse by location" feature is intentionally still deferred, see
-// DECISIONS.md. Labeled "Emirate/City" rather than just "Emirate" so the
-// picker doesn't read as UAE-only - see DECISIONS.md, "Emirate/City
-// labeling (2026-09-04)": the catalog is Dubai/UAE-heavy today, but
-// nothing about this picker (it just lists whatever distinct `city` values
-// are actually in the hotels table) is UAE-specific, and the label
-// shouldn't imply otherwise as the catalog grows.
+// This form used to offer two ways in - an Emirate/City + Property <select>
+// pair, and this type-ahead - because it doubled as this app's only way to
+// browse the catalog by location. It no longer needs to: KlookHomeBrowse
+// (see page.tsx) is now the homepage's first browsing surface, and a
+// visitor reaching this card already has a specific property in mind from
+// browsing there (or anywhere else). So this is just what it says it is -
+// "Already know the hotel? Look it up here" - a name lookup, not a second
+// browse tool. The old Emirate mode and its "Browse all hotels" fallback
+// are gone with it; /browse itself (linked from the homepage's Top Hotels
+// section) is still the place to browse by location.
 //
-// "Property" mode is a type-ahead: type part of a name, pick from the
-// nearest matches shown underneath. Substring match against name and
-// area, prefix matches ranked first, capped at 8 suggestions so it never
-// dumps the whole catalog back at you.
+// Type-ahead: type part of a name, pick from the nearest matches shown
+// underneath. Substring match against name and area, prefix matches ranked
+// first, capped at 8 suggestions so it never dumps the whole catalog back
+// at you. Submits to /hotel, not /search directly - see DECISIONS.md, "The
+// Analyse This Hotel gate (2026-09-03)": /hotel is the free recap +
+// "Analyse This Hotel" gate, and only that page's own link goes on to
+// /search, where the real (credit-spending) comparison happens.
 // Adds `days` to a YYYY-MM-DD date string, in UTC - the same parsing
 // convention runSearch()/stayingApiAdapter.ts already use for check-in/
 // check-out, so a date typed here means the same calendar day everywhere
@@ -54,9 +53,6 @@ function addDays(dateIso: string, days: number): string {
 }
 
 export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFormProps) {
-  const [mode, setMode] = useState<"emirate" | "property">("emirate");
-
-  const [selectedEmirate, setSelectedEmirate] = useState("");
   const [selectedHotelId, setSelectedHotelId] = useState("");
 
   const [propertyQuery, setPropertyQuery] = useState("");
@@ -78,16 +74,6 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
     }
   }
 
-  const emirates = useMemo(() => {
-    const unique = Array.from(new Set(hotels.map((h) => h.city)));
-    return unique.sort((a, b) => a.localeCompare(b));
-  }, [hotels]);
-
-  const emirateHotels = useMemo(() => {
-    const scoped = selectedEmirate ? hotels.filter((h) => h.city === selectedEmirate) : hotels;
-    return [...scoped].sort((a, b) => a.name.localeCompare(b.name));
-  }, [hotels, selectedEmirate]);
-
   const propertyMatches = useMemo(() => {
     const q = propertyQuery.trim().toLowerCase();
     if (!q) return [];
@@ -106,15 +92,6 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
     return withRank.slice(0, 8).map((r) => r.hotel);
   }, [hotels, propertyQuery]);
 
-  function switchMode(next: "emirate" | "property") {
-    if (next === mode) return;
-    setMode(next);
-    setSelectedHotelId("");
-    setSelectedEmirate("");
-    setPropertyQuery("");
-    setShowSuggestions(false);
-  }
-
   function pickProperty(hotel: SearchFormHotel) {
     setSelectedHotelId(hotel.id);
     setPropertyQuery(hotel.name);
@@ -124,121 +101,57 @@ export function SearchForm({ hotels, defaultCheckIn, defaultCheckOut }: SearchFo
   return (
     <form className="search-form" action="/hotel" method="GET">
       <div className="field property-field">
-        <div className="mode-toggle" role="tablist" aria-label="Search by">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "emirate"}
-            className={mode === "emirate" ? "mode-tab active" : "mode-tab"}
-            onClick={() => switchMode("emirate")}
-          >
-            Emirate/City
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "property"}
-            className={mode === "property" ? "mode-tab active" : "mode-tab"}
-            onClick={() => switchMode("property")}
-          >
-            Property
-          </button>
+        <label htmlFor="property-query">Property</label>
+        <div className="property-picker">
+          <input
+            id="property-query"
+            type="text"
+            aria-label="Property name"
+            placeholder="Start typing a hotel name…"
+            value={propertyQuery}
+            onChange={(e) => {
+              setPropertyQuery(e.target.value);
+              setSelectedHotelId("");
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              // Close on blur, but only after a click on a suggestion
+              // (which fires before blur's own default) has had a chance
+              // to register - otherwise the list disappears before the
+              // click lands.
+              blurTimeout.current = setTimeout(() => setShowSuggestions(false), 150);
+            }}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showSuggestions && propertyMatches.length > 0}
+          />
+          {showSuggestions && propertyQuery.trim().length > 0 && (
+            <ul className="property-suggestions" role="listbox">
+              {propertyMatches.length > 0 ? (
+                propertyMatches.map((h) => (
+                  <li key={h.id} role="option" aria-selected={h.id === selectedHotelId}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        // mousedown (not click) fires before the input's
+                        // blur, so the timeout above never gets a chance
+                        // to close this list out from under the click.
+                        e.preventDefault();
+                        if (blurTimeout.current) clearTimeout(blurTimeout.current);
+                        pickProperty(h);
+                      }}
+                    >
+                      {h.name} <span className="suggestion-meta">- {h.area}, {h.city} ({h.starRating}★)</span>
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <li className="property-suggestions-empty">No matching properties</li>
+              )}
+            </ul>
+          )}
         </div>
-
-        {mode === "emirate" ? (
-          <div className="emirate-picker">
-            <select
-              aria-label="Emirate or city"
-              value={selectedEmirate}
-              onChange={(e) => {
-                setSelectedEmirate(e.target.value);
-                setSelectedHotelId("");
-              }}
-            >
-              <option value="">All emirates/cities</option>
-              {emirates.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Property"
-              value={selectedHotelId}
-              onChange={(e) => setSelectedHotelId(e.target.value)}
-              required
-            >
-              <option value="" disabled>
-                Choose a property…
-              </option>
-              {emirateHotels.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name} - {h.area} ({h.starRating}★)
-                </option>
-              ))}
-            </select>
-            <Link
-              className="browse-all-link"
-              href={
-                selectedEmirate
-                  ? `/browse?city=${encodeURIComponent(selectedEmirate)}&checkin=${checkIn}&checkout=${checkOut}`
-                  : `/browse?checkin=${checkIn}&checkout=${checkOut}`
-              }
-            >
-              Browse all hotels{selectedEmirate ? ` in ${selectedEmirate}` : ""} →
-            </Link>
-          </div>
-        ) : (
-          <div className="property-picker">
-            <input
-              type="text"
-              aria-label="Property name"
-              placeholder="Start typing a hotel name…"
-              value={propertyQuery}
-              onChange={(e) => {
-                setPropertyQuery(e.target.value);
-                setSelectedHotelId("");
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => {
-                // Close on blur, but only after a click on a suggestion
-                // (which fires before blur's own default) has had a chance
-                // to register - otherwise the list disappears before the
-                // click lands.
-                blurTimeout.current = setTimeout(() => setShowSuggestions(false), 150);
-              }}
-              autoComplete="off"
-              role="combobox"
-              aria-expanded={showSuggestions && propertyMatches.length > 0}
-            />
-            {showSuggestions && propertyQuery.trim().length > 0 && (
-              <ul className="property-suggestions" role="listbox">
-                {propertyMatches.length > 0 ? (
-                  propertyMatches.map((h) => (
-                    <li key={h.id} role="option" aria-selected={h.id === selectedHotelId}>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => {
-                          // mousedown (not click) fires before the input's
-                          // blur, so the timeout above never gets a chance
-                          // to close this list out from under the click.
-                          e.preventDefault();
-                          if (blurTimeout.current) clearTimeout(blurTimeout.current);
-                          pickProperty(h);
-                        }}
-                      >
-                        {h.name} <span className="suggestion-meta">- {h.area}, {h.city} ({h.starRating}★)</span>
-                      </button>
-                    </li>
-                  ))
-                ) : (
-                  <li className="property-suggestions-empty">No matching properties</li>
-                )}
-              </ul>
-            )}
-          </div>
-        )}
 
         <input type="hidden" name="hotel" value={selectedHotelId} />
       </div>

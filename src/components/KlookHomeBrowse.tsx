@@ -71,7 +71,7 @@ export function KlookHomeBrowse() {
         target="_blank"
         rel="noopener noreferrer sponsored"
       >
-        Search all Klook hotels in Dubai - pick your dates &amp; guests →
+        Search all Klook hotels - pick your dates &amp; guests →
       </a>
       <p className="klook-home-disclosure">
         Klook is a separate partner, not RateManifest&apos;s own inventory - the four properties above are a

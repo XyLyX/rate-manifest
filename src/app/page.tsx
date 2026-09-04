@@ -71,19 +71,41 @@ function defaultCheckOut(): string {
 //    geo dataset, room-type depth isn't confirmed), so it isn't shown
 //    with invented numbers here. Built once that roadmap's Phase 1/2 data
 //    actually exists.
-export default async function HomePage() {
+interface HomePageProps {
+  searchParams: Promise<{ city?: string }>;
+}
+
+// City selector added 2026-09-04 - see DECISIONS.md, "Top Hotels made
+// city-aware (2026-09-04)." Chat: "The shortlist should auto reflect the
+// city he is searching property in... we can have a city tab to select in
+// the beginning, that force feeds that city and the site only reflects
+// options for that city." Scoped deliberately to RateManifest's own Top
+// Hotels shortlist (backed by real per-city catalog data) - not to the
+// Klook sections above it, which stay Dubai-labeled because that's
+// genuinely all Klook's fixed hotels widget shows today (see
+// KlookHomeBrowse.tsx), and not to the "Explore Dubai" section's own
+// heading/"View all" link just above Top Hotels, which is left as the
+// flagship-market overview it already reads as. A real city, chosen via a
+// plain ?city= link (not client state) so the server component re-runs
+// browseCity() against it on navigation - no hidden client/server drift.
+export default async function HomePage({ searchParams }: HomePageProps) {
   const checkIn = defaultCheckIn();
   const checkOut = defaultCheckOut();
 
   const hotels = await db.query.hotels.findMany({ orderBy: asc(schema.hotels.name) });
 
+  const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) => a.localeCompare(b));
+  const requestedCity = (await searchParams).city;
+  const defaultCity = cities.includes("Dubai") ? "Dubai" : (cities[0] ?? "Dubai");
+  const selectedCity = requestedCity && cities.includes(requestedCity) ? requestedCity : defaultCity;
+
   // Real data only, zero extra StayingAPI credits - browseCity() only
   // ever reads whatever's already cached for this exact date pair (see
-  // its own comment). Dubai first since it's this catalog's largest
-  // emirate; capped at 4 to match the mockup's grid without pretending a
-  // "curated top 4" ranking beyond star rating (browseCity's own sort).
-  const dubai = await browseCity("Dubai", checkIn, checkOut);
-  const topHotels = dubai.hotels.slice(0, 4);
+  // its own comment). Capped at 4 to match the mockup's grid without
+  // pretending a "curated top 4" ranking beyond star rating (browseCity's
+  // own sort).
+  const cityResult = await browseCity(selectedCity, checkIn, checkOut);
+  const topHotels = cityResult.hotels.slice(0, 4);
 
   return (
     <div className="home-page">
@@ -192,9 +214,12 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="explore-grid">
-            <Link href="/browse?city=Dubai" className="explore-card explore-card-hotels">
+            <Link
+              href={`/browse?city=${encodeURIComponent(selectedCity)}`}
+              className="explore-card explore-card-hotels"
+            >
               <div className="explore-card-eyebrow">Hotels</div>
-              <h3>Top Hotels in Dubai</h3>
+              <h3>Top Hotels</h3>
               <p>Compare rates. Check availability. Book with confidence.</p>
               <span className="explore-card-cta">View Hotels →</span>
             </Link>
@@ -218,13 +243,29 @@ export default async function HomePage() {
         <section className="home-top-hotels">
           <div className="home-section-heading">
             <div>
-              <h2>Top Hotels in Dubai</h2>
+              <h2>Top Hotels</h2>
               <p>Real properties. Real checked rates where we have them.</p>
             </div>
-            <Link href="/browse?city=Dubai" className="section-view-all">
+            <Link href={`/browse?city=${encodeURIComponent(selectedCity)}`} className="section-view-all">
               View all hotels →
             </Link>
           </div>
+
+          {cities.length > 1 && (
+            <div className="home-city-tabs" role="tablist" aria-label="City">
+              {cities.map((city) => (
+                <Link
+                  key={city}
+                  href={city === defaultCity ? "/" : `/?city=${encodeURIComponent(city)}`}
+                  className={city === selectedCity ? "home-city-tab active" : "home-city-tab"}
+                  role="tab"
+                  aria-selected={city === selectedCity}
+                >
+                  {city}
+                </Link>
+              ))}
+            </div>
+          )}
 
           {topHotels.length === 0 ? (
             <p className="empty-state">No properties in this catalog yet.</p>

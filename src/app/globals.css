@@ -255,59 +255,12 @@ a {
   margin-bottom: 0.4rem;
 }
 
-/* --- Property field: emirate/property mode toggle + pickers --- */
-
-.mode-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.4rem;
-}
-
-.mode-tab {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.mode-tab + .mode-tab {
-  border-left: 1px solid var(--border);
-  padding-left: 0.6rem;
-}
-
-.mode-tab.active {
-  color: var(--lime);
-}
-
-.mode-tab:not(.active):hover {
-  color: var(--text);
-}
-
-.emirate-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.browse-all-link {
-  align-self: flex-start;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.browse-all-link:hover {
-  color: var(--lime);
-}
+/* --- Property field: type-ahead lookup --- see DECISIONS.md,
+   "SearchForm simplified to a single Property lookup (2026-09-04)." The
+   Emirate/City mode toggle and its <select> pair are gone from
+   SearchForm.tsx - removed the CSS that only ever styled them
+   (.mode-toggle/.mode-tab/.emirate-picker/.browse-all-link) rather than
+   leave dead rules behind. */
 
 .property-picker {
   position: relative;
@@ -2212,6 +2165,43 @@ input:focus {
 
 .section-view-all:hover {
   color: var(--primary-hover);
+}
+
+/* --- Homepage city selector (2026-09-04) --- see DECISIONS.md, "Top
+   Hotels made city-aware (2026-09-04)," and the Link-based tab row in
+   page.tsx. Plain pill links, not a client component - each one is a
+   normal navigation to /?city=<name>, so picking a city is a real page
+   request the server component re-runs browseCity() against, not client
+   state to keep in sync. */
+.home-city-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem 0 1.25rem;
+}
+
+.home-city-tab {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+}
+
+.home-city-tab:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.home-city-tab.active {
+  color: #ffffff;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 /* --- Explore Dubai --- */

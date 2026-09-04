@@ -5,19 +5,23 @@
 // nothing here should ever get imported by src/lib/search.ts or the scoring
 // code.
 //
-// KLOOK_LINK is the main "Browse Klook" experiences CTA's link, generated
-// via Travelpayouts' Links tool for Ratemanifest. Originally pointed at
-// klook.com's bare homepage; updated 2026-09-01 to Klook's own Dubai
-// search-results page (https://www.klook.com/search/result/?query=dubai&
-// search_scope=main_search) instead - same purpose, a much more useful
-// landing spot than the homepage. Still not a deep link to any specific
-// product or category page, though - every category listed in
+// KLOOK_LINK is the main "Browse Klook" experiences CTA's link - the
+// "Explore Activities"/"Explore Things To Do" buttons on the homepage and
+// the "Browse Here" button in KlookTripSection on /search. Originally a
+// Travelpayouts Links-tool link pointed at klook.com's bare homepage;
+// updated 2026-09-01 to Klook's own Dubai search-results page instead -
+// same purpose, a more useful landing spot than the homepage. Replaced
+// again 2026-09-04 with a link the user provided directly, generated from
+// Klook's own affiliate short-link tool (affiliate.klook.com/sl/...)
+// rather than through Travelpayouts - chat, 2026-09-04: "Link for -
+// Explore Activities- https://affiliate.klook.com/sl/1DjS3Cm." Same
+// tradeoff as before still applies - every category listed in
 // KLOOK_EXPERIENCE_CATEGORIES is real (Klook does sell all of these), but
 // none of them has its own tracked link, so this section must not imply
 // per-category deep links (no "Desert Safari" button that actually lands
 // somewhere generic). One real link, one real button, honest copy about
 // what's on the other side of it.
-export const KLOOK_LINK = "https://klook.tpm.lv/JaftNQHL";
+export const KLOOK_LINK = "https://affiliate.klook.com/sl/1DjS3Cm";
 
 // Deliberately excludes "Hotels & accommodation" even though Klook does
 // sell it - see DECISIONS.md, "Klook accommodation kept out of the trip
@@ -50,17 +54,20 @@ export const KLOOK_EXPERIENCE_CATEGORIES = ["Airport transfers", "Transport", "S
 // of by leaving it out.
 export const SHOW_KLOOK_HOTELS_NOTE = true;
 
-// A second, dedicated link for the hotels note above - generated the same
-// way as KLOOK_LINK (Travelpayouts' Links tool), pointed specifically at
-// Klook's Dubai hotels listing rather than the generic homepage or a
-// worldwide hotels page - everything else in this section, including its
-// own "Complete your Dubai trip" copy, is Dubai-specific, so a worldwide
-// hotel search from here would be a mismatch. Kept separate from
-// KLOOK_LINK so the two CTAs point at what they actually say they point
-// at, and so Travelpayouts' own per-link analytics can tell experiences
-// clicks apart from hotels clicks. Regenerated 2026-09-01 (O3Coxqyz
-// replacing the original RqxKw5oy) - same intent, refreshed link.
-export const KLOOK_HOTELS_LINK = "https://klook.tpm.lv/O3Coxqyz";
+// A second, dedicated link for the hotels note above and for
+// KlookHomeBrowse's homepage CTA - pointed specifically at Klook's Dubai
+// hotels listing rather than the generic homepage or a worldwide hotels
+// page - everything else in these sections is Dubai-specific (the fixed
+// four-property widget is Dubai-only), so a worldwide hotel search from
+// here would be a mismatch. Kept separate from KLOOK_LINK so the two CTAs
+// point at what they actually say they point at, and so each link's own
+// analytics can tell experiences clicks apart from hotels clicks.
+// Regenerated 2026-09-01 (O3Coxqyz replacing the original RqxKw5oy) via
+// Travelpayouts, same intent; replaced again 2026-09-04 with a link the
+// user provided directly, generated from Klook's own affiliate short-link
+// tool instead - chat, 2026-09-04: "Link for View Hotels-
+// https://affiliate.klook.com/sl/1yrhErq."
+export const KLOOK_HOTELS_LINK = "https://affiliate.klook.com/sl/1yrhErq";
 
 // Travelpayouts' "Specific City/Category Tours Widget" for Klook used to
 // live here (KLOOK_TOURS_WIDGET_SRC, a third-party script rendering real
