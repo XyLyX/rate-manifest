@@ -8,7 +8,6 @@ import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
 import { HeroArt } from "@/components/HeroArt";
 import { IconBolt, IconShieldCheck, IconStar, IconScales, IconLink } from "@/components/TrustIcons";
-import { KLOOK_LINK } from "@/lib/klook";
 
 // Forces this page to render per-request instead of at build time. Without
 // this, Next tries to prerender it during `next build`, which means the
@@ -179,43 +178,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       <div className="home-content">
-        <section id="explore" className="home-explore">
-          <div className="home-section-heading">
-            <div>
-              <h2>Explore Dubai</h2>
-              <p>From verified hotel rates to real activities, plan the trip with real data behind it.</p>
-            </div>
-            <Link href="/browse?city=Dubai" className="section-view-all">
-              View all →
-            </Link>
-          </div>
-          <div className="explore-grid">
-            <Link
-              href={`/browse?city=${encodeURIComponent(selectedCity)}`}
-              className="explore-card explore-card-hotels"
-            >
-              <div className="explore-card-eyebrow">Hotels</div>
-              <h3>Top Hotels</h3>
-              <p>Compare rates. Check availability. Book with confidence.</p>
-              <span className="explore-card-cta">View Hotels →</span>
-            </Link>
-            <a
-              href={KLOOK_LINK}
-              target="_blank"
-              rel="noopener noreferrer sponsored"
-              className="explore-card explore-card-things"
-            >
-              <div className="explore-card-eyebrow">Things To Do</div>
-              <h3>Iconic Experiences</h3>
-              <p>
-                Tours, attractions, and activities from Klook — a separate partner, booked and paid for on
-                Klook.
-              </p>
-              <span className="explore-card-cta">Explore Activities →</span>
-            </a>
-          </div>
-        </section>
-
         <section className="home-top-hotels">
           <div className="home-section-heading">
             <div>
