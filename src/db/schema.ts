@@ -255,6 +255,60 @@ export const stayingApiCache = pgTable(
   (t) => [uniqueIndex("staying_api_cache_hotel_checkin_idx").on(t.hotelId, t.checkIn, t.checkOut)]
 );
 
+// The Decision Audit Trail - one immutable row per runSearch() call,
+// capturing exactly what the existing scoreOffers()/getDealSignal()
+// pipeline computed and showed on the RateManifest Verdict panel (see
+// src/components/RateManifestVerdict.tsx), rather than recomputing it live
+// and throwing it away every time. Nothing reads this table yet as of
+// 2026-09-05 - it exists so that, from today, there is a record of what
+// RateManifest actually told a visitor and why, which is the actual
+// foundation "explainable, defensible decisions" needs. See
+// src/lib/verdict.ts for the one writer.
+//
+// topSupplierSlug is deliberately a plain string, not a foreign key to
+// suppliers.id - the same "identity is the slug" convention SupplierOffer
+// already uses throughout search.ts and scoring, and it avoids an extra
+// slug->id lookup query in the hot path of every search purely to satisfy
+// a referential-integrity nicety this audit-log table doesn't need. The
+// full evidence set (every offer compared, not just the winner) lives in
+// evidenceJson.
+export const verdicts = pgTable(
+  "verdicts",
+  {
+    id: text("id").primaryKey(),
+    // Groups every Verdict row with the Rate rows from the same runSearch()
+    // call - same convention as rates.searchId, also not a foreign key.
+    searchId: text("search_id").notNull(),
+    hotelId: text("hotel_id")
+      .notNull()
+      .references(() => hotels.id, { onDelete: "cascade" }),
+    // 0-100, copied from the top-ranked DisplayOffer's score - see
+    // bestDealScore.ts. 0 when nothing was available to score.
+    score: real("score").notNull(),
+    // "strong" | "good" | "fair" | "weak" - see dealSignal.ts's DealSignalTier
+    tier: text("tier").notNull(),
+    // The one-line plain-language recommendation shown on screen, e.g.
+    // "Book it." - see dealSignal.ts's DealSignal.verdict.
+    decision: text("decision").notNull(),
+    topSupplierSlug: text("top_supplier_slug"),
+    // JSON-encoded ScoreReason[] for the top-ranked offer - same
+    // "encode as text" convention as events.metadata below.
+    reasonsJson: text("reasons_json").notNull(),
+    sourcesChecked: integer("sources_checked").notNull(),
+    cheapestTotal: real("cheapest_total"),
+    averageTotal: real("average_total"),
+    currency: text("currency").notNull().default("AED"),
+    // JSON-encoded VerdictEvidenceOffer[] - every offer actually compared,
+    // not just the winner. See src/lib/verdict.ts.
+    evidenceJson: text("evidence_json").notNull(),
+    generatedAt: timestamp("generated_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    index("verdicts_hotel_generated_idx").on(t.hotelId, t.generatedAt),
+    index("verdicts_search_idx").on(t.searchId),
+  ]
+);
+
 // Instrumentation: every SEARCH / RESULTS_VIEWED / RATE_REVEALED /
 // OUTBOUND_CLICK gets one row here. This table's aggregates are exactly the
 // columns the D4 MVP Measurement Log (Rate-Manifest-Economics.xlsx) expects

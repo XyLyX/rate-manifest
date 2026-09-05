@@ -4,6 +4,7 @@ import { newId } from "@/lib/id";
 import { SUPPLIER_ADAPTERS, type SupplierOffer } from "@/lib/suppliers";
 import { scoreOffers, type ScoredOffer } from "@/lib/scoring/bestDealScore";
 import { checkAndTriggerAlerts } from "@/lib/priceTracking";
+import { recordVerdict } from "@/lib/verdict";
 
 export interface DisplayOffer extends ScoredOffer {
   outboundUrl: string;
@@ -219,6 +220,23 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
   if (cheapestTotal != null) {
     await checkAndTriggerAlerts(hotelId, checkIn, checkOut, cheapestTotal);
   }
+
+  // Decision Audit Trail (see src/db/schema.ts's `verdicts` table and
+  // src/lib/verdict.ts) - persists exactly what's about to be returned
+  // below and shown on the RateManifest Verdict panel. Never throws, so
+  // this can't affect what the visitor sees. Currency is hardcoded to
+  // "AED" here, matching every currency column elsewhere in this schema -
+  // DisplayOffer doesn't carry it through (it's dropped after the rates
+  // insert above), and this app has no multi-currency support yet.
+  await recordVerdict({
+    searchId,
+    hotelId,
+    offers: enriched,
+    sourcesChecked,
+    cheapestTotal,
+    averageTotal,
+    currency: "AED",
+  });
 
   return {
     searchId,

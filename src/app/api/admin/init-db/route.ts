@@ -138,6 +138,30 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_type_created_idx ON events (type, created_at);
 
+-- The Decision Audit Trail - see src/db/schema.ts's verdicts table for
+-- the full rationale (Sprint 1 of the 2026-09-05 Travel Decision
+-- Intelligence Platform direction). Additive only, written once per
+-- runSearch() call by src/lib/verdict.ts; nothing reads it yet.
+CREATE TABLE IF NOT EXISTS verdicts (
+  id text PRIMARY KEY,
+  search_id text NOT NULL,
+  hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  score real NOT NULL,
+  tier text NOT NULL,
+  decision text NOT NULL,
+  top_supplier_slug text,
+  reasons_json text NOT NULL,
+  sources_checked integer NOT NULL,
+  cheapest_total real,
+  average_total real,
+  currency text NOT NULL DEFAULT 'AED',
+  evidence_json text NOT NULL,
+  generated_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS verdicts_hotel_generated_idx ON verdicts (hotel_id, generated_at);
+CREATE INDEX IF NOT EXISTS verdicts_search_idx ON verdicts (search_id);
+
 CREATE TABLE IF NOT EXISTS staying_api_cache (
   id text PRIMARY KEY,
   hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
