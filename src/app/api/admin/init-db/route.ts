@@ -177,6 +177,55 @@ CREATE TABLE IF NOT EXISTS staying_api_cache (
 CREATE UNIQUE INDEX IF NOT EXISTS staying_api_cache_hotel_checkin_idx
   ON staying_api_cache (hotel_id, check_in, check_out);
 
+-- Four-page journey (2026-09-05): Discover -> Check IQ -> Complete The Trip
+-- -> Confirm & Book. See src/db/schema.ts's own comment above these three
+-- tables for the full rationale - this is the Sprint 1 Customer/Trip Graph
+-- deliberately deferred until a real consumer existed.
+CREATE TABLE IF NOT EXISTS trips (
+  id text PRIMARY KEY,
+  session_id text NOT NULL,
+  destination text NOT NULL,
+  check_in timestamp NOT NULL,
+  check_out timestamp NOT NULL,
+  adults integer NOT NULL DEFAULT 2,
+  children integer NOT NULL DEFAULT 0,
+  rooms integer NOT NULL DEFAULT 1,
+  purpose text NOT NULL DEFAULT 'UNSPECIFIED',
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trip_selections (
+  id text PRIMARY KEY,
+  trip_id text NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
+  verdict_id text,
+  supplier_slug text NOT NULL,
+  supplier_name text NOT NULL,
+  total_price real NOT NULL,
+  currency text NOT NULL DEFAULT 'AED',
+  deep_link text NOT NULL,
+  selected_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS trip_selections_trip_idx ON trip_selections (trip_id);
+
+CREATE TABLE IF NOT EXISTS trip_experiences (
+  id text PRIMARY KEY,
+  trip_id text NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  supplier_slug text NOT NULL,
+  supplier_product_id text NOT NULL,
+  title text NOT NULL,
+  image_url text,
+  price real,
+  currency text NOT NULL DEFAULT 'AED',
+  booking_url text NOT NULL,
+  added_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS trip_experiences_trip_idx ON trip_experiences (trip_id);
+CREATE UNIQUE INDEX IF NOT EXISTS trip_experiences_trip_product_idx
+  ON trip_experiences (trip_id, supplier_product_id);
+
 INSERT INTO suppliers (id, slug, name, integration_type, requires_click_to_reveal, allows_multi_supplier_display, tos_notes)
 VALUES
   ('supplier-booking', 'booking', 'Booking.com', 'mock', true, true, 'Demo mode: prices are simulated, not fetched from this seller.'),

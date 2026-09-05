@@ -42,7 +42,15 @@ export interface RecordVerdictInput {
   currency: string;
 }
 
-export async function recordVerdict(input: RecordVerdictInput): Promise<void> {
+// Return value added 2026-09-05 for the four-page journey's Page 2 (Check
+// IQ): "Select this deal" (see src/app/actions/trip.ts's selectDeal())
+// stores this id on the trip_selections row so Page 4's summary can show
+// which Verdict a customer actually acted on, without a second query
+// keyed on searchId - the id this function already generates internally
+// was simply never handed back to the caller before. Still never throws;
+// still returns null on any failure, same as the old void return meant
+// "don't rely on this," just now explicit at the type level.
+export async function recordVerdict(input: RecordVerdictInput): Promise<string | null> {
   try {
     const top = input.offers[0] ?? null;
     // Same fallback getDealSignal(0) uses elsewhere for "nothing available
@@ -58,8 +66,9 @@ export async function recordVerdict(input: RecordVerdictInput): Promise<void> {
       score: o.score,
     }));
 
+    const id = newId();
     await db.insert(schema.verdicts).values({
-      id: newId(),
+      id,
       searchId: input.searchId,
       hotelId: input.hotelId,
       score: top?.score ?? 0,
@@ -73,10 +82,12 @@ export async function recordVerdict(input: RecordVerdictInput): Promise<void> {
       currency: input.currency,
       evidenceJson: JSON.stringify(evidence),
     });
+    return id;
   } catch (err) {
     // Should be rare (a DB write failing when every other write in this
     // same request presumably succeeded) but must never take the results
     // page down - see the module comment above.
     console.error("recordVerdict: failed to persist verdict (non-fatal):", err);
+    return null;
   }
 }

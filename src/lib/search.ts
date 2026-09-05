@@ -19,6 +19,13 @@ export interface DisplayOffer extends ScoredOffer {
 
 export interface SearchResult {
   searchId: string;
+  // The Decision Audit Trail row this exact search produced - see
+  // src/lib/verdict.ts. Null only if the write itself failed (never
+  // throws); carried through so Page 2's "Select this deal" action
+  // (src/app/actions/trip.ts) can record which Verdict a customer was
+  // looking at when they selected, without a second lookup keyed on
+  // searchId.
+  verdictId: string | null;
   hotel: {
     id: string;
     name: string;
@@ -228,7 +235,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
   // "AED" here, matching every currency column elsewhere in this schema -
   // DisplayOffer doesn't carry it through (it's dropped after the rates
   // insert above), and this app has no multi-currency support yet.
-  await recordVerdict({
+  const verdictId = await recordVerdict({
     searchId,
     hotelId,
     offers: enriched,
@@ -240,6 +247,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
 
   return {
     searchId,
+    verdictId,
     hotel: {
       id: hotel.id,
       name: hotel.name,

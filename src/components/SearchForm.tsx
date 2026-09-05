@@ -25,14 +25,23 @@ interface SearchFormProps {
 //
 // This form used to offer two ways in - an Emirate/City + Property <select>
 // pair, and this type-ahead - because it doubled as this app's only way to
-// browse the catalog by location. It no longer needs to: KlookHomeBrowse
-// (see page.tsx) is now the homepage's first browsing surface, and a
-// visitor reaching this card already has a specific property in mind from
-// browsing there (or anywhere else). So this is just what it says it is -
-// "Already know the hotel? Look it up here" - a name lookup, not a second
-// browse tool. The old Emirate mode and its "Browse all hotels" fallback
-// are gone with it; /browse itself (linked from the homepage's Top Hotels
-// section) is still the place to browse by location.
+// browse the catalog by location. It no longer needs to: a visitor who
+// already has a specific property in mind (from anywhere - a Google
+// search, a recommendation, browsing done earlier) uses this to get
+// RateManifest's verified rate for it, while /browse and the homepage's
+// own Top Hotels grid (see page.tsx) remain the places to browse by
+// location and city. So this is just what it says it is - a name lookup,
+// not a second browse tool. The old Emirate mode and its "Browse all
+// hotels" fallback are gone with it.
+//
+// Positioning note (Sprint 3, 2026-09-05): this form is now the homepage's
+// first content block after the hero, not a secondary "already know the
+// hotel?" card below a Klook browsing widget - see page.tsx's own comment
+// above the search card for the full reasoning (RateManifest is a Travel
+// Decision Intelligence Platform; hotel-decision content leads, Klook is
+// repositioned into "Complete Your Dubai Trip" further down). Nothing
+// about this component's own behavior changed, only where and how it's
+// framed on the page that renders it.
 //
 // Type-ahead: type part of a name, pick from the nearest matches shown
 // underneath. Substring match against name and area, prefix matches ranked

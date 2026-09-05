@@ -327,3 +327,106 @@ export const events = pgTable(
   },
   (t) => [index("events_type_created_idx").on(t.type, t.createdAt)]
 );
+
+// --- Four-page journey (2026-09-05): Discover -> Check IQ -> Complete The
+// Trip -> Confirm & Book. See claude/travel-decision-platform-assessment.md
+// for the full spec and claude/rate-manifest-technical-blueprint.md
+// Section 10 for the build plan these three tables implement. This is the
+// lightweight Customer/Trip Graph originally designed in Sprint 1 planning
+// and deliberately deferred then ("document the interface, don't build
+// the machinery yet - no real consumer exists") - the four-page journey is
+// that real consumer.
+
+// One row per Page 1 (Discover) search. Session-scoped, no account
+// required - carries destination/dates/guests/intent forward through all
+// four pages via its id, so nothing has to be re-entered or re-passed
+// through an ever-growing query string. Deliberately lean compared to the
+// original blueprint's full `trip` table (Section 6) - budget_hint and
+// flexibility aren't collected anywhere in the UI yet, so they're left out
+// rather than added as unused columns; extend this table when a page
+// actually needs them, same discipline as everything else in Sprint 1.
+export const trips = pgTable("trips", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  destination: text("destination").notNull(),
+  checkIn: timestamp("check_in", { mode: "date" }).notNull(),
+  checkOut: timestamp("check_out", { mode: "date" }).notNull(),
+  adults: integer("adults").notNull().default(2),
+  children: integer("children").notNull().default(0),
+  rooms: integer("rooms").notNull().default(1),
+  // "COUPLE" | "FAMILY" | "SOLO" | "BUSINESS" | "FIRST_TIME" | "UNSPECIFIED"
+  // - see TRIP_PURPOSES in src/lib/constants.ts. "Skip" on Page 1 maps to
+  // UNSPECIFIED, not null - there's always a value, just sometimes an
+  // explicit "customer didn't say" one, so downstream code never has to
+  // handle a missing column on top of the "no strong signal" case.
+  purpose: text("purpose").notNull().default("UNSPECIFIED"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+});
+
+// The record of "select this deal" on Page 2 (Check IQ) - what a customer
+// actually chose, not just what was on offer. This is what makes Page 4's
+// "RateManifest Verdict -> why this rate was selected" a real lookup
+// instead of a re-derivation from query params, and it's the concrete
+// implementation of the blueprint's `trip_property` table (Section 6),
+// scoped to exactly what Page 4 needs to render rather than the fuller
+// original shape. deepLink is stored at selection time (a snapshot of
+// offer.outboundUrl, which already carries this app's own rate-tracking
+// param and, for a real Source once one exists, that Source's own
+// affiliate attribution) rather than reconstructed later - the offer that
+// produced it may not be re-derivable identically after the fact if
+// scoring or supplier data changes between selection and confirmation.
+export const tripSelections = pgTable(
+  "trip_selections",
+  {
+    id: text("id").primaryKey(),
+    tripId: text("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    hotelId: text("hotel_id")
+      .notNull()
+      .references(() => hotels.id, { onDelete: "cascade" }),
+    // Not a foreign key to verdicts.id - a Verdict is generated per search,
+    // not per offer, so this points at the verdict that was showing when
+    // the customer selected, same "identity is enough, don't force a join
+    // on a hot path" convention as verdicts.topSupplierSlug uses.
+    verdictId: text("verdict_id"),
+    supplierSlug: text("supplier_slug").notNull(),
+    supplierName: text("supplier_name").notNull(),
+    totalPrice: real("total_price").notNull(),
+    currency: text("currency").notNull().default("AED"),
+    deepLink: text("deep_link").notNull(),
+    selectedAt: timestamp("selected_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [index("trip_selections_trip_idx").on(t.tripId)]
+);
+
+// Page 3 (Complete The Trip)'s "Add to My Trip" - one row per experience a
+// customer explicitly added, not every product shown. Deliberately
+// supplier-agnostic (Viator today, Klook or another Experience source
+// later) rather than reusing ThingsToDoProduct's Viator-specific shape -
+// see src/lib/viator/types.ts's own comment on why Things To Do has its
+// own model instead of being forced into SupplierOffer. This table stores
+// a snapshot of what was shown (title/price/link at add-time), same
+// reasoning as tripSelections.deepLink above - a live re-fetch at confirm
+// time isn't guaranteed to return the identical product.
+export const tripExperiences = pgTable(
+  "trip_experiences",
+  {
+    id: text("id").primaryKey(),
+    tripId: text("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    supplierSlug: text("supplier_slug").notNull(), // "viator" today
+    supplierProductId: text("supplier_product_id").notNull(),
+    title: text("title").notNull(),
+    imageUrl: text("image_url"),
+    price: real("price"),
+    currency: text("currency").notNull().default("AED"),
+    bookingUrl: text("booking_url").notNull(),
+    addedAt: timestamp("added_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    index("trip_experiences_trip_idx").on(t.tripId),
+    uniqueIndex("trip_experiences_trip_product_idx").on(t.tripId, t.supplierProductId),
+  ]
+);

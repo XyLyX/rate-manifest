@@ -2,12 +2,12 @@ import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { browseCity } from "@/lib/browse";
+import { getTrip } from "@/lib/trip";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
-import { SearchForm } from "@/components/SearchForm";
+import { DiscoverForm } from "@/components/DiscoverForm";
 import { HeroArt } from "@/components/HeroArt";
 import { IconBolt, IconShieldCheck, IconStar, IconScales, IconLink } from "@/components/TrustIcons";
-import { KlookHomeBrowse } from "@/components/KlookHomeBrowse";
 import { KLOOK_LINK } from "@/lib/klook";
 
 // Forces this page to render per-request instead of at build time. Without
@@ -35,77 +35,65 @@ function defaultCheckOut(): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Homepage redesign 2026-09-03, matching a full-layout mockup the user
-// pasted directly ("this is how i want the homepage layout. same to
-// same. exact design.") - see DECISIONS.md, "Homepage redesign: matching
-// the pasted mockup," for the full list of what was carried over exactly
-// vs. deliberately adapted, and why. Three deliberate departures from the
-// mockup, all on integrity grounds rather than taste:
+// Page 1 of the four-page customer journey - Discover, see
+// claude/travel-decision-platform-assessment.md, "RateManifest — Final
+// Customer Journey": destination + dates + guests/rooms + trip intent up
+// top (DiscoverForm), a real shortlist of hotels below it, each with its
+// own "Check IQ →" tab that carries the visitor (and, once the form below
+// has been submitted, a trip id) on to Page 2. Replaces the 2026-09-05
+// "Sprint 3" reposition (Klook consolidated into one section further down
+// the same single page) - that was a mis-scoped reading of "reposition,
+// not remove" from the old roadmap doc; the actual requirement was this
+// real multi-page journey, not a homepage reshuffle. See
+// claude/travel-decision-platform-assessment.md's "four-page spec" section
+// for the correction record.
 //
-// 1. No hero photograph of a specific real place. The mockup used what
-//    reads as a real photo of the Dubai skyline; no licensed photography
-//    was available, and an AI-generated image *claiming* to depict a real
-//    landmark carries its own misrepresentation risk on a live commercial
-//    site. HeroArt is an abstract, brand-colored skyline instead - reads
-//    as "Gulf coastline at golden hour" without claiming to be a photo of
-//    anywhere specific.
-// 2. No fabricated trust/review data. The mockup's hotel cards show star
-//    ratings with review counts (e.g. "4.8 (12,456 reviews)") and blanket
-//    "Verified"/breakfast/cancellation tags. This app has no review data
-//    at all, and StayingAPI itself doesn't return real cancellation terms
-//    (see stayingApiRefresh.ts) - so only this app's own real starRating
-//    integer and a genuinely computed "below average" badge (this hotel's
-//    cheapest cached offer vs. the average of its own other cached
-//    offers, never a fabricated "market rate") are shown. See
-//    src/lib/browse.ts, percentBelowAverage/hasFreeCancellationOffer.
-// 3. No competitor logos, and no "RATE MANIFEST VERDICT"/"Smart Insights"
-//    panel. The footer's own disclosure text already says this site is
-//    "not affiliated with or endorsed by Booking.com, Expedia, Agoda,
-//    Hotels.com, or Trip.com" - a "Trusted Partners" logo row naming those
-//    same companies would contradict that in the same footer, and Tiqets
-//    isn't integrated here at all. The Verdict/Smart Insights block (a
-//    92/100 score, a 14-day price trend, a room-upgrade price, a location
-//    score) is exactly the Decision Intelligence feature set scoped
-//    separately in claude/decision-intelligence-roadmap.md - none of it
-//    has real data behind it yet (price history is sparse, there's no
-//    geo dataset, room-type depth isn't confirmed), so it isn't shown
-//    with invented numbers here. Built once that roadmap's Phase 1/2 data
-//    actually exists.
+// Homepage visual language (hero art, trust strip, no fabricated
+// review/trust data, no competitor logos) is carried over unchanged from
+// the 2026-09-03 redesign - see DECISIONS.md, "Homepage redesign: matching
+// the pasted mockup," for why those three departures from the original
+// mockup exist. Nothing about that visual layer changes here; only the
+// search card and the hotel cards' own CTA do.
 interface HomePageProps {
-  searchParams: Promise<{ city?: string }>;
+  searchParams: Promise<{ city?: string; trip?: string }>;
 }
 
-// City selector added 2026-09-04 - see DECISIONS.md, "Top Hotels made
-// city-aware (2026-09-04)." Chat: "The shortlist should auto reflect the
-// city he is searching property in... we can have a city tab to select in
-// the beginning, that force feeds that city and the site only reflects
-// options for that city." Scoped deliberately to RateManifest's own Top
-// Hotels shortlist (backed by real per-city catalog data) - not to the
-// Klook sections above it, which stay Dubai-labeled because that's
-// genuinely all Klook's fixed hotels widget shows today (see
-// KlookHomeBrowse.tsx), and not to the "Explore Dubai" section's own
-// heading/"View all" link just above Top Hotels, which is left as the
-// flagship-market overview it already reads as. A real city, chosen via a
-// plain ?city= link (not client state) so the server component re-runs
-// browseCity() against it on navigation - no hidden client/server drift.
+// City-aware shortlist (2026-09-04, see DECISIONS.md, "Top Hotels made
+// city-aware") is now driven by two possible sources of truth: an active
+// trip (?trip=<id>, created by DiscoverForm's submit - the authoritative
+// path once a visitor has actually searched) or, absent one, the older
+// plain ?city= link and the Dubai/first-city default - preserved so a
+// visitor who lands here without searching (a bookmark, a shared link,
+// simply opening the homepage) still sees a real, useful shortlist rather
+// than an empty "search first" page. Once a trip exists, its own
+// destination/dates become authoritative and the plain city-tab quick
+// switch steps aside - the point of submitting the form is that it's now
+// driving what's shown, not competing with it.
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const checkIn = defaultCheckIn();
-  const checkOut = defaultCheckOut();
-
   const hotels = await db.query.hotels.findMany({ orderBy: asc(schema.hotels.name) });
-
   const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) => a.localeCompare(b));
-  const requestedCity = (await searchParams).city;
   const defaultCity = cities.includes("Dubai") ? "Dubai" : (cities[0] ?? "Dubai");
-  const selectedCity = requestedCity && cities.includes(requestedCity) ? requestedCity : defaultCity;
+
+  const params = await searchParams;
+  const trip = params.trip ? await getTrip(params.trip) : null;
+
+  const requestedCity = params.city;
+  const selectedCity = trip
+    ? trip.destination
+    : requestedCity && cities.includes(requestedCity)
+      ? requestedCity
+      : defaultCity;
+  const checkIn = trip ? trip.checkIn : defaultCheckIn();
+  const checkOut = trip ? trip.checkOut : defaultCheckOut();
 
   // Real data only, zero extra StayingAPI credits - browseCity() only
   // ever reads whatever's already cached for this exact date pair (see
-  // its own comment). Capped at 4 to match the mockup's grid without
-  // pretending a "curated top 4" ranking beyond star rating (browseCity's
-  // own sort).
+  // its own comment). Capped at 4 to match the original mockup's grid
+  // without pretending a "curated top 4" ranking beyond star rating
+  // (browseCity's own sort).
   const cityResult = await browseCity(selectedCity, checkIn, checkOut);
   const topHotels = cityResult.hotels.slice(0, 4);
+  const tripQuery = trip ? `&trip=${trip.id}` : "";
 
   return (
     <div className="home-page">
@@ -139,35 +127,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </div>
 
-        {/* Primary homepage browsing surface - see DECISIONS.md, "Klook
-            browsing moved to the top of the homepage (2026-09-04)." Comes
-            before RateManifest's own picker below on purpose: chat,
-            2026-09-04, "why is rate manifest first?????" - Klook's real
-            hotel inventory is now the first thing a visitor sees and can
-            browse, at zero StayingAPI cost. */}
-        <KlookHomeBrowse />
-
-        {/* RateManifest's own picker - demoted to a specific, secondary
-            job: once someone already has a property in mind (from the
-            Klook browsing above, or anywhere else), this is where they get
-            RateManifest's verified rate for it. It was never a broad
-            "browse the market" tool to begin with - see SearchForm.tsx's
-            own comment - so the honest fix here is framing, not a rebuild:
-            a plain heading says what it's for instead of implying it's the
-            homepage's main search. */}
+        {/* Page 1 (Discover) search card - the real entry point to the
+            four-page journey. Submitting DiscoverForm creates a trip
+            (createTrip(), src/app/actions/trip.ts) and redirects back here
+            with ?trip= set, which then drives the shortlist below. See the
+            HomePage doc comment above for how this differs from the
+            superseded 2026-09-05 "Sprint 3" single-page reshuffle. */}
         <div className="home-search-card">
           <div className="home-search-card-heading">
-            <div className="home-search-card-eyebrow">Already know the hotel?</div>
-            <p className="home-search-card-sub">Look it up here for RateManifest&apos;s verified rate.</p>
+            <div className="home-search-card-eyebrow">Start here</div>
+            <p className="home-search-card-sub">
+              Tell us where and when — we&apos;ll shortlist real properties, then run RateManifest&apos;s full
+              rate intelligence on whichever one you want to check.
+            </p>
           </div>
-          <SearchForm
-            hotels={hotels.map((h) => ({
-              id: h.id,
-              name: h.name,
-              area: h.area,
-              city: h.city,
-              starRating: h.starRating,
-            }))}
+          <DiscoverForm
+            cities={cities}
+            defaultCity={selectedCity}
             defaultCheckIn={checkIn}
             defaultCheckOut={checkOut}
           />
@@ -274,7 +250,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               {topHotels.map((hotel) => (
                 <Link
                   key={hotel.id}
-                  href={`/hotel?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
+                  href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`}
                   className="hotel-card home-hotel-card"
                 >
                   <div className="home-hotel-card-image" aria-hidden="true">
@@ -311,22 +287,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       <span className="hotel-card-price-note">Not checked for these dates yet</span>
                     )}
                   </div>
-                  <span className="btn btn-block home-hotel-card-cta">View hotel →</span>
+                  <span className="btn btn-block home-hotel-card-cta">Check IQ →</span>
                 </Link>
               ))}
             </div>
           )}
         </section>
 
-        <section className="home-klook-band">
-          <div>
-            <div className="explore-card-eyebrow">More than just hotels</div>
-            <h3>Discover tours, activities, and experiences in Dubai</h3>
-          </div>
-          <a href={KLOOK_LINK} target="_blank" rel="noopener noreferrer sponsored" className="btn btn-ghost">
-            Explore Things To Do →
-          </a>
-        </section>
+        {/* KlookTripSection ("Complete Your Dubai Trip") removed from the
+            homepage 2026-09-05 as part of the four-page journey correction
+            - see claude/travel-decision-platform-assessment.md. It briefly
+            lived here under the since-superseded "Sprint 3" reshuffle.
+            Klook/Viator's real home is now Page 3 (Complete Your Trip,
+            src/app/complete-your-trip/page.tsx), reached only AFTER a
+            visitor has chosen a hotel and a rate on Page 2 - showing a
+            "complete your trip" pitch here, before any hotel is even
+            picked, worked against the guided step-by-step journey rather
+            than for it. */}
 
         <section id="how-it-works" className="how-it-works">
           <h2>What makes Rate Manifest different?</h2>

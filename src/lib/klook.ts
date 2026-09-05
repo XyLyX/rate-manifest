@@ -54,14 +54,15 @@ export const KLOOK_EXPERIENCE_CATEGORIES = ["Airport transfers", "Transport", "S
 // of by leaving it out.
 export const SHOW_KLOOK_HOTELS_NOTE = true;
 
-// A second, dedicated link for the hotels note above and for
-// KlookHomeBrowse's homepage CTA - pointed specifically at Klook's Dubai
-// hotels listing rather than the generic homepage or a worldwide hotels
-// page - everything else in these sections is Dubai-specific (the fixed
-// four-property widget is Dubai-only), so a worldwide hotel search from
-// here would be a mismatch. Kept separate from KLOOK_LINK so the two CTAs
-// point at what they actually say they point at, and so each link's own
-// analytics can tell experiences clicks apart from hotels clicks.
+// A second, dedicated link for the hotels note above (KlookTripSection's
+// "also on Klook" block, used on both /search and, since Sprint 3, the
+// homepage) - pointed specifically at Klook's Dubai hotels listing rather
+// than the generic homepage or a worldwide hotels page - everything else
+// in this section is Dubai-specific (the fixed four-property widget is
+// Dubai-only), so a worldwide hotel search from here would be a mismatch.
+// Kept separate from KLOOK_LINK so the two CTAs point at what they
+// actually say they point at, and so each link's own analytics can tell
+// experiences clicks apart from hotels clicks.
 // Regenerated 2026-09-01 (O3Coxqyz replacing the original RqxKw5oy) via
 // Travelpayouts, same intent; replaced again 2026-09-04 with a link the
 // user provided directly, generated from Klook's own affiliate short-link

@@ -4,26 +4,44 @@ import { useEffect, useState } from "react";
 import type { DisplayOffer } from "@/lib/search";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
 import { buildDealFactors } from "@/lib/scoring/factors";
+import { selectDeal } from "@/app/actions/trip";
 import { TrackPrice } from "./TrackPrice";
 
 interface ResultsListProps {
   searchId: string;
   hotelId: string;
+  // The hotel's own city, carried as a hidden field into selectDeal() so
+  // it can lazily create a trip row for a visitor who reached Check IQ
+  // (Page 2) without ever submitting Page 1's Discover form - see
+  // src/app/actions/trip.ts's own comment on that fallback.
+  hotelCity: string;
   checkIn: string;
   checkOut: string;
   offers: DisplayOffer[];
   averageTotal: number | null;
   cheapestTotal: number | null;
+  // Set only when this search was reached with a trip already in
+  // progress (Page 1 was actually used) - "" otherwise, which
+  // selectDeal() treats as "create one now." See page.tsx (Page 1) and
+  // check-iq/page.tsx (Page 2).
+  tripId: string;
+  // The Decision Audit Trail row this exact search produced - see
+  // src/lib/verdict.ts. Recorded on trip_selections so Page 4 can trace a
+  // booking back to the Verdict that was on screen when it was chosen.
+  verdictId: string | null;
 }
 
 export default function ResultsList({
   searchId,
   hotelId,
+  hotelCity,
   checkIn,
   checkOut,
   offers,
   averageTotal,
   cheapestTotal,
+  tripId,
+  verdictId,
 }: ResultsListProps) {
   return (
     <div className="offer-list">
@@ -32,6 +50,7 @@ export default function ResultsList({
           key={`${offer.supplierSlug}-${idx}`}
           searchId={searchId}
           hotelId={hotelId}
+          hotelCity={hotelCity}
           checkIn={checkIn}
           checkOut={checkOut}
           offer={offer}
@@ -39,6 +58,8 @@ export default function ResultsList({
           averageTotal={averageTotal}
           cheapestTotal={cheapestTotal}
           sourceLabel={`Source ${String.fromCharCode(65 + idx)}`}
+          tripId={tripId}
+          verdictId={verdictId}
         />
       ))}
     </div>
@@ -82,6 +103,7 @@ function FreshnessBadge({ checkedAt }: { checkedAt: string | null }) {
 function OfferRow({
   searchId,
   hotelId,
+  hotelCity,
   checkIn,
   checkOut,
   offer,
@@ -89,9 +111,12 @@ function OfferRow({
   averageTotal,
   cheapestTotal,
   sourceLabel,
+  tripId,
+  verdictId,
 }: {
   searchId: string;
   hotelId: string;
+  hotelCity: string;
   checkIn: string;
   checkOut: string;
   offer: DisplayOffer;
@@ -99,6 +124,8 @@ function OfferRow({
   averageTotal: number | null;
   cheapestTotal: number | null;
   sourceLabel: string;
+  tripId: string;
+  verdictId: string | null;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
@@ -149,6 +176,36 @@ function OfferRow({
           ))}
         </div>
         <div className="offer-row-actions">
+          {/* Primary path (Page 2, "Select The Deal") - see
+              claude/travel-decision-platform-assessment.md: this is what
+              moves a customer on to Page 3 (Complete Your Trip) with
+              RateManifest still in the loop, rather than exiting straight
+              to the supplier. Available on every offer, not only the
+              top-ranked one - a customer may reasonably prefer a
+              different source (loyalty program, a card they want to use)
+              even when it isn't the Rate Signal's own pick. */}
+          <form action={selectDeal}>
+            <input type="hidden" name="tripId" value={tripId} />
+            <input type="hidden" name="hotelId" value={hotelId} />
+            <input type="hidden" name="hotelCity" value={hotelCity} />
+            <input type="hidden" name="checkIn" value={checkIn} />
+            <input type="hidden" name="checkOut" value={checkOut} />
+            <input type="hidden" name="verdictId" value={verdictId ?? ""} />
+            <input type="hidden" name="supplierSlug" value={offer.supplierSlug} />
+            <input type="hidden" name="supplierName" value={offer.supplierName} />
+            <input type="hidden" name="totalPrice" value={offer.totalPrice} />
+            <input type="hidden" name="currency" value="AED" />
+            <input type="hidden" name="deepLink" value={offer.outboundUrl} />
+            <button className="btn select-deal-btn" type="submit">
+              Select this deal →
+            </button>
+          </form>
+
+          {/* Secondary fallback - explicitly preserved per the final
+              spec ("There can still be a secondary option... The guided
+              journey should remain the primary UX"). Unchanged behavior,
+              just visually demoted and relabeled from "View on X" to make
+              clear it's the direct-exit path, not the recommended one. */}
           {!revealed && (
             <button className="btn btn-ghost reveal-btn" type="button" onClick={handleReveal}>
               Reveal deal
@@ -156,13 +213,13 @@ function OfferRow({
           )}
           {revealed && (
             <a
-              className="btn reveal-btn"
+              className="btn btn-ghost reveal-btn"
               href={offer.outboundUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", textDecoration: "none" }}
             >
-              View on {offer.supplierName} →
+              Book directly with {offer.supplierName} →
             </a>
           )}
           {isBest && (

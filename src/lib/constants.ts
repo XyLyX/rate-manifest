@@ -29,6 +29,16 @@ export type EventType = (typeof EVENT_TYPES)[number];
 export const PRICE_TRACKING_STATUSES = ["active", "triggered", "sent", "cancelled"] as const;
 export type PriceTrackingStatus = (typeof PRICE_TRACKING_STATUSES)[number];
 
+// Trip intent, collected on Page 1 (Discover) of the four-page journey -
+// see claude/travel-decision-platform-assessment.md. Optional and
+// skippable there ("Skip" maps to UNSPECIFIED) - this is what Page 3
+// (Complete Your Trip) uses to bias which real Viator products get shown
+// first (src/lib/viator/personalize.ts), and what a future
+// CustomerEvidence component of the Verdict object would read from once
+// that's built (see the technical blueprint, Section 5).
+export const TRIP_PURPOSES = ["COUPLE", "FAMILY", "SOLO", "BUSINESS", "FIRST_TIME", "UNSPECIFIED"] as const;
+export type TripPurpose = (typeof TRIP_PURPOSES)[number];
+
 // A Supplier's reliabilityScore is null until it has at least this many
 // BookingOutcome rows — below the threshold the UI shows the mandatory
 // "new partner — reliability data building" empty state (Blueprint,
