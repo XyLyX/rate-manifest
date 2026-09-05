@@ -53,20 +53,22 @@ function defaultCheckOut(): string {
 // mockup exist. Nothing about that visual layer changes here; only the
 // search card and the hotel cards' own CTA do.
 interface HomePageProps {
-  searchParams: Promise<{ city?: string; trip?: string }>;
+  searchParams: Promise<{ trip?: string }>;
 }
 
-// City-aware shortlist (2026-09-04, see DECISIONS.md, "Top Hotels made
-// city-aware") is now driven by two possible sources of truth: an active
-// trip (?trip=<id>, created by DiscoverForm's submit - the authoritative
-// path once a visitor has actually searched) or, absent one, the older
-// plain ?city= link and the Dubai/first-city default - preserved so a
-// visitor who lands here without searching (a bookmark, a shared link,
-// simply opening the homepage) still sees a real, useful shortlist rather
-// than an empty "search first" page. Once a trip exists, its own
-// destination/dates become authoritative and the plain city-tab quick
-// switch steps aside - the point of submitting the form is that it's now
-// driving what's shown, not competing with it.
+// 2026-09-05, second correction (Navin, pasting the Page 1 spec back
+// verbatim, 4th time, after the first correction still left a default
+// shortlist showing on a cold page load): "Results: the page returns a
+// shortlisted set of hotels relevant to the customer's SEARCH." A
+// shortlist shown before any search was ever submitted isn't a result of
+// a search - it's exactly the "how did you reach here and showing 4
+// properties" complaint. So this no longer has a default-city fallback or
+// a plain ?city= browse mode at all (both used to show a shortlist with
+// no search behind it, "for a visitor who lands here without searching" -
+// that convenience is what's being removed). The ENTIRE Top Hotels
+// section, city tabs included, is now gated on a real `trip` existing -
+// i.e. DiscoverForm was actually submitted (createTrip(), src/app/actions/
+// trip.ts). Before that, Page 1 is nothing but the search form itself.
 export default async function HomePage({ searchParams }: HomePageProps) {
   const hotels = await db.query.hotels.findMany({ orderBy: asc(schema.hotels.name) });
   const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) => a.localeCompare(b));
@@ -75,33 +77,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const trip = params.trip ? await getTrip(params.trip) : null;
 
-  const requestedCity = params.city;
-  const selectedCity = trip
-    ? trip.destination
-    : requestedCity && cities.includes(requestedCity)
-      ? requestedCity
-      : defaultCity;
+  const selectedCity = trip ? trip.destination : defaultCity;
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
 
-  // 2026-09-05 correction (Navin, in chat): Page 1 must have zero contact
-  // with StayingAPI or its cache, not merely zero *cost* - showing a
-  // cached price (or a "not checked yet" placeholder derived from a cache
-  // miss) still reads as "this page already checked something," which
-  // undercuts the one-check-per-hotel design just as much as an actual
-  // live call would, even though nothing here was ever live. So this no
-  // longer calls browseCity()/the supplier adapters at all - it's a plain
-  // slice of the same `hotels` catalog query above (name/area/star rating
-  // only), sorted the same way browseCity() used to (star rating, then
-  // name) so the shortlist looks the same, capped at 4 to match the
-  // original mockup's grid. Real per-hotel pricing starts on Page 2
-  // (Check IQ) for the one property a visitor actually picks - see
-  // ensureLiveCheckTriggered() in check-iq/page.tsx, the only place in the
-  // app that ever triggers a live, credit-spending check.
-  const topHotels = hotels
-    .filter((h) => h.city === selectedCity)
-    .sort((a, b) => b.starRating - a.starRating || a.name.localeCompare(b.name))
-    .slice(0, 4);
+  // Zero contact with StayingAPI or its cache either way (plain catalog
+  // read, no browseCity()/supplier adapters - see check-iq/page.tsx's
+  // ensureLiveCheckTriggered(), the only place a live, credit-spending
+  // check ever happens) - but now also computed at all only when a trip
+  // exists, so there's nothing to render before a real search happened.
+  const topHotels = trip
+    ? hotels
+        .filter((h) => h.city === selectedCity)
+        .sort((a, b) => b.starRating - a.starRating || a.name.localeCompare(b.name))
+        .slice(0, 4)
+    : [];
   const tripQuery = trip ? `&trip=${trip.id}` : "";
 
   return (
@@ -188,63 +178,54 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       <div className="home-content">
-        <section className="home-top-hotels">
-          <div className="home-section-heading">
-            <div>
-              <h2>Top Hotels</h2>
-              <p>Real properties in {selectedCity}. Pick one and run Check IQ to see its rates.</p>
+        {/* Nothing here at all until a real search has happened - see the
+            HomePage doc comment above. No "View all hotels" link (that was
+            a side door into a full-city browse with no search behind it -
+            removed entirely, /browse itself now just redirects to "/", see
+            its own file), and no city-switch tabs (switching city without
+            resubmitting the form is exactly the same "results without a
+            search" problem - the Destination dropdown in the form above is
+            the one way to change it now). */}
+        {trip && (
+          <section className="home-top-hotels">
+            <div className="home-section-heading">
+              <div>
+                <h2>Top Hotels</h2>
+                <p>Real properties in {selectedCity}. Pick one and run Check IQ to see its rates.</p>
+              </div>
             </div>
-            <Link href={`/browse?city=${encodeURIComponent(selectedCity)}`} className="section-view-all">
-              View all hotels →
-            </Link>
-          </div>
 
-          {cities.length > 1 && (
-            <div className="home-city-tabs" role="tablist" aria-label="City">
-              {cities.map((city) => (
-                <Link
-                  key={city}
-                  href={city === defaultCity ? "/" : `/?city=${encodeURIComponent(city)}`}
-                  className={city === selectedCity ? "home-city-tab active" : "home-city-tab"}
-                  role="tab"
-                  aria-selected={city === selectedCity}
-                >
-                  {city}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {topHotels.length === 0 ? (
-            <p className="empty-state">No properties in this catalog yet.</p>
-          ) : (
-            <div className="hotel-grid home-hotel-grid">
-              {topHotels.map((hotel) => (
-                <Link
-                  key={hotel.id}
-                  href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`}
-                  className="hotel-card home-hotel-card"
-                >
-                  <div className="home-hotel-card-image" aria-hidden="true">
-                    <span>{hotel.name.charAt(0)}</span>
-                  </div>
-                  {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}
-                  <div className="hotel-card-name">{hotel.name}</div>
-                  <div className="hotel-card-meta">
-                    {hotel.area} · {hotel.starRating}-star
-                  </div>
-                  {/* Deliberately no price, "% below average," free-cancellation
-                      badge, or checked/not-checked note here - all of that is
-                      derived from the StayingAPI cache, and per the 2026-09-05
-                      correction above, Page 1 doesn't touch that cache at all.
-                      Check IQ (Page 2) is where a visitor first sees any rate
-                      data for a property. */}
-                  <span className="btn btn-block home-hotel-card-cta">Check IQ →</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
+            {topHotels.length === 0 ? (
+              <p className="empty-state">No properties in this catalog yet.</p>
+            ) : (
+              <div className="hotel-grid home-hotel-grid">
+                {topHotels.map((hotel) => (
+                  <Link
+                    key={hotel.id}
+                    href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`}
+                    className="hotel-card home-hotel-card"
+                  >
+                    <div className="home-hotel-card-image" aria-hidden="true">
+                      <span>{hotel.name.charAt(0)}</span>
+                    </div>
+                    {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}
+                    <div className="hotel-card-name">{hotel.name}</div>
+                    <div className="hotel-card-meta">
+                      {hotel.area} · {hotel.starRating}-star
+                    </div>
+                    {/* Deliberately no price, "% below average," free-cancellation
+                        badge, or checked/not-checked note here - all of that is
+                        derived from the StayingAPI cache, and per the 2026-09-05
+                        correction above, Page 1 doesn't touch that cache at all.
+                        Check IQ (Page 2) is where a visitor first sees any rate
+                        data for a property. */}
+                    <span className="btn btn-block home-hotel-card-cta">Check IQ →</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* KlookTripSection ("Complete Your Dubai Trip") removed from the
             homepage 2026-09-05 as part of the four-page journey correction
