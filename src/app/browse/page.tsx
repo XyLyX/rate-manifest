@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { asc, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import { browseCity } from "@/lib/browse";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
@@ -17,6 +17,11 @@ function defaultCheckOut(): string {
   const d = new Date();
   d.setDate(d.getDate() + 15);
   return d.toISOString().slice(0, 10);
+}
+
+function nightsBetween(checkIn: string, checkOut: string): number {
+  const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
+  return diff > 0 ? diff : 1;
 }
 
 interface BrowsePageProps {
@@ -59,9 +64,26 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
     );
   }
 
-  const result = await browseCity(city, checkIn, checkOut);
+  // 2026-09-05 correction (Navin, in chat, the same correction that
+  // stripped price data off the homepage's Top Hotels cards - see
+  // page.tsx's own comment): browsing by emirate is still pure hotel
+  // discovery, not a second, back-door "full intelligence experience."
+  // This used to call browseCity(), which - though always cache-only,
+  // zero-credit - still surfaced each property's cached price and
+  // sources-checked count here, one click away from Page 1 without ever
+  // going through Check IQ. Now a plain catalog read (name/area/star
+  // rating only, same sort browseCity() used - star rating, then name),
+  // with zero contact with the StayingAPI cache. Rates are shown only
+  // after Check IQ (Page 2), for the one property actually picked - real
+  // prices come from the named sources themselves (IHG, Marriott, Accor,
+  // etc.), never a pre-check estimate shown here.
+  const hotels = await db.query.hotels.findMany({
+    where: eq(schema.hotels.city, city),
+    orderBy: [desc(schema.hotels.starRating), asc(schema.hotels.name)],
+  });
+  const nights = nightsBetween(checkIn, checkOut);
 
-  if (result.hotels.length === 0) {
+  if (hotels.length === 0) {
     return (
       <div className="shell">
         <NavBar ctaLabel="New search" ctaHref="/" />
@@ -80,13 +102,13 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
       <div className="results-header">
         <h1>{city} hotels</h1>
         <div className="results-meta">
-          {result.hotels.length} propert{result.hotels.length === 1 ? "y" : "ies"} · {result.nights} night
-          {result.nights > 1 ? "s" : ""} · {checkIn} → {checkOut}
+          {hotels.length} propert{hotels.length === 1 ? "y" : "ies"} · {nights} night
+          {nights > 1 ? "s" : ""} · {checkIn} → {checkOut}
         </div>
       </div>
 
       <div className="hotel-grid">
-        {result.hotels.map((hotel) => (
+        {hotels.map((hotel) => (
           <Link
             key={hotel.id}
             href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}`}
@@ -97,29 +119,15 @@ export default async function BrowsePage({ searchParams }: BrowsePageProps) {
             <div className="hotel-card-meta">
               {hotel.area} · {hotel.starRating}-star
             </div>
-            <div className="hotel-card-price">
-              {hotel.cheapestTotal != null ? (
-                <>
-                  <span className="hotel-card-price-amount">
-                    AED {Math.round(hotel.cheapestTotal).toLocaleString("en-AE")}
-                  </span>
-                  <span className="hotel-card-price-note">
-                    {hotel.sourcesChecked} source{hotel.sourcesChecked === 1 ? "" : "s"} checked
-                  </span>
-                </>
-              ) : (
-                <span className="hotel-card-price-note">Not checked for these dates yet</span>
-              )}
-            </div>
+            <span className="btn btn-block">Check IQ →</span>
           </Link>
         ))}
       </div>
 
       <p className="footnote">
-        A price here means Rate Manifest has already checked these exact dates for that property.
-        &quot;Not checked for these dates yet&quot; means it genuinely hasn&apos;t - not that nothing was
-        available. Demo properties always show a simulated price for any date; see each one&apos;s own page
-        for the full comparison and Rate Signal.
+        Rates aren&apos;t shown until you run Check IQ on a specific property - that&apos;s the one moment
+        Rate Manifest actually checks the real sources (IHG, Marriott, Accor, and the rest) for those exact
+        dates.
       </p>
 
       <Footer />

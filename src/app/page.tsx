@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import { browseCity } from "@/lib/browse";
 import { getTrip } from "@/lib/trip";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -85,13 +84,24 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
 
-  // Real data only, zero extra StayingAPI credits - browseCity() only
-  // ever reads whatever's already cached for this exact date pair (see
-  // its own comment). Capped at 4 to match the original mockup's grid
-  // without pretending a "curated top 4" ranking beyond star rating
-  // (browseCity's own sort).
-  const cityResult = await browseCity(selectedCity, checkIn, checkOut);
-  const topHotels = cityResult.hotels.slice(0, 4);
+  // 2026-09-05 correction (Navin, in chat): Page 1 must have zero contact
+  // with StayingAPI or its cache, not merely zero *cost* - showing a
+  // cached price (or a "not checked yet" placeholder derived from a cache
+  // miss) still reads as "this page already checked something," which
+  // undercuts the one-check-per-hotel design just as much as an actual
+  // live call would, even though nothing here was ever live. So this no
+  // longer calls browseCity()/the supplier adapters at all - it's a plain
+  // slice of the same `hotels` catalog query above (name/area/star rating
+  // only), sorted the same way browseCity() used to (star rating, then
+  // name) so the shortlist looks the same, capped at 4 to match the
+  // original mockup's grid. Real per-hotel pricing starts on Page 2
+  // (Check IQ) for the one property a visitor actually picks - see
+  // ensureLiveCheckTriggered() in check-iq/page.tsx, the only place in the
+  // app that ever triggers a live, credit-spending check.
+  const topHotels = hotels
+    .filter((h) => h.city === selectedCity)
+    .sort((a, b) => b.starRating - a.starRating || a.name.localeCompare(b.name))
+    .slice(0, 4);
   const tripQuery = trip ? `&trip=${trip.id}` : "";
 
   return (
@@ -182,7 +192,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="home-section-heading">
             <div>
               <h2>Top Hotels</h2>
-              <p>Real properties. Real checked rates where we have them.</p>
+              <p>Real properties in {selectedCity}. Pick one and run Check IQ to see its rates.</p>
             </div>
             <Link href={`/browse?city=${encodeURIComponent(selectedCity)}`} className="section-view-all">
               View all hotels →
@@ -223,32 +233,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <div className="hotel-card-meta">
                     {hotel.area} · {hotel.starRating}-star
                   </div>
-                  {(hotel.percentBelowAverage != null || hotel.hasFreeCancellationOffer) && (
-                    <div className="home-hotel-card-badges">
-                      {hotel.percentBelowAverage != null && (
-                        <span className="home-hotel-badge home-hotel-badge-good">
-                          {hotel.percentBelowAverage}% below comparable rates
-                        </span>
-                      )}
-                      {hotel.hasFreeCancellationOffer && (
-                        <span className="home-hotel-badge">Free cancellation</span>
-                      )}
-                    </div>
-                  )}
-                  <div className="hotel-card-price">
-                    {hotel.cheapestTotal != null ? (
-                      <>
-                        <span className="hotel-card-price-amount">
-                          AED {Math.round(hotel.cheapestTotal).toLocaleString("en-AE")} / night
-                        </span>
-                        <span className="hotel-card-price-note">
-                          {hotel.sourcesChecked} source{hotel.sourcesChecked === 1 ? "" : "s"} checked
-                        </span>
-                      </>
-                    ) : (
-                      <span className="hotel-card-price-note">Not checked for these dates yet</span>
-                    )}
-                  </div>
+                  {/* Deliberately no price, "% below average," free-cancellation
+                      badge, or checked/not-checked note here - all of that is
+                      derived from the StayingAPI cache, and per the 2026-09-05
+                      correction above, Page 1 doesn't touch that cache at all.
+                      Check IQ (Page 2) is where a visitor first sees any rate
+                      data for a property. */}
                   <span className="btn btn-block home-hotel-card-cta">Check IQ →</span>
                 </Link>
               ))}
