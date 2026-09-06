@@ -240,10 +240,15 @@ export const stayingApiCache = pgTable(
       .references(() => hotels.id, { onDelete: "cascade" }),
     checkIn: timestamp("check_in", { mode: "date" }).notNull(),
     checkOut: timestamp("check_out", { mode: "date" }).notNull(),
-    // "pending" while StayingAPI's own job is still running, "ready" once
-    // offersJson holds a finished result (including "finished with zero
-    // offers" or "the job failed" - both still count as ready, so a dead
-    // job doesn't get polled forever).
+    // "pending" while StayingAPI's own job is still running; "ready" once
+    // offersJson holds a finished, successful result (zero offers is a
+    // real, permanent answer here - a genuine "checked, nothing
+    // available"); "failed" when the submit or poll step itself errored
+    // (bad key, network blip, StayingAPI job failure) - deliberately NOT
+    // "ready", so it's never confused with a real zero-offers answer and
+    // never gets treated as permanent. See stayingApiRefresh.ts's
+    // FAILED_CHECK_RETRY_COOLDOWN_MS for how a "failed" row gets a bounded,
+    // cooldown-gated retry rather than being stuck or retried immediately.
     status: text("status").notNull().default("pending"),
     jobId: text("job_id"),
     pollUrl: text("poll_url"),

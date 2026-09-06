@@ -29,11 +29,16 @@ export async function GET(request: Request) {
     if (!row.pollUrl) {
       // Shouldn't happen - a "pending" row always got a pollUrl when it was
       // written - but never leave a row stuck pending forever over it.
+      // "failed", not "ready" + 0 offers (2026-09-06 fix, see
+      // stayingApiRefresh.ts's status column comment) - this must never be
+      // confused with a real, confirmed "checked, no availability" answer.
+      // ensureLiveCheckTriggered's cooldown-gated retry picks this up on
+      // the next real visit; a re-run of this route also just overwrites it.
       await db
         .update(schema.stayingApiCache)
-        .set({ status: "ready", offersJson: "[]", jobId: null, pollUrl: null, refreshedAt: new Date() })
+        .set({ status: "failed", offersJson: null, jobId: null, pollUrl: null, refreshedAt: new Date() })
         .where(eq(schema.stayingApiCache.id, row.id));
-      results.push({ hotelId: row.hotelId, status: "error", detail: "pending row had no pollUrl - marked ready with 0 offers" });
+      results.push({ hotelId: row.hotelId, status: "error", detail: "pending row had no pollUrl - marked failed" });
       continue;
     }
 
@@ -56,12 +61,20 @@ export async function GET(request: Request) {
     } else if (outcome.status === "pending") {
       results.push({ hotelId: row.hotelId, status: "pending" });
     } else {
-      // The job itself failed on StayingAPI's side - mark ready with 0
-      // offers rather than polling a dead job forever. A later refresh run
-      // will overwrite this row and try again.
+      // The job itself failed on StayingAPI's side (or this route's own
+      // poll request errored) - mark "failed" rather than polling a dead
+      // job forever. Was "ready" + 0 offers until 2026-09-06: that
+      // permanently recorded a failure as a confirmed "checked, no
+      // availability" answer, indistinguishable from a real one, since a
+      // "ready" row never gets rechecked (see stayingApiAdapter.ts). A
+      // later run of THIS route (a human deliberately re-running the
+      // refresh workflow) always overwrites an existing row regardless of
+      // status, same as before; a real visitor's own Check IQ page also now
+      // self-heals this via ensureLiveCheckTriggered's cooldown-gated retry,
+      // without needing an admin re-run at all.
       await db
         .update(schema.stayingApiCache)
-        .set({ status: "ready", offersJson: "[]", jobId: null, pollUrl: null, refreshedAt: new Date() })
+        .set({ status: "failed", offersJson: null, jobId: null, pollUrl: null, refreshedAt: new Date() })
         .where(eq(schema.stayingApiCache.id, row.id));
       results.push({ hotelId: row.hotelId, status: "error", detail: outcome.message });
     }

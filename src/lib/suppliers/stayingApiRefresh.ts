@@ -167,11 +167,41 @@ export async function submitStayingApiJob(
     }
     if (res.ok && json?.data?.offers) {
       const offers = mapOffers(json.data, hotel.name, room.normalizedType, checkIn, checkOut);
+      logMappingDiagnostics(hotel.name, checkIn, checkOut, json.data.offers, offers.length);
       return { status: "ready", offers };
     }
     return { status: "error", message: `unexpected response: ${JSON.stringify(json).slice(0, 500)}` };
   } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[stayingApiRefresh] submitStayingApiJob failed for hotel=${hotelId} ${checkIn}->${checkOut}:`, message);
+    return { status: "error", message };
+  }
+}
+
+// 2026-09-06 diagnostic logging - added after a real hotel/date pair came
+// back with zero mapped offers right after StayingAPI credits were topped
+// up, with no way to tell "genuinely sold out" from "the OTA_TO_SUPPLIER
+// mapping silently dropped everything StayingAPI actually returned" (both
+// look identical downstream: an empty array). Logs the raw, pre-mapping ota
+// strings so a real seller name that doesn't match this file's mapping
+// shows up in Netlify's function logs on the very next live check, real or
+// test - no extra credit spend needed to see it. Safe to leave in
+// permanently: one or two short lines per live check, not per request.
+function logMappingDiagnostics(
+  hotelName: string,
+  checkIn: string,
+  checkOut: string,
+  rawOffers: Array<{ ota?: string; totalPrice?: number }>,
+  mappedCount: number
+): void {
+  console.log(
+    `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: StayingAPI returned ${rawOffers.length} raw offer(s):`,
+    JSON.stringify(rawOffers.map((o) => ({ ota: o.ota, totalPrice: o.totalPrice })))
+  );
+  if (mappedCount < rawOffers.length) {
+    console.log(
+      `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: ${rawOffers.length - mappedCount} of those raw offer(s) were dropped by OTA_TO_SUPPLIER (unrecognized seller, not this hotel's own direct listing).`
+    );
   }
 }
 
@@ -180,6 +210,32 @@ export type LiveCheckState =
   | { kind: "ready" } // a cache row already exists and is ready (0 or more offers - both are a real answer)
   | { kind: "checking" } // a live check is in flight (just triggered, or someone else already triggered it)
   | { kind: "error"; message: string };
+
+// 2026-09-06 - a failed attempt (the submit call erroring, or the poll
+// discovering StayingAPI's own job failed) is stored as its own "failed"
+// status, distinct from "ready." Previously this either got deleted (submit
+// path) or silently rewritten to "ready" with offersJson "[]" (poll path,
+// pollLiveCheck below) - the second one is a real bug: it permanently
+// records a transient failure as a confirmed "checked, no availability"
+// answer indistinguishable from a real one, with no way for a future
+// visitor to ever trigger a fresh attempt (see stayingApiAdapter.ts - a
+// "ready" row never expires or gets rechecked). Caught live 2026-09-06: a
+// real 5-star Dubai hotel, 14 days out, showed "nothing available" here
+// while its own direct booking site had multiple bookable rooms that same
+// night - proof this wasn't a genuine zero-availability answer.
+//
+// The retry itself is deliberately cooled down rather than immediate,
+// because "immediate" is dangerous here specifically: LiveCheckStatus.tsx's
+// client-side poller calls router.refresh() the moment a live check reaches
+// any terminal state (ready OR error), which re-runs this exact function.
+// Without a cooldown, a single visitor whose one browser tab hits a
+// persistent failure (a genuinely broken hotel/date pair, not just a blip)
+// would silently re-trigger a brand-new PAID StayingAPI call every time
+// their own tab auto-refreshes - a real, unbounded credit-burn loop within
+// one visit, not just "the next visitor retries once." The cooldown bounds
+// that to at most one paid attempt per triple per window, while still
+// self-healing across real visits without any admin action.
+const FAILED_CHECK_RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * The visitor-facing entry point for live on-demand checking on /search -
@@ -197,7 +253,10 @@ export type LiveCheckState =
  * empty - rather than an error, so only the request that actually landed
  * the row goes on to call the paid API. Verified locally: two inserts for
  * the same triple in quick succession leave exactly one row in the table,
- * and only the winner's insert reports a returned id.
+ * and only the winner's insert reports a returned id. A "failed" row is
+ * re-claimed the same atomic way (a conditional UPDATE instead of an
+ * INSERT) once the cooldown above has elapsed - see the existing.status
+ * === "failed" branch below.
  */
 export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string, checkOut: string): Promise<LiveCheckState> {
   const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
@@ -210,36 +269,61 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
       eq(schema.stayingApiCache.checkOut, new Date(checkOut))
     ),
   });
+
+  let placeholderId: string;
+
   if (existing) {
-    // Already checked (however long ago - see stayingApiAdapter.ts, offers
-    // never expire) or already in flight either way. Zero offers on a
-    // "ready" row is a real, final answer - not a reason to check again.
-    return existing.status === "ready" ? { kind: "ready" } : { kind: "checking" };
-  }
+    if (existing.status === "ready") return { kind: "ready" };
+    if (existing.status === "pending") return { kind: "checking" }; // already in flight, ours or someone else's
 
-  const placeholderId = newId();
-  const inserted = await db
-    .insert(schema.stayingApiCache)
-    .values({
-      id: placeholderId,
-      hotelId,
-      checkIn: new Date(checkIn),
-      checkOut: new Date(checkOut),
-      status: "pending",
-      jobId: null,
-      pollUrl: null,
-      offersJson: null,
-      refreshedAt: new Date(),
-    })
-    .onConflictDoNothing({
-      target: [schema.stayingApiCache.hotelId, schema.stayingApiCache.checkIn, schema.stayingApiCache.checkOut],
-    })
-    .returning({ id: schema.stayingApiCache.id });
+    // status === "failed" - eligible for exactly one fresh attempt per
+    // cooldown window. Still within cooldown: report the failure honestly
+    // rather than spending another credit on it right away.
+    const ageMs = Date.now() - existing.refreshedAt.getTime();
+    if (ageMs < FAILED_CHECK_RETRY_COOLDOWN_MS) {
+      return { kind: "error", message: "A live check for these dates failed recently - retrying shortly." };
+    }
 
-  if (inserted.length === 0) {
-    // Lost the race - another request claimed this triple a moment ago.
-    // Don't submit a second paid request for the same thing.
-    return { kind: "checking" };
+    // Cooldown elapsed - claim this specific row back to "pending" with a
+    // conditional update (only succeeds if it's still "failed"), the same
+    // race-safety onConflictDoNothing gives the fresh-insert path below.
+    const reclaimed = await db
+      .update(schema.stayingApiCache)
+      .set({ status: "pending", jobId: null, pollUrl: null, offersJson: null, refreshedAt: new Date() })
+      .where(and(eq(schema.stayingApiCache.id, existing.id), eq(schema.stayingApiCache.status, "failed")))
+      .returning({ id: schema.stayingApiCache.id });
+
+    if (reclaimed.length === 0) {
+      // Lost the race - another request already reclaimed and is retrying it.
+      return { kind: "checking" };
+    }
+    placeholderId = existing.id;
+  } else {
+    const freshId = newId();
+    const inserted = await db
+      .insert(schema.stayingApiCache)
+      .values({
+        id: freshId,
+        hotelId,
+        checkIn: new Date(checkIn),
+        checkOut: new Date(checkOut),
+        status: "pending",
+        jobId: null,
+        pollUrl: null,
+        offersJson: null,
+        refreshedAt: new Date(),
+      })
+      .onConflictDoNothing({
+        target: [schema.stayingApiCache.hotelId, schema.stayingApiCache.checkIn, schema.stayingApiCache.checkOut],
+      })
+      .returning({ id: schema.stayingApiCache.id });
+
+    if (inserted.length === 0) {
+      // Lost the race - another request claimed this triple a moment ago.
+      // Don't submit a second paid request for the same thing.
+      return { kind: "checking" };
+    }
+    placeholderId = freshId;
   }
 
   const outcome = await submitStayingApiJob(hotelId, checkIn, checkOut);
@@ -259,10 +343,14 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
     return { kind: "checking" };
   }
   // The submit call itself failed (bad key, network blip, StayingAPI down).
-  // Delete the placeholder instead of leaving a permanently stuck "pending"
-  // row with no jobId/pollUrl for anyone to poll - the next visitor for
-  // this exact pair gets a clean retry instead of a dead end forever.
-  await db.delete(schema.stayingApiCache).where(eq(schema.stayingApiCache.id, placeholderId));
+  // Marked "failed" (not deleted, not "ready") so the next attempt goes
+  // through the cooldown-gated reclaim path above instead of either being
+  // lost forever or retried immediately - see the type comment above.
+  console.error(`[stayingApiRefresh] ensureLiveCheckTriggered: submit failed for ${hotel.name} ${checkIn}->${checkOut}:`, outcome.message);
+  await db
+    .update(schema.stayingApiCache)
+    .set({ status: "failed", jobId: null, pollUrl: null, offersJson: null, refreshedAt: new Date() })
+    .where(eq(schema.stayingApiCache.id, placeholderId));
   return { kind: "error", message: outcome.message };
 }
 
@@ -288,6 +376,14 @@ export async function pollLiveCheck(
   });
   if (!row) return { status: "no-pending-job" };
   if (row.status === "ready") return { status: "ready" };
+  // A "failed" row has no pollUrl (cleared when it was marked failed - see
+  // ensureLiveCheckTriggered) - without this check it would fall into the
+  // "no pollUrl yet" branch below and report "pending" forever, since
+  // nothing here ever gives it one. Reporting "error" is what lets the
+  // client's LiveCheckStatus widget treat this as terminal and
+  // router.refresh(), which re-enters ensureLiveCheckTriggered's
+  // cooldown-gated retry logic on the next server render.
+  if (row.status === "failed") return { status: "error" };
   if (!row.pollUrl) return { status: "pending" }; // claimed but the submit call hasn't finished writing a pollUrl yet
 
   const outcome = await pollStayingApiJob(hotelId, row.pollUrl, checkIn, checkOut);
@@ -300,9 +396,17 @@ export async function pollLiveCheck(
     return { status: "ready" };
   }
   if (outcome.status === "error") {
+    // Was `status: "ready", offersJson: "[]"` - a real bug, caught
+    // 2026-09-06: that permanently recorded a poll-time failure (the
+    // StayingAPI job itself failing, or our own status-check request
+    // erroring) as an indistinguishable, confirmed "checked, zero offers"
+    // answer forever (see stayingApiAdapter.ts - a "ready" row never
+    // expires or gets rechecked). "failed" instead goes through
+    // ensureLiveCheckTriggered's cooldown-gated retry on the next real
+    // visit, rather than lying that this property has no availability.
     await db
       .update(schema.stayingApiCache)
-      .set({ status: "ready", offersJson: "[]", jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .set({ status: "failed", offersJson: null, jobId: null, pollUrl: null, refreshedAt: new Date() })
       .where(eq(schema.stayingApiCache.id, row.id));
     return { status: "error" };
   }
@@ -346,13 +450,18 @@ export async function pollStayingApiJob(
     if (jobStatus === "completed") {
       const result = json.data.result;
       const offers = result ? mapOffers(result, hotel.name, room.normalizedType, checkIn, checkOut) : [];
+      logMappingDiagnostics(hotel.name, checkIn, checkOut, result?.offers ?? [], offers.length);
       return { status: "ready", offers };
     }
     if (jobStatus === "failed") {
-      return { status: "error", message: json?.data?.error?.message ?? "job failed" };
+      const message = json?.data?.error?.message ?? "job failed";
+      console.error(`[stayingApiRefresh] pollStayingApiJob: job failed for ${hotel.name} ${checkIn}->${checkOut}:`, message);
+      return { status: "error", message };
     }
     return { status: "pending" };
   } catch (err) {
-    return { status: "error", message: err instanceof Error ? err.message : String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[stayingApiRefresh] pollStayingApiJob failed for hotel=${hotelId} ${checkIn}->${checkOut}:`, message);
+    return { status: "error", message };
   }
 }
