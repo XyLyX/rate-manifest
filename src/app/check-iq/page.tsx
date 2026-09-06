@@ -8,11 +8,13 @@ import { getTrip } from "@/lib/trip";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import { getPriceInsight } from "@/lib/priceInsight";
 import { humanizeRoomType } from "@/lib/roomType";
+import { buildRateSnapshot, buildVerifyBeforeBooking } from "@/lib/scoring/rateSnapshot";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
 import { YourHotelSummary } from "@/components/YourHotelSummary";
 import { VerifiedRatePanel, type VerifiedRateState } from "@/components/VerifiedRatePanel";
 import { PriceInsightPanel } from "@/components/PriceInsightPanel";
+import { RateSnapshotPanel } from "@/components/RateSnapshotPanel";
 import { WhyThisDealPanel } from "@/components/WhyThisDealPanel";
 import { RateManifestVerdict } from "@/components/RateManifestVerdict";
 import { BeforeYouBookPanel } from "@/components/BeforeYouBookPanel";
@@ -120,6 +122,27 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   const tripQuery = tripId ? `&trip=${tripId}` : "";
   const currentUrl = `/check-iq?hotel=${result.hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`;
 
+  // Section 4 of the "Handling Missing Rate Conditions" spec - built once
+  // here (rather than inside RateSnapshotPanel) so both the panel and the
+  // RateManifest Verdict's uncertainty caveat below read off the exact same
+  // list of unknowns, not two independently-computed ones. Guests come from
+  // the trip record when Page 1 was actually used (real adults/children
+  // split); a visitor who reached Check IQ directly (see ResultsList's
+  // hotelCity comment on that fallback) has no trip yet, so this falls back
+  // to the room's own default occupancy as a single adult count - still
+  // honest, since there's no children figure to invent in that case.
+  const rateSnapshotFields = showComparison
+    ? buildRateSnapshot({
+        roomTypeLabel,
+        checkIn,
+        checkOut,
+        nights: result.nights,
+        adults: trip ? trip.adults : occupancy,
+        children: trip ? trip.children : 0,
+        offer: available[0]!,
+      })
+    : [];
+
   return (
     <div className="shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
@@ -181,6 +204,17 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
         <>
           {/* Non-null: showComparison already guarantees available.length > 0. */}
           {priceInsight && <PriceInsightPanel insight={priceInsight} />}
+
+          {/* "Handling Missing Rate Conditions" spec (2026-09-05), sections
+              4 + 6 - lays out every rate attribute a customer would want
+              before booking (confirmed or not) and the dynamically
+              generated "verify before booking" list built from whichever
+              of those actually came back unknown for this offer. */}
+          <RateSnapshotPanel
+            fields={rateSnapshotFields}
+            verifyItems={buildVerifyBeforeBooking(rateSnapshotFields)}
+          />
+
           <WhyThisDealPanel offer={available[0]!} belowHistoricalAverage={belowHistoricalAverage} />
 
           <div className="where-to-book-heading">Where to book</div>
@@ -197,7 +231,12 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
             verdictId={result.verdictId}
           />
 
-          <RateManifestVerdict offer={available[0]!} hotelName={result.hotel.name} sourcesChecked={result.sourcesChecked} />
+          <RateManifestVerdict
+            offer={available[0]!}
+            hotelName={result.hotel.name}
+            sourcesChecked={result.sourcesChecked}
+            uncertainFields={buildVerifyBeforeBooking(rateSnapshotFields).map((f) => f.label)}
+          />
           <BeforeYouBookPanel
             hotelName={result.hotel.name}
             checkIn={checkIn}

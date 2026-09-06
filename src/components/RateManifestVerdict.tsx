@@ -20,10 +20,19 @@ export function RateManifestVerdict({
   offer,
   hotelName,
   sourcesChecked,
+  // 2026-09-05 (Navin's "Handling Missing Rate Conditions" spec, section
+  // 5): the labels of whatever Rate Snapshot fields came back unknown for
+  // this offer (see rateSnapshot.ts's buildVerifyBeforeBooking) - e.g.
+  // ["Breakfast / meals", "Rate plan", "Payment"]. Rendered as a second,
+  // explicit caveat line so the score/verdict above never reads as more
+  // certain than the data actually backing it. Empty when nothing is
+  // unknown (a source that confirmed everything gets no caveat at all).
+  uncertainFields = [],
 }: {
   offer: DisplayOffer;
   hotelName: string;
   sourcesChecked: number;
+  uncertainFields?: string[];
 }) {
   const signal = getDealSignal(offer.score);
 
@@ -42,6 +51,12 @@ export function RateManifestVerdict({
           Based on {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} checked for these dates — price,
           cancellation terms, and supplier track record where we have it.
         </div>
+        {uncertainFields.length > 0 && (
+          <div className="rate-verdict-caveat">
+            This source didn&apos;t confirm {uncertainFields.join(", ").toLowerCase()} — verify these directly
+            before booking.
+          </div>
+        )}
       </div>
     </div>
   );

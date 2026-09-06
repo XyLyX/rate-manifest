@@ -18,6 +18,16 @@ export interface ScorableOffer {
   supplierName: string;
   totalPrice: number;
   isFreeCancellation: boolean;
+  // 2026-09-05 (Navin's "Handling Missing Rate Conditions" spec): whether
+  // isFreeCancellation above is an actual fact from the source, or an
+  // unset default because the source (StayingAPI's price-compare
+  // endpoint) never returns cancellation terms at all - see
+  // suppliers/types.ts's cancellation.confidence. "Unknown fields should
+  // not automatically be treated as negative" - false because we don't
+  // know is not the same as false because it's confirmed non-refundable,
+  // and scoring them identically would be exactly the "manufactured
+  // certainty" this rule exists to prevent.
+  cancellationKnown: boolean;
   reliabilityScore: number | null; // null = not enough data yet
   bookingOutcomeCount: number;
   soldOut: boolean;
@@ -68,11 +78,19 @@ export function scoreOffers(offers: ScorableOffer[]): ScoredOffer[] {
     const priceScore = maxPrice > minPrice ? (maxPrice - o.totalPrice) / (maxPrice - minPrice) : 1;
     if (o.totalPrice === minPrice) reasons.push({ text: "Lowest total price of the offers checked", tone: "positive" });
 
-    // Cancellation component: binary, but weighted so it can move the
-    // ranking — a slightly pricier, freely-cancellable offer can beat a
-    // slightly cheaper non-refundable one.
-    const cancellationScore = o.isFreeCancellation ? 1 : 0;
-    if (o.isFreeCancellation) reasons.push({ text: "Free cancellation", tone: "positive" });
+    // Cancellation component: binary when the source actually told us,
+    // weighted so it can move the ranking — a slightly pricier,
+    // freely-cancellable offer can beat a slightly cheaper non-refundable
+    // one. When it's unknown (StayingAPI's price-compare endpoint never
+    // returns this), this is a neutral 0.5, NOT scored as if
+    // "non-refundable" were confirmed — same "unknown is never negative"
+    // rule as the reliability component below.
+    const cancellationScore = !o.cancellationKnown ? 0.5 : o.isFreeCancellation ? 1 : 0;
+    if (o.cancellationKnown && o.isFreeCancellation) {
+      reasons.push({ text: "Free cancellation", tone: "positive" });
+    } else if (!o.cancellationKnown) {
+      reasons.push({ text: "Cancellation terms not provided by this source", tone: "neutral" });
+    }
 
     // Reliability component: only counted when there's enough data to mean
     // something. hasReliabilityData=false suppliers get the *average* of

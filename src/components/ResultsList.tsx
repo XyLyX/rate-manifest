@@ -263,8 +263,18 @@ function OfferRow({
       <div className="offer-price">
         <div className="offer-total">AED {Math.round(offer.totalPrice).toLocaleString("en-AE")}</div>
         <div className="offer-nightly">
-          AED {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night + AED{" "}
-          {Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")} tax
+          {offer.taxesConfirmed ? (
+            <>
+              AED {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night + AED{" "}
+              {Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")} tax
+            </>
+          ) : (
+            // taxesConfirmed is false whenever the source (StayingAPI)
+            // returned one all-in total with no nightly/tax split - "+ AED
+            // 0 tax" would read as a confirmed zero, which isn't true. See
+            // suppliers/types.ts's taxesConfidence.
+            <>AED {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night · taxes &amp; fees included, not itemized</>
+          )}
         </div>
         {savings > 0 && (
           <div className="offer-nightly offer-save">

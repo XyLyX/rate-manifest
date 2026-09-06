@@ -65,7 +65,18 @@ export function BeforeYouBookPanel({
     { label: "Dates", value: `${checkIn} → ${checkOut}` },
     { label: "Guests", value: `${occupancy} adult${occupancy === 1 ? "" : "s"}` },
     { label: "Room", value: roomTypeLabel },
-    { label: "Cancellation", value: offer.isFreeCancellation ? "Free cancellation" : "Non-refundable" },
+    {
+      label: "Cancellation",
+      // 2026-09-05 (Navin's "Handling Missing Rate Conditions" spec): same
+      // fix as buildDealFactors() and rateSnapshot.ts - isFreeCancellation
+      // is an honest placeholder, not a confirmed fact, whenever the source
+      // never told us. See suppliers/types.ts's cancellation.confidence.
+      value: offer.cancellationKnown
+        ? offer.isFreeCancellation
+          ? "Free cancellation"
+          : "Non-refundable"
+        : "Not confirmed by this source — verify before booking",
+    },
     { label: "Total price", value: `AED ${Math.round(offer.totalPrice).toLocaleString("en-AE")}` },
     { label: "Rate verified", value: age ? `Checked ${age}` : "Checked" },
   ];

@@ -75,7 +75,23 @@ export const stayingApiAdapter: SupplierAdapter = {
       // all share one real "checked at" - StayingAPI returns the whole
       // cross-OTA comparison in a single response, it doesn't check each
       // seller on its own schedule. See DECISIONS.md, "Freshness badge."
-      const offers = parsed.map((o) => ({ ...o, checkedAt: cached.refreshedAt.toISOString() }));
+      //
+      // taxesConfidence/cancellation.confidence are force-set to "unknown"
+      // here regardless of what's in the stored JSON (mapOffers() in
+      // stayingApiRefresh.ts already writes "unknown" for new rows, but a
+      // cache row written before that field existed would otherwise come
+      // back with it simply undefined - which downstream code must never
+      // read as truthy/"confirmed"). This is a StayingAPI-source-level
+      // fact, not something that varies row to row: the price-compare
+      // endpoint has never returned cancellation terms or a tax breakdown,
+      // so every offer this adapter ever returns is "unknown" for both,
+      // independent of cache age.
+      const offers = parsed.map((o) => ({
+        ...o,
+        checkedAt: cached.refreshedAt.toISOString(),
+        taxesConfidence: "unknown" as const,
+        cancellation: { ...o.cancellation, confidence: "unknown" as const },
+      }));
 
       if (daysUntil(params.checkIn) > DYNAMIC_PRICING_WINDOW_DAYS) {
         // Too far out for a real cross-seller comparison to mean much -

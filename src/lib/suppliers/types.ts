@@ -26,10 +26,28 @@ export interface SupplierOffer {
   nightlyPrice: number;
   taxesFeesPerNight: number;
   totalPrice: number;
+  // Same "confirmed vs unknown" distinction as cancellation.confidence
+  // above, for the nightly/taxes split specifically: StayingAPI's
+  // price-compare endpoint returns one all-in total with no breakdown, so
+  // taxesFeesPerNight is a placeholder 0 there, not a confirmed "$0 tax" -
+  // see stayingApiRefresh.ts's mapOffers(). The mock adapter computes a
+  // real (simulated) breakdown, so it's "confirmed" there.
+  taxesConfidence: "confirmed" | "unknown";
   cancellation: {
     isFreeCancellation: boolean;
     deadlineIso: string | null;
     penaltyPercentage: number | null;
+    // 2026-09-05 (Navin's "Page 2 — Rate Intelligence: Handling Missing
+    // Rate Conditions" spec): whether isFreeCancellation/deadlineIso/
+    // penaltyPercentage above are an actual fact the source told us
+    // ("confirmed") or an unset default because the source doesn't return
+    // cancellation terms at all ("unknown"). StayingAPI's price-compare
+    // endpoint never returns this (see stayingApiRefresh.ts's mapOffers) -
+    // isFreeCancellation: false there is NOT a confirmed "non-refundable,"
+    // it's an honest placeholder, and must never be scored or displayed as
+    // if it were a verified negative. The mock adapter generates a real
+    // (simulated) answer, so it's "confirmed" there.
+    confidence: "confirmed" | "unknown";
   };
   // Where a click on this offer actually goes. In the mock adapter this is
   // an internal stub page; a real adapter returns a real affiliate deep

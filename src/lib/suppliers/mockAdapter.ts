@@ -96,11 +96,13 @@ export const mockAdapter: SupplierAdapter = {
         currency: "AED",
         nightlyPrice,
         taxesFeesPerNight,
+        taxesConfidence: "confirmed",
         totalPrice,
         cancellation: {
           isFreeCancellation,
           deadlineIso: isFreeCancellation ? deadline.toISOString() : null,
           penaltyPercentage: isFreeCancellation ? null : 100,
+          confidence: "confirmed",
         },
         // Demo mode: nothing to actually book yet, so this points at an
         // internal stub rather than a real OTA URL.

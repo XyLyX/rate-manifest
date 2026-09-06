@@ -10,6 +10,9 @@ export interface DisplayOffer extends ScoredOffer {
   outboundUrl: string;
   nightlyPrice: number;
   taxesFeesPerNight: number;
+  // Whether taxesFeesPerNight above is a real breakdown or a "not itemized
+  // by this source" placeholder - see SupplierOffer.taxesConfidence.
+  taxesConfirmed: boolean;
   cancellationDeadlineIso: string | null;
   // See SupplierOffer.checkedAt - null for the mock adapter and for any
   // offer that predates this field. Purely a display value: nothing here
@@ -191,6 +194,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       supplierName: s.supplierName,
       totalPrice: s.offer.totalPrice,
       isFreeCancellation: s.offer.cancellation.isFreeCancellation,
+      cancellationKnown: s.offer.cancellation.confidence === "confirmed",
       reliabilityScore: s.reliabilityScore,
       bookingOutcomeCount: s.bookingOutcomeCount,
       soldOut: s.offer.soldOut,
@@ -209,6 +213,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       outboundUrl: offer?.outboundUrl ?? "#",
       nightlyPrice: offer?.nightlyPrice ?? 0,
       taxesFeesPerNight: offer?.taxesFeesPerNight ?? 0,
+      taxesConfirmed: offer?.taxesConfidence === "confirmed",
       cancellationDeadlineIso: offer?.cancellation.deadlineIso ?? null,
       checkedAt: offer?.checkedAt ?? null,
     };

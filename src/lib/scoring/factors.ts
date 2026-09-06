@@ -29,13 +29,19 @@ export function buildDealFactors(offer: DisplayOffer): DealFactor[] {
     },
     {
       label: "Cancellation",
-      positive: offer.isFreeCancellation,
-      text: offer.isFreeCancellation ? "Free cancellation" : "Non-refundable",
+      positive: offer.cancellationKnown ? offer.isFreeCancellation : null,
+      text: offer.cancellationKnown
+        ? offer.isFreeCancellation
+          ? "Free cancellation"
+          : "Non-refundable"
+        : "Not provided by current rate source",
     },
     {
       label: "Taxes & fees",
-      positive: true,
-      text: "Included in the total shown",
+      positive: offer.taxesConfirmed ? true : null,
+      text: offer.taxesConfirmed
+        ? "Included in the total shown"
+        : "Bundled into the total price — not itemized by this source",
     },
     {
       label: "Room",

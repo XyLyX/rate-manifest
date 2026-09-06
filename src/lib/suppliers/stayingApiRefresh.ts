@@ -97,16 +97,22 @@ function mapOffers(
       // price-compare returns one all-in total per seller, not a
       // nightly/taxes breakdown - taxesFeesPerNight is left at 0 and
       // totalPrice (the authoritative real figure) is used as-is rather
-      // than reconstructed from an assumed nightly rate.
+      // than reconstructed from an assumed nightly rate. taxesConfidence:
+      // "unknown" is what keeps that placeholder 0 from ever being shown
+      // or scored as a confirmed "$0 tax" - see types.ts.
       taxesFeesPerNight: 0,
+      taxesConfidence: "unknown",
       totalPrice: offer.totalPrice,
       cancellation: {
         // Not returned by this endpoint - defaulting to "not confirmed
         // free" rather than fabricating a deadline/penalty this app was
-        // never actually told. See DECISIONS.md.
+        // never actually told. See DECISIONS.md. confidence: "unknown" is
+        // what keeps isFreeCancellation: false here from ever being shown
+        // or scored as a confirmed "non-refundable" - see types.ts.
         isFreeCancellation: false,
         deadlineIso: null,
         penaltyPercentage: null,
+        confidence: "unknown",
       },
       outboundUrl: offer.url,
     });
