@@ -195,6 +195,7 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
           checkedAt={result.offers[0]?.checkedAt ?? null}
           cheapestTotal={result.cheapestTotal}
           nights={result.nights}
+          currency={available[0]?.currency ?? "AED"}
         />
       )}
 
@@ -203,7 +204,7 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
       ) : showComparison ? (
         <>
           {/* Non-null: showComparison already guarantees available.length > 0. */}
-          {priceInsight && <PriceInsightPanel insight={priceInsight} />}
+          {priceInsight && <PriceInsightPanel insight={priceInsight} currency={available[0]?.currency ?? "AED"} />}
 
           {/* "Handling Missing Rate Conditions" spec (2026-09-05), sections
               4 + 6 - lays out every rate attribute a customer would want

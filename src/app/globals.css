@@ -1542,6 +1542,40 @@ input:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* 2026-09-06 - the BOOK NOW / WATCH / CONSIDER ALTERNATIVE decision word,
+   added to Page 2's Verdict panel (it was previously wired up on Page 4's
+   Confirm screen only - see RateManifestVerdict.tsx's own comment). Same
+   shape and tier palette as .confirm-verdict-action below, kept as its own
+   rule rather than a shared class since the two panels' surrounding markup
+   differs enough (ring + body here vs. a plain summary block there) that a
+   shared class name would invite an accidental style collision later. */
+.rate-verdict-action {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  margin-bottom: 0.3rem;
+}
+
+.rate-verdict-action-strong,
+.rate-verdict-action-good {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+.rate-verdict-action-fair {
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+}
+
+.rate-verdict-action-weak {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
 /* 2026-09-05, "Handling Missing Rate Conditions" spec section 5 - the
    uncertainty caveat shown only when the Rate Snapshot below found unknown
    fields for this offer. --warning, not --error: an unconfirmed field is a

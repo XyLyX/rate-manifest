@@ -31,7 +31,13 @@ function priceStanding(percentVsAverage: number): { label: string; colorVar: str
   return { label: "Above the average we've seen", colorVar: "--signal-wait" };
 }
 
-export function PriceInsightPanel({ insight }: { insight: PriceInsight }) {
+// currency is passed in separately rather than living on PriceInsight
+// itself (2026-09-06 fix - was hardcoded "AED" before) - price_history
+// (the table this panel's numbers are aggregated from) has no currency
+// column of its own, so the caller passes the current search's own offer
+// currency instead, which is exactly what every number here is actually
+// being compared against.
+export function PriceInsightPanel({ insight, currency }: { insight: PriceInsight; currency: string }) {
   if (!insight.hasEnoughData) {
     return (
       <div className="price-insight-panel sparse">
@@ -60,8 +66,8 @@ export function PriceInsightPanel({ insight }: { insight: PriceInsight }) {
       )}
       <p className="price-insight-body">
         Over {observationDays} separate days we&apos;ve checked this property on these exact dates, the cheapest
-        available total has ranged from AED {Math.round(lowestSeen ?? 0).toLocaleString("en-AE")} to AED{" "}
-        {Math.round(highestSeen ?? 0).toLocaleString("en-AE")}, averaging AED{" "}
+        available total has ranged from {currency} {Math.round(lowestSeen ?? 0).toLocaleString("en-AE")} to{" "}
+        {currency} {Math.round(highestSeen ?? 0).toLocaleString("en-AE")}, averaging {currency}{" "}
         {Math.round(averageSeen ?? 0).toLocaleString("en-AE")}.
         {percentVsAverage != null && percentVsAverage > 0 && (
           <> The best offer right now is {percentVsAverage}% below that average.</>
@@ -74,15 +80,15 @@ export function PriceInsightPanel({ insight }: { insight: PriceInsight }) {
       <div className="price-insight-stats">
         <div>
           <span className="price-insight-stat-label">Lowest seen</span>
-          <span className="price-insight-stat-value">AED {Math.round(lowestSeen ?? 0).toLocaleString("en-AE")}</span>
+          <span className="price-insight-stat-value">{currency} {Math.round(lowestSeen ?? 0).toLocaleString("en-AE")}</span>
         </div>
         <div>
           <span className="price-insight-stat-label">Average seen</span>
-          <span className="price-insight-stat-value">AED {Math.round(averageSeen ?? 0).toLocaleString("en-AE")}</span>
+          <span className="price-insight-stat-value">{currency} {Math.round(averageSeen ?? 0).toLocaleString("en-AE")}</span>
         </div>
         <div>
           <span className="price-insight-stat-label">Highest seen</span>
-          <span className="price-insight-stat-value">AED {Math.round(highestSeen ?? 0).toLocaleString("en-AE")}</span>
+          <span className="price-insight-stat-value">{currency} {Math.round(highestSeen ?? 0).toLocaleString("en-AE")}</span>
         </div>
       </div>
     </div>

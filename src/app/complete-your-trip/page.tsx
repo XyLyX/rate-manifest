@@ -65,7 +65,11 @@ export default async function CompleteYourTripPage({ searchParams }: CompleteYou
     destinationName: trip.destination,
     startDate: trip.checkIn,
     endDate: trip.checkOut,
-    currency: "AED",
+    // Matches the hotel rate's own currency when a selection already
+    // exists (2026-09-06 fix), rather than an independent hardcoded "AED"
+    // that happened to agree with it so far - see confirm/page.tsx's own
+    // comment on this same assumption for the trip total below.
+    currency: selection?.currency ?? "AED",
   });
   const products = personalizeThingsToDo(rawProducts, trip.purpose);
 
@@ -80,7 +84,7 @@ export default async function CompleteYourTripPage({ searchParams }: CompleteYou
       {selection && (
         <div className="trip-context-strip trip-selection-recap">
           <span className="trip-context-item">
-            <strong>Selected:</strong> {selection.supplierName} · AED {Math.round(selection.totalPrice).toLocaleString("en-AE")}
+            <strong>Selected:</strong> {selection.supplierName} · {selection.currency} {Math.round(selection.totalPrice).toLocaleString("en-AE")}
           </span>
           <span className="trip-context-item">
             {trip.destination} · {trip.checkIn} → {trip.checkOut}

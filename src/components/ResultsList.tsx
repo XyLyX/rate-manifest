@@ -194,7 +194,7 @@ function OfferRow({
             <input type="hidden" name="supplierSlug" value={offer.supplierSlug} />
             <input type="hidden" name="supplierName" value={offer.supplierName} />
             <input type="hidden" name="totalPrice" value={offer.totalPrice} />
-            <input type="hidden" name="currency" value="AED" />
+            <input type="hidden" name="currency" value={offer.currency} />
             <input type="hidden" name="deepLink" value={offer.outboundUrl} />
             <button className="btn select-deal-btn" type="submit">
               Select this deal →
@@ -231,7 +231,13 @@ function OfferRow({
 
         {isBest && !revealed && cheapestTotal != null && (
           <div className="track-price">
-            <TrackPrice hotelId={hotelId} checkIn={checkIn} checkOut={checkOut} baselineTotal={cheapestTotal} />
+            <TrackPrice
+              hotelId={hotelId}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              baselineTotal={cheapestTotal}
+              currency={offer.currency}
+            />
           </div>
         )}
 
@@ -261,24 +267,24 @@ function OfferRow({
         )}
       </div>
       <div className="offer-price">
-        <div className="offer-total">AED {Math.round(offer.totalPrice).toLocaleString("en-AE")}</div>
+        <div className="offer-total">{offer.currency} {Math.round(offer.totalPrice).toLocaleString("en-AE")}</div>
         <div className="offer-nightly">
           {offer.taxesConfirmed ? (
             <>
-              AED {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night + AED{" "}
+              {offer.currency} {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night + {offer.currency}{" "}
               {Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")} tax
             </>
           ) : (
             // taxesConfirmed is false whenever the source (StayingAPI)
-            // returned one all-in total with no nightly/tax split - "+ AED
-            // 0 tax" would read as a confirmed zero, which isn't true. See
-            // suppliers/types.ts's taxesConfidence.
-            <>AED {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night · taxes &amp; fees included, not itemized</>
+            // returned one all-in total with no nightly/tax split - "+
+            // {currency} 0 tax" would read as a confirmed zero, which isn't
+            // true. See suppliers/types.ts's taxesConfidence.
+            <>{offer.currency} {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night · taxes &amp; fees included, not itemized</>
           )}
         </div>
         {savings > 0 && (
           <div className="offer-nightly offer-save">
-            Save AED {Math.round(savings).toLocaleString("en-AE")} vs. average
+            Save {offer.currency} {Math.round(savings).toLocaleString("en-AE")} vs. average
           </div>
         )}
       </div>

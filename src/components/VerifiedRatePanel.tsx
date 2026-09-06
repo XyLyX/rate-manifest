@@ -47,6 +47,10 @@ interface VerifiedRatePanelProps {
   // either is missing for some reason.
   cheapestTotal: number | null;
   nights: number | null;
+  // Display-only, matching the currency the offers behind cheapestTotal are
+  // actually priced in (2026-09-06 fix - was hardcoded "AED"). Only
+  // meaningful (and only passed) alongside cheapestTotal, same as nights.
+  currency: string;
 }
 
 // Same "compute after mount" pattern as ResultsList's FreshnessBadge, and
@@ -64,7 +68,7 @@ function formatAge(checkedAtIso: string): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTotal, nights }: VerifiedRatePanelProps) {
+export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTotal, nights, currency }: VerifiedRatePanelProps) {
   const [age, setAge] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,7 +86,7 @@ export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTo
           <div className="verified-rate-stats">
             {cheapestTotal != null && nights != null && (
               <span className="verified-rate-stat verified-rate-stat-price">
-                AED {Math.round(cheapestTotal).toLocaleString("en-AE")} for {nights} night{nights === 1 ? "" : "s"}
+                {currency} {Math.round(cheapestTotal).toLocaleString("en-AE")} for {nights} night{nights === 1 ? "" : "s"}
               </span>
             )}
             <span className="verified-rate-stat">Availability confirmed</span>

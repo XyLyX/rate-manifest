@@ -18,6 +18,16 @@ export interface DisplayOffer extends ScoredOffer {
   // offer that predates this field. Purely a display value: nothing here
   // triggers a new lookup. See DECISIONS.md, "Freshness badge."
   checkedAt: string | null;
+  // 2026-09-06: every SupplierOffer already carries its real currency
+  // (suppliers/types.ts) - this was previously dropped here, which is why
+  // every display component downstream had to hardcode the literal "AED"
+  // instead of showing what the offer actually said. Carried through
+  // untouched so a display component can show the real label instead of
+  // assuming. In practice this is always "AED" today - mapOffers() in
+  // stayingApiRefresh.ts drops any StayingAPI offer whose currency isn't
+  // AED before it ever reaches this file, and the mock adapter only ever
+  // produces AED - but the field is now real, not asserted.
+  currency: string;
 }
 
 export interface SearchResult {
@@ -216,6 +226,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       taxesConfirmed: offer?.taxesConfidence === "confirmed",
       cancellationDeadlineIso: offer?.cancellation.deadlineIso ?? null,
       checkedAt: offer?.checkedAt ?? null,
+      currency: offer?.currency ?? "AED",
     };
   });
 
@@ -236,10 +247,12 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
   // Decision Audit Trail (see src/db/schema.ts's `verdicts` table and
   // src/lib/verdict.ts) - persists exactly what's about to be returned
   // below and shown on the RateManifest Verdict panel. Never throws, so
-  // this can't affect what the visitor sees. Currency is hardcoded to
-  // "AED" here, matching every currency column elsewhere in this schema -
-  // DisplayOffer doesn't carry it through (it's dropped after the rates
-  // insert above), and this app has no multi-currency support yet.
+  // this can't affect what the visitor sees. Currency now comes from an
+  // actual available offer (2026-09-06 fix - DisplayOffer carries
+  // currency through as of this same fix) rather than being hardcoded;
+  // falls back to "AED" only when nothing was available to read it from,
+  // matching every currency column's own schema default.
+  const currency = enriched.find((o) => !o.soldOut)?.currency ?? "AED";
   const verdictId = await recordVerdict({
     searchId,
     hotelId,
@@ -247,7 +260,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
     sourcesChecked,
     cheapestTotal,
     averageTotal,
-    currency: "AED",
+    currency,
   });
 
   return {

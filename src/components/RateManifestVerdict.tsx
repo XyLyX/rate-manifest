@@ -43,8 +43,19 @@ export function RateManifestVerdict({
       </div>
       <div className="rate-verdict-body">
         <div className="rate-verdict-eyebrow">RateManifest Verdict</div>
+        {/* 2026-09-06: the fixed BOOK NOW / WATCH / CONSIDER ALTERNATIVE
+            vocabulary (dealSignal.ts's own VerdictAction) was built for
+            exactly this panel - "the four-page journey's Check IQ page
+            (Page 2) needs [this] to collapse to one of exactly three
+            decision words" - but was only ever wired up to Page 4's
+            Confirm summary (confirm-verdict-action there). Added here so
+            Page 2 actually shows the word the spec calls for, not just the
+            softer prose sentence below it. Same tier-color classes as
+            Page 4's badge (rate-verdict-action-{tier}), reusing the exact
+            strong/good/fair/weak palette so the two pages agree visually. */}
+        <div className={`rate-verdict-action rate-verdict-action-${signal.tier}`}>{signal.action}</div>
         <div className="rate-verdict-hotel">
-          {hotelName} · AED {Math.round(offer.totalPrice).toLocaleString("en-AE")}
+          {hotelName} · {offer.currency} {Math.round(offer.totalPrice).toLocaleString("en-AE")}
         </div>
         <div className="rate-verdict-headline">{signal.verdict}</div>
         <div className="rate-verdict-footnote">

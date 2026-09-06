@@ -67,6 +67,15 @@ export default async function PriceAlertsAdminPage() {
                     <span>
                       {tracker.checkIn.toISOString().slice(0, 10)} → {tracker.checkOut.toISOString().slice(0, 10)}
                     </span>
+                    {/* Hardcoded "AED" here is a known, narrower gap than
+                        the one fixed everywhere else 2026-09-06 - unlike
+                        DisplayOffer, the price_tracking table itself has no
+                        currency column (see schema.ts), so there is no real
+                        value to read for a historical row here without a
+                        migration. Every tracker created so far is AED
+                        (baselineTotal always comes from an AED-filtered
+                        cheapestTotal), so this is accurate today, just not
+                        provably so from this table alone. */}
                     <span>
                       Was AED {Math.round(tracker.baselineTotal).toLocaleString("en-AE")} → now AED{" "}
                       {Math.round(tracker.triggeredTotal ?? 0).toLocaleString("en-AE")} (down AED{" "}

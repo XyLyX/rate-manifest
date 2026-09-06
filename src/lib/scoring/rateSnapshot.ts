@@ -62,7 +62,7 @@ export function buildRateSnapshot({
     {
       label: "Price",
       status: "confirmed",
-      value: `AED ${Math.round(offer.totalPrice).toLocaleString("en-AE")} total`,
+      value: `${offer.currency} ${Math.round(offer.totalPrice).toLocaleString("en-AE")} total`,
     },
     {
       label: "Cancellation",
@@ -92,7 +92,7 @@ export function buildRateSnapshot({
       label: "Taxes & fees",
       status: offer.taxesConfirmed ? "confirmed" : "unknown",
       value: offer.taxesConfirmed
-        ? `AED ${Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")}/night, included in total`
+        ? `${offer.currency} ${Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")}/night, included in total`
         : "Bundled into the total — not itemized by this source",
     },
   ];

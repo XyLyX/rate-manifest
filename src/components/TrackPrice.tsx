@@ -7,13 +7,22 @@ interface TrackPriceProps {
   checkIn: string;
   checkOut: string;
   baselineTotal: number;
+  // Display-only, matching whatever currency the offer being tracked is
+  // actually priced in (2026-09-06 fix - was hardcoded "AED" before,
+  // matching everything else on this page at the time). Not persisted -
+  // priceTracking rows have no currency column since every tracked price
+  // is only ever compared against later totals from the same currency
+  // source, never displayed back out of the database directly except on
+  // /admin/price-alerts, which still assumes AED (see that page's own
+  // comment).
+  currency: string;
 }
 
 // Offered on the best offer's card for anyone not booking right now — see
 // DECISIONS.md, "Price tracking." Asks for exactly two things: an email,
 // and the customer's own minimum-drop threshold (their call, not a global
 // site setting).
-export function TrackPrice({ hotelId, checkIn, checkOut, baselineTotal }: TrackPriceProps) {
+export function TrackPrice({ hotelId, checkIn, checkOut, baselineTotal, currency }: TrackPriceProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [minDropAed, setMinDropAed] = useState("50");
@@ -53,7 +62,7 @@ export function TrackPrice({ hotelId, checkIn, checkOut, baselineTotal }: TrackP
   if (state === "done") {
     return (
       <p className="track-price-done">
-        Tracking this price — we&apos;ll flag it once it drops by at least AED {minDropAed} from AED{" "}
+        Tracking this price — we&apos;ll flag it once it drops by at least {currency} {minDropAed} from {currency}{" "}
         {Math.round(baselineTotal).toLocaleString("en-AE")}.
       </p>
     );
@@ -81,7 +90,7 @@ export function TrackPrice({ hotelId, checkIn, checkOut, baselineTotal }: TrackP
         />
       </div>
       <div className="field">
-        <label htmlFor="track-min-drop">Notify me if it drops by at least (AED)</label>
+        <label htmlFor="track-min-drop">Notify me if it drops by at least ({currency})</label>
         <input
           id="track-min-drop"
           type="number"

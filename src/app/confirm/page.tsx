@@ -75,6 +75,11 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
     : null;
   const signal = verdict ? getDealSignal(verdict.score) : null;
 
+  // Summed as one total on the assumption both are in the same currency -
+  // true today (the hotel rate is always AED-filtered, and Page 3 always
+  // requests Viator experiences in "AED" too, see complete-your-trip/
+  // page.tsx), but nothing here actually checks that assumption still
+  // holds if either source's currency choice ever changes independently.
   const experiencesTotal = experiences.reduce((sum, e) => sum + (e.price ?? 0), 0);
   const estimatedTotal = selection.totalPrice + experiencesTotal;
 
@@ -110,7 +115,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
         <div className="confirm-summary-block">
           <div className="confirm-summary-label">Selected rate</div>
           <div className="confirm-summary-value">
-            {selection.supplierName} · AED {Math.round(selection.totalPrice).toLocaleString("en-AE")}
+            {selection.supplierName} · {selection.currency} {Math.round(selection.totalPrice).toLocaleString("en-AE")}
           </div>
         </div>
 
@@ -148,7 +153,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
         <div className="confirm-summary-block confirm-total-block">
           <div className="confirm-summary-label">Estimated trip total</div>
           <div className="confirm-summary-value confirm-summary-value-lg">
-            AED {Math.round(estimatedTotal).toLocaleString("en-AE")}
+            {selection.currency} {Math.round(estimatedTotal).toLocaleString("en-AE")}
           </div>
           <p className="your-hotel-meta">
             The hotel rate above is what {selection.supplierName} verified; experience prices are what Viator

@@ -77,7 +77,7 @@ export function BeforeYouBookPanel({
           : "Non-refundable"
         : "Not confirmed by this source — verify before booking",
     },
-    { label: "Total price", value: `AED ${Math.round(offer.totalPrice).toLocaleString("en-AE")}` },
+    { label: "Total price", value: `${offer.currency} ${Math.round(offer.totalPrice).toLocaleString("en-AE")}` },
     { label: "Rate verified", value: age ? `Checked ${age}` : "Checked" },
   ];
 
