@@ -30,20 +30,31 @@ const STAYINGAPI_ORIGIN = "https://api.stayingapi.com";
 // same as any other unrecognized ota string, rather than inventing new
 // Supply Ledger entries for sites this platform hasn't vetted.
 //
-// "google_hotels" (2026-09-06, Navin's explicit call after live evidence -
-// see stayingApiRefresh's diagnostic logging comment): for at least some
-// real hotel/date pairs, StayingAPI's response doesn't break out into
-// individual named OTAs at all - it returns exactly one blended offer
-// attributed to "google_hotels" itself (Google's own aggregate/meta-search
-// price, not a specific bookable site). Dropping it as "unrecognized"
-// left genuinely-available real hotels showing "nothing available" - a
-// worse dishonesty than showing an aggregator's price labeled as what it
-// actually is. Mapped here as its own named source ("Google Hotels"),
-// never conflated with a specific OTA - its outbound link is whatever
-// comparison page StayingAPI/Google Hotels itself returned, and it starts
-// with no reliability history like any other new supplier (see
-// bestDealScore.ts's hasReliabilityData - unaffected by this addition,
-// no special-casing needed).
+// "google_hotels" - added 2026-09-06 earlier the same day, reverted
+// 2026-09-06 later the same day once more evidence came in. It was added
+// after one hotel/date pair returned exactly one blended offer attributed
+// to "google_hotels" itself instead of a per-OTA breakdown, and dropping it
+// as "unrecognized" left a genuinely-available hotel showing "nothing
+// available." Reverted once the pattern across five separate real
+// hotel/date pairs (Address Downtown x3, The Oberoi Dubai, Bahi Ajman
+// Palace) showed every single "google_hotels" single-offer response coming
+// back implausibly low - not a currency issue (currency was honestly
+// "AED" every time, ruling out the mislabeling theory the currency-safety
+// filter above guards against) but the totalPrice itself: Address Downtown
+// showed AED 239/407/497 for three different date windows against a
+// directly-confirmed real range of AED 1,500-2,100 (Google Hotels' own
+// page, Agoda, Booking.com, and the property's own site all agreed, see
+// DECISIONS.md). Every hotel/date pair that instead got a real many-seller
+// breakdown back (e.g. One&Only Royal Mirage's 17 offers, Palace Beach
+// Resort Fujairah's 28) looked entirely sane by contrast - this is
+// specifically a "google_hotels" single-offer fallback problem, not a
+// general StayingAPI data-quality problem. Showing "nothing available" is
+// more honest than showing a real named source's price when the only
+// number StayingAPI could offer was wrong by 5-8x - the same "unknown is
+// never negative, but a wrong number is worse than no number" principle
+// this whole rebuild has been about. Left unmapped again below, same as
+// every other unrecognized aggregator/resale ota string; if StayingAPI's
+// own diagnosis ever changes this, the fix is a one-line re-add here.
 const OTA_TO_SUPPLIER: Record<string, { slug: string; name: string }> = {
   bookingcom: { slug: "booking", name: "Booking.com" },
   booking: { slug: "booking", name: "Booking.com" },
@@ -54,7 +65,6 @@ const OTA_TO_SUPPLIER: Record<string, { slug: string; name: string }> = {
   hotelscom: { slug: "hotelscom", name: "Hotels.com" },
   tripcom: { slug: "tripcom", name: "Trip.com" },
   priceline: { slug: "priceline", name: "Priceline" },
-  googlehotels: { slug: "google_hotels", name: "Google Hotels" },
 };
 
 function normalizeOta(s: string): string {
