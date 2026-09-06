@@ -29,6 +29,21 @@ const STAYINGAPI_ORIGIN = "https://api.stayingapi.com";
 // DECISIONS.md) - those are intentionally left unmapped and get dropped,
 // same as any other unrecognized ota string, rather than inventing new
 // Supply Ledger entries for sites this platform hasn't vetted.
+//
+// "google_hotels" (2026-09-06, Navin's explicit call after live evidence -
+// see stayingApiRefresh's diagnostic logging comment): for at least some
+// real hotel/date pairs, StayingAPI's response doesn't break out into
+// individual named OTAs at all - it returns exactly one blended offer
+// attributed to "google_hotels" itself (Google's own aggregate/meta-search
+// price, not a specific bookable site). Dropping it as "unrecognized"
+// left genuinely-available real hotels showing "nothing available" - a
+// worse dishonesty than showing an aggregator's price labeled as what it
+// actually is. Mapped here as its own named source ("Google Hotels"),
+// never conflated with a specific OTA - its outbound link is whatever
+// comparison page StayingAPI/Google Hotels itself returned, and it starts
+// with no reliability history like any other new supplier (see
+// bestDealScore.ts's hasReliabilityData - unaffected by this addition,
+// no special-casing needed).
 const OTA_TO_SUPPLIER: Record<string, { slug: string; name: string }> = {
   bookingcom: { slug: "booking", name: "Booking.com" },
   booking: { slug: "booking", name: "Booking.com" },
@@ -39,6 +54,7 @@ const OTA_TO_SUPPLIER: Record<string, { slug: string; name: string }> = {
   hotelscom: { slug: "hotelscom", name: "Hotels.com" },
   tripcom: { slug: "tripcom", name: "Trip.com" },
   priceline: { slug: "priceline", name: "Priceline" },
+  googlehotels: { slug: "google_hotels", name: "Google Hotels" },
 };
 
 function normalizeOta(s: string): string {
@@ -77,6 +93,30 @@ function mapOffers(
 
   const offers: SupplierOffer[] = [];
   for (const offer of result.offers) {
+    // 2026-09-06 - the price-compare request explicitly asks for
+    // currency=AED (see submitStayingApiJob below), but nothing ever
+    // verified StayingAPI actually honored that on the response. Caught
+    // live: a "google_hotels" offer came back with totalPrice 407 for a
+    // hotel whose real AED prices (confirmed directly against Google
+    // Hotels' own page, Agoda, Booking.com, and the property's own site,
+    // all for nearby dates) run AED 1,500-2,100 - 407 is not a plausible
+    // AED figure for this property, and the gap is large enough to be a
+    // currency mismatch (e.g. USD) rather than a genuine cheap rate. Every
+    // display on this site hardcodes the "AED" label rather than reading
+    // offer.currency (RateManifestVerdict.tsx, ResultsList.tsx, etc.), so
+    // silently accepting a non-AED total would show a wrong price as if it
+    // were AED - the misrepresentation this whole rebuild has been about
+    // removing, not a new one to introduce. Dropping the offer is the
+    // honest move until this app either confirms StayingAPI always honors
+    // the currency param or the display layer is rebuilt to show a real,
+    // per-offer currency instead of assuming AED everywhere.
+    if (offer.currency && offer.currency.toUpperCase() !== "AED") {
+      console.warn(
+        `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: dropping offer from "${offer.ota}" - currency mismatch (got "${offer.currency}", requested AED), totalPrice=${offer.totalPrice}`
+      );
+      continue;
+    }
+
     const normalizedOta = normalizeOta(offer.ota);
     // StayingAPI labels a hotel's own direct listing with the hotel's own
     // name as the "ota" string (confirmed live: "Sofitel Dubai The Palm"
@@ -191,16 +231,22 @@ function logMappingDiagnostics(
   hotelName: string,
   checkIn: string,
   checkOut: string,
-  rawOffers: Array<{ ota?: string; totalPrice?: number }>,
+  rawOffers: Array<{ ota?: string; totalPrice?: number; currency?: string }>,
   mappedCount: number
 ): void {
+  // currency included from 2026-09-06 - a first live "google_hotels" offer
+  // came back at a total (407) that looked suspiciously low for the
+  // property, raising the question of whether StayingAPI ever ignores the
+  // requested `currency=AED` param. Logging it here means the next
+  // occurrence answers that directly instead of requiring a guess from the
+  // number alone.
   console.log(
     `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: StayingAPI returned ${rawOffers.length} raw offer(s):`,
-    JSON.stringify(rawOffers.map((o) => ({ ota: o.ota, totalPrice: o.totalPrice })))
+    JSON.stringify(rawOffers.map((o) => ({ ota: o.ota, totalPrice: o.totalPrice, currency: o.currency })))
   );
   if (mappedCount < rawOffers.length) {
     console.log(
-      `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: ${rawOffers.length - mappedCount} of those raw offer(s) were dropped by OTA_TO_SUPPLIER (unrecognized seller, not this hotel's own direct listing).`
+      `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: ${rawOffers.length - mappedCount} of those raw offer(s) were dropped (unrecognized seller not in OTA_TO_SUPPLIER, or a currency mismatch - see the warning above if it's the latter).`
     );
   }
 }
