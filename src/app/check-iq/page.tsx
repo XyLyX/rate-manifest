@@ -6,7 +6,6 @@ import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
 import { getTrip } from "@/lib/trip";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
-import { getPriceInsight } from "@/lib/priceInsight";
 import { humanizeRoomType } from "@/lib/roomType";
 import { buildRateSnapshot, buildVerifyBeforeBooking } from "@/lib/scoring/rateSnapshot";
 import ResultsList from "@/components/ResultsList";
@@ -112,9 +111,15 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
 
   const showComparison = liveCheck.kind !== "checking" && liveCheck.kind !== "error" && available.length > 0;
 
-  const priceInsight = showComparison ? await getPriceInsight(result.hotel.id, checkIn, result.cheapestTotal) : null;
+  // 2026-09-07: now computed once inside runSearch() (bestDealScore.ts's
+  // MARKET component needs the same read to score the offers - see
+  // search.ts) and handed back on the result instead of a second
+  // price_history query here. Still only shown to the visitor when
+  // showComparison is true, same gating as before - just no longer a
+  // separate fetch to gate.
+  const priceInsight = result.priceInsight;
   const belowHistoricalAverage =
-    priceInsight?.hasEnoughData === true && priceInsight.percentVsAverage != null && priceInsight.percentVsAverage > 0;
+    priceInsight.hasEnoughData === true && priceInsight.percentVsAverage != null && priceInsight.percentVsAverage > 0;
 
   const verifiedState: VerifiedRateState =
     liveCheck.kind === "ready" ? (available.length > 0 ? "verified" : "no-availability") : "not-checked";
@@ -234,6 +239,7 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
 
           <RateManifestVerdict
             offer={available[0]!}
+            offers={available}
             hotelName={result.hotel.name}
             sourcesChecked={result.sourcesChecked}
             uncertainFields={buildVerifyBeforeBooking(rateSnapshotFields).map((f) => f.label)}

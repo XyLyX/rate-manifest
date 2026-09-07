@@ -1576,6 +1576,76 @@ input:focus {
   color: #b91c1c;
 }
 
+/* 2026-09-07 - Confidence (see confidence.ts) and Evidence, the two
+   remaining pieces of the spec's Score/Confidence/Reasons/Evidence/
+   Limitations Verdict structure. Confidence rides in the eyebrow line
+   next to "RateManifest Verdict" itself since it's a property of the
+   verdict's trustworthiness, not the deal - same three-tier palette as
+   .rate-verdict-action above (good/fair/weak), reusing --signal-* rather
+   than redefining the same three colors a third time. */
+.rate-verdict-confidence {
+  font-weight: 600;
+}
+
+.rate-verdict-confidence-high {
+  color: var(--signal-good);
+}
+
+.rate-verdict-confidence-medium {
+  color: var(--signal-fair);
+}
+
+.rate-verdict-confidence-low {
+  color: var(--signal-wait);
+}
+
+.rate-verdict-confidence-reasons {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Evidence table - deliberately styled like .why-table above (same
+   font-size, same muted-first-column pattern) rather than inventing a
+   third table look on one page. */
+.rate-verdict-evidence {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+
+.rate-verdict-evidence-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+.rate-verdict-evidence-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rate-verdict-evidence-table td {
+  padding: 0.2rem 0;
+  color: var(--text-dim);
+}
+
+.rate-verdict-evidence-table td:first-child {
+  color: var(--text);
+  width: 55%;
+}
+
+.rate-verdict-evidence-top td {
+  color: var(--text);
+  font-weight: 600;
+}
+
 /* 2026-09-05, "Handling Missing Rate Conditions" spec section 5 - the
    uncertainty caveat shown only when the Rate Snapshot below found unknown
    fields for this offer. --warning, not --error: an unconfirmed field is a

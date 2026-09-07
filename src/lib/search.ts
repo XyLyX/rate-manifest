@@ -5,6 +5,7 @@ import { SUPPLIER_ADAPTERS, type SupplierOffer } from "@/lib/suppliers";
 import { scoreOffers, type ScoredOffer } from "@/lib/scoring/bestDealScore";
 import { checkAndTriggerAlerts } from "@/lib/priceTracking";
 import { recordVerdict } from "@/lib/verdict";
+import { getPriceInsight, type PriceInsight } from "@/lib/priceInsight";
 
 export interface DisplayOffer extends ScoredOffer {
   outboundUrl: string;
@@ -52,6 +53,13 @@ export interface SearchResult {
   offers: DisplayOffer[];
   cheapestTotal: number | null;
   averageTotal: number | null;
+  // 2026-09-07: computed once here (bestDealScore.ts's MARKET component
+  // needs it to score, see below) and handed back rather than making
+  // check-iq/page.tsx run the exact same price_history query a second
+  // time right after this returns. Always present (never null) - a hotel
+  // with too little history just comes back with hasEnoughData: false,
+  // same as priceInsight.ts's own emptyInsight().
+  priceInsight: PriceInsight;
 }
 
 function nightsBetween(checkIn: string, checkOut: string): number {
@@ -198,6 +206,17 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
     }
   }
 
+  // MARKET input for scoreOffers() below (see bestDealScore.ts's own
+  // comment) - the same price_history read priceInsight.ts has always
+  // done for the "Is this a good price?" panel, just run once here,
+  // before scoring, instead of a second time later in check-iq/page.tsx.
+  // currentTotal uses the cheapest total price among this search's own
+  // available offers (not yet the scored cheapestTotal below - totalPrice
+  // itself doesn't depend on scoring, so this is safe to compute early).
+  const preliminaryAvailable = scorable.filter((s) => !s.offer.soldOut).map((s) => s.offer.totalPrice);
+  const preliminaryCheapest = preliminaryAvailable.length ? Math.min(...preliminaryAvailable) : null;
+  const priceInsight = await getPriceInsight(hotelId, checkIn, preliminaryCheapest);
+
   const scored = scoreOffers(
     scorable.map((s) => ({
       supplierSlug: s.offer.supplierSlug,
@@ -208,7 +227,13 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       reliabilityScore: s.reliabilityScore,
       bookingOutcomeCount: s.bookingOutcomeCount,
       soldOut: s.offer.soldOut,
-    }))
+    })),
+    {
+      hasEnoughData: priceInsight.hasEnoughData,
+      lowestSeen: priceInsight.lowestSeen,
+      highestSeen: priceInsight.highestSeen,
+      averageSeen: priceInsight.averageSeen,
+    }
   );
 
   // Re-attach the full offer payload (outboundUrl, cancellation detail)
@@ -279,5 +304,6 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
     offers: enriched,
     cheapestTotal,
     averageTotal,
+    priceInsight,
   };
 }

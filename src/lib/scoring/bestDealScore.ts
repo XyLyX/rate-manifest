@@ -46,13 +46,44 @@ export interface ScoredOffer extends ScorableOffer {
   hasReliabilityData: boolean;
 }
 
+// MARKET - the fourth scoring component, added 2026-09-07 per Navin's
+// RATE+VALUE+TERMS+MARKET+TIMING framework (see
+// claude/travel-decision-platform-assessment.md, "RateManifest
+// Intelligence / Verdict"). Answers "is this price good relative to what
+// this exact hotel/date has actually cost recently," using the same
+// price_history data src/lib/priceInsight.ts already reads for the "Is
+// this a good price?" panel - runSearch() now fetches that once per
+// search (see search.ts) and passes the raw range in here so scoring and
+// the panel above it agree on the same numbers, not two independently-
+// computed ones (same discipline as WhyThisDealPanel's own comment on
+// getDealSignal()).
+//
+// hasEnoughData mirrors priceInsight.ts's own MIN_OBSERVATION_DAYS_FOR_PRICE_INSIGHT
+// gate exactly - "unknown is never negative" applies here too: a hotel
+// with too little history contributes a neutral 0.5, never a penalty,
+// same convention as cancellationScore's own unknown case below.
+export interface MarketInsight {
+  hasEnoughData: boolean;
+  lowestSeen: number | null;
+  highestSeen: number | null;
+  averageSeen: number | null;
+}
+
+// Rebalanced 2026-09-07 to make room for MARKET without diluting price
+// below where it still belongs as the dominant factor (a customer's
+// single biggest question is still "how much"). Cancellation and
+// reliability keep their same relative weight to each other; market
+// takes its 5 points from price alone, not from every component evenly -
+// a deliberate call, not a formula, same as the original three weights
+// below (see their own history: this file's git log; not a tuned model).
 const WEIGHTS = {
-  price: 0.6,
-  cancellation: 0.25,
+  price: 0.45,
+  cancellation: 0.2,
   reliability: 0.15,
+  market: 0.2,
 };
 
-export function scoreOffers(offers: ScorableOffer[]): ScoredOffer[] {
+export function scoreOffers(offers: ScorableOffer[], market: MarketInsight | null = null): ScoredOffer[] {
   const available = offers.filter((o) => !o.soldOut);
   if (available.length === 0) {
     return offers.map((o) => ({
@@ -108,9 +139,40 @@ export function scoreOffers(offers: ScorableOffer[]): ScoredOffer[] {
       reasons.push({ text: "New partner — reliability data building", tone: "neutral" });
     }
 
+    // Market component: where this offer's price sits against the
+    // lowest/highest this hotel has actually shown for this exact
+    // check-in date recently (see priceInsight.ts) - 1.0 at or below the
+    // lowest ever seen, 0.0 at or above the highest ever seen. Neutral
+    // 0.5 (not a penalty) when there isn't enough history yet, same
+    // "unknown is never negative" rule as cancellationScore above - a
+    // brand-new hotel/date pair must never score worse for having no
+    // track record of its own prices yet.
+    const hasMarketData =
+      market?.hasEnoughData === true && market.lowestSeen != null && market.highestSeen != null;
+    let marketScore = 0.5;
+    if (hasMarketData) {
+      const lowestSeen = market!.lowestSeen as number;
+      const highestSeen = market!.highestSeen as number;
+      const averageSeen = market!.averageSeen as number;
+      marketScore =
+        highestSeen > lowestSeen
+          ? Math.min(1, Math.max(0, (highestSeen - o.totalPrice) / (highestSeen - lowestSeen)))
+          : o.totalPrice <= averageSeen
+            ? 1
+            : 0;
+      if (o.totalPrice < averageSeen) {
+        reasons.push({ text: "Below this hotel's recent observed average price", tone: "positive" });
+      }
+    } else {
+      reasons.push({ text: "Not enough price history yet to compare against this hotel's own trend", tone: "neutral" });
+    }
+
     const score =
       100 *
-      (WEIGHTS.price * priceScore + WEIGHTS.cancellation * cancellationScore + WEIGHTS.reliability * reliabilityScore);
+      (WEIGHTS.price * priceScore +
+        WEIGHTS.cancellation * cancellationScore +
+        WEIGHTS.reliability * reliabilityScore +
+        WEIGHTS.market * marketScore);
 
     return { ...o, score: Math.round(score * 10) / 10, reasons, hasReliabilityData };
   });
