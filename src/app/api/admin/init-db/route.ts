@@ -39,6 +39,27 @@ CREATE TABLE IF NOT EXISTS hotels (
 -- until hotels are explicitly curated into the set.
 ALTER TABLE hotels ADD COLUMN IF NOT EXISTS featured_in_iq boolean NOT NULL DEFAULT false;
 
+-- 2026-09-11 - curates the initial Exceptional Stays / Rate Manifest IQ
+-- launch set (claude/rate-manifest-technical-blueprint.md, "Final property
+-- set... locked 2026-09-11"): the 5 real Dubai hotels that already existed
+-- before this feature, each already vetted the same way the whole real
+-- catalog was. The other 7 named in that doc (One&Only The Palm, Atlantis
+-- The Royal, etc.) are deliberately NOT flagged here - Navin's own
+-- instruction was that they're "a product recommendation, not yet a claim
+-- ... to be technically seeded without checking their actual availability/
+-- data path," so they get added only after being seeded as real hotel rows
+-- and individually verified against real StayingAPI data, same bar as
+-- these five. A plain UPDATE, not an INSERT - idempotent by construction,
+-- safe to re-run like every other statement in this file.
+UPDATE hotels SET featured_in_iq = true
+WHERE id IN (
+  'sofitel-dubai-the-palm',
+  'address-downtown',
+  'oberoi-dubai',
+  'rixos-premium-jbr',
+  'one-and-only-royal-mirage'
+);
+
 CREATE TABLE IF NOT EXISTS rooms (
   id text PRIMARY KEY,
   hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
@@ -328,6 +349,38 @@ VALUES
   ('room-dusit-ajman-resort-villas', 'dusit-ajman-resort-villas', 'double_standard', 2, '1 king bed'),
   ('room-ajman-saray-luxury-collection', 'ajman-saray-luxury-collection', 'double_standard', 2, '1 king bed'),
   ('room-oberoi-beach-resort-al-zorah', 'oberoi-beach-resort-al-zorah', 'double_standard', 2, '1 king bed')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2026-09-11 - the 7 Exceptional Stays additions (claude/rate-manifest-
+-- technical-blueprint.md, "Final property set... locked 2026-09-11").
+-- Deliberately NOT flagged featured_in_iq here - Navin's own caveat was
+-- that these 7 are "a product recommendation, not a seeding instruction":
+-- each needs to actually resolve through StayingAPI (real property,
+-- plausible price response) before being presented as IQ-ready, same bar
+-- the original 5 were held to. That verification happens next, via a real
+-- live check per hotel; only after it succeeds does a separate UPDATE (not
+-- yet written) flag these true, the same way the existing 5 were flagged
+-- above.
+INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
+VALUES
+  ('one-and-only-the-palm', 'One&Only The Palm', 'Palm Jumeirah (West Crescent)', 'Dubai', 5, false, NULL),
+  ('atlantis-the-royal', 'Atlantis The Royal', 'Palm Jumeirah', 'Dubai', 5, false, NULL),
+  ('mandarin-oriental-jumeira-dubai', 'Mandarin Oriental Jumeira, Dubai', 'Jumeirah Beach Road', 'Dubai', 5, false, NULL),
+  ('bulgari-resort-dubai', 'Bulgari Resort Dubai', 'Jumeira Bay Island', 'Dubai', 5, false, NULL),
+  ('four-seasons-resort-dubai-jumeirah-beach', 'Four Seasons Resort Dubai at Jumeirah Beach', 'Jumeirah Beach Road', 'Dubai', 5, false, NULL),
+  ('armani-hotel-dubai', 'Armani Hotel Dubai', 'Downtown Dubai (Burj Khalifa)', 'Dubai', 5, false, NULL),
+  ('jumeirah-al-naseem', 'Jumeirah Al Naseem', 'Madinat Jumeirah, Umm Suqeim', 'Dubai', 5, false, NULL)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
+VALUES
+  ('room-one-and-only-the-palm', 'one-and-only-the-palm', 'double_standard', 2, '1 king bed'),
+  ('room-atlantis-the-royal', 'atlantis-the-royal', 'double_standard', 2, '1 king bed'),
+  ('room-mandarin-oriental-jumeira-dubai', 'mandarin-oriental-jumeira-dubai', 'double_standard', 2, '1 king bed'),
+  ('room-bulgari-resort-dubai', 'bulgari-resort-dubai', 'double_standard', 2, '1 king bed'),
+  ('room-four-seasons-resort-dubai-jumeirah-beach', 'four-seasons-resort-dubai-jumeirah-beach', 'double_standard', 2, '1 king bed'),
+  ('room-armani-hotel-dubai', 'armani-hotel-dubai', 'double_standard', 2, '1 king bed'),
+  ('room-jumeirah-al-naseem', 'jumeirah-al-naseem', 'double_standard', 2, '1 king bed')
 ON CONFLICT (id) DO NOTHING;
 
 -- Ibis Deira City Centre (3-star) was seeded by an earlier version of this
