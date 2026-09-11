@@ -27,6 +27,18 @@ export interface VerdictEvidenceOffer {
   totalPrice: number;
   soldOut: boolean;
   isFreeCancellation: boolean;
+  // 2026-09-11 (claude/rate-manifest-technical-blueprint.md, Section 12,
+  // "Gap 2" - Navin's own instruction not to defer this): without this,
+  // isFreeCancellation alone is ambiguous once it's sitting in the audit
+  // trail - a stored `false` could mean "source confirmed non-refundable"
+  // or "source never told us," and nothing here could tell them apart.
+  // Same distinction ScorableOffer.cancellationKnown already carries live
+  // (see bestDealScore.ts) - this just stops it from being silently
+  // dropped the moment a verdict is persisted. A row written before this
+  // field existed simply won't have it; read it as unknown, never as
+  // false - see recordVerdict()'s own comment below and the public IQ
+  // page's rendering rule (blueprint Section 12).
+  cancellationKnown: boolean;
   score: number;
 }
 
@@ -63,6 +75,9 @@ export async function recordVerdict(input: RecordVerdictInput): Promise<string |
       totalPrice: o.totalPrice,
       soldOut: o.soldOut,
       isFreeCancellation: o.isFreeCancellation,
+      // Already computed on every ScorableOffer (see bestDealScore.ts) -
+      // this was simply never carried into the persisted snapshot before.
+      cancellationKnown: o.cancellationKnown,
       score: o.score,
     }));
 

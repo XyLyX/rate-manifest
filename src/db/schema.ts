@@ -38,6 +38,17 @@ export const hotels = pgTable("hotels", {
   isMockData: boolean("is_mock_data").notNull().default(true),
   // used only by the mock supplier adapter as a price anchor; null once isMockData is false
   mockBasePrice: real("mock_base_price"),
+  // 2026-09-11 (claude/rate-manifest-technical-blueprint.md, Section 12,
+  // Navin's own developer brief): marks a hotel as part of the curated
+  // public "Exceptional Stays" / Rate Manifest IQ launch set
+  // (/hotel/[hotelId], /exceptional-stays). Deliberately just a flag, not
+  // "has intelligence" - per the brief's own "Critical distinction," a
+  // featured hotel with no stored verdict yet must still render "Rate
+  // Manifest has not analysed this property yet," never a manufactured
+  // score. Default false: every existing hotel row stays un-featured until
+  // explicitly curated, so this migration changes nothing about what's
+  // currently live.
+  featuredInIq: boolean("featured_in_iq").notNull().default(false),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
 });
 

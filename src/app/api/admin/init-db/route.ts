@@ -29,6 +29,16 @@ CREATE TABLE IF NOT EXISTS hotels (
   created_at timestamp NOT NULL DEFAULT now()
 );
 
+-- 2026-09-11 - featured_in_iq added after hotels already existed in
+-- production, so CREATE TABLE IF NOT EXISTS above won't add it to an
+-- already-created table. ADD COLUMN IF NOT EXISTS is idempotent the same
+-- way every other statement in this file is (see the module comment) -
+-- marks a hotel as part of the curated public Exceptional Stays / Rate
+-- Manifest IQ set (claude/rate-manifest-technical-blueprint.md, Section
+-- 12). Defaults false, so this changes nothing about any existing row
+-- until hotels are explicitly curated into the set.
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS featured_in_iq boolean NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS rooms (
   id text PRIMARY KEY,
   hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,

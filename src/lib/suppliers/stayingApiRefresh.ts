@@ -81,6 +81,15 @@ interface StayingApiOffer {
   totalPrice: number;
   currency: string;
   url: string;
+  // Deliberately not exhaustive - this interface only names the fields
+  // this app actually reads. StayingAPI's raw response may carry other
+  // fields (meal/breakfast inclusion, rate plan, payment terms) that
+  // simply aren't typed or mapped here yet - see the 2026-09-11 diagnostic
+  // widening in logMappingDiagnostics() below, added specifically to
+  // answer that question from real production data rather than guessing
+  // from this interface's own narrowness (blueprint Section 12, "Meal
+  // inclusion needs one more technical check" - Navin's own instruction
+  // not to conclude "unavailable" without checking the raw payload first).
 }
 
 interface StayingApiResult {
@@ -237,23 +246,29 @@ export async function submitStayingApiJob(
 // shows up in Netlify's function logs on the very next live check, real or
 // test - no extra credit spend needed to see it. Safe to leave in
 // permanently: one or two short lines per live check, not per request.
-function logMappingDiagnostics(
-  hotelName: string,
-  checkIn: string,
-  checkOut: string,
-  rawOffers: Array<{ ota?: string; totalPrice?: number; currency?: string }>,
-  mappedCount: number
-): void {
-  // currency included from 2026-09-06 - a first live "google_hotels" offer
-  // came back at a total (407) that looked suspiciously low for the
-  // property, raising the question of whether StayingAPI ever ignores the
-  // requested `currency=AED` param. Logging it here means the next
-  // occurrence answers that directly instead of requiring a guess from the
-  // number alone.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function logMappingDiagnostics(hotelName: string, checkIn: string, checkOut: string, rawOffers: any[], mappedCount: number): void {
+  // Widened 2026-09-11 (blueprint Section 12, "Meal inclusion needs one
+  // more technical check") from a narrow {ota,totalPrice,currency}
+  // projection to the FULL raw offer object, per-offer. Before this
+  // change, nothing in this codebase had ever captured or logged
+  // StayingAPI's complete raw offer shape - StayingApiOffer (above) only
+  // ever typed four fields, so whether the API's real response carries
+  // meal/breakfast, rate-plan, or payment-condition data (present but
+  // discarded) versus never returning it at all (genuinely absent) could
+  // not be answered from this codebase alone. This logs the whole object
+  // on every real, already-happening live check (no extra credit spent to
+  // see it) - the answer shows up in Netlify's function logs the next time
+  // any real hotel gets checked, same "safe to leave in permanently"
+  // reasoning as the rest of this function already had. One offer per
+  // console.log call (not one big JSON blob) so a single malformed/huge
+  // offer can't crowd out the others in a truncated log line.
   console.log(
-    `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: StayingAPI returned ${rawOffers.length} raw offer(s):`,
-    JSON.stringify(rawOffers.map((o) => ({ ota: o.ota, totalPrice: o.totalPrice, currency: o.currency })))
+    `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: StayingAPI returned ${rawOffers.length} raw offer(s) - full shape follows for schema inspection:`
   );
+  for (const [i, o] of rawOffers.entries()) {
+    console.log(`[stayingApiRefresh]   raw offer[${i}]:`, JSON.stringify(o));
+  }
   if (mappedCount < rawOffers.length) {
     console.log(
       `[stayingApiRefresh] ${hotelName} ${checkIn}->${checkOut}: ${rawOffers.length - mappedCount} of those raw offer(s) were dropped (unrecognized seller not in OTA_TO_SUPPLIER, or a currency mismatch - see the warning above if it's the latter).`
