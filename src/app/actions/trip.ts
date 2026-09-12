@@ -66,7 +66,10 @@ export async function createTrip(formData: FormData) {
 }
 
 /**
- * Page 2 (Check IQ)'s "Select this deal" primary action - the moment a
+ * Check IQ's "Select this deal" primary action (labeled "Page 2" below and
+ * in most comments in this project predating 2026-09-12 - now Page 3 under
+ * the frozen Discover -> Compare -> Verify numbering; see check-iq/page.tsx's
+ * own updated header comment) - the moment a
  * browsing session becomes an actual choice. Persists exactly what was on
  * screen (hotel, the Verdict that was showing, the chosen supplier/price,
  * and a snapshot of the deep link) rather than something re-derivable

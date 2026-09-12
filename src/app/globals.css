@@ -2749,3 +2749,201 @@ input:focus {
 .confirm-experience-link {
   font-size: 0.85rem;
 }
+
+/* ==========================================================================
+   Discover -> Compare -> Verify redesign (2026-09-12) - claude/discovery-
+   property-graph-architecture.md, "FROZEN 2026-09-12." Page 1's hotel grid
+   became a selection UI (HotelSelectionGrid); a new Page 2 (Compare &
+   Choose, /compare) sits between it and Check IQ (now Page 3). Shared
+   primitives (.btn, .btn-ghost, .hero, .hero-eyebrow, .hotel-card,
+   .hotel-grid, .home-hotel-card*, .footnote, .empty-state) are reused as-is
+   from the rules above rather than redefined.
+   ========================================================================== */
+
+/* --- Page 1 (Discover): HotelSelectionGrid --- */
+
+/* .hotel-card is normally an <a> (see the base rule above); this grid
+   renders each card as a <button> instead (selection, not navigation) -
+   reset the button-specific defaults browsers add so it still looks like
+   every other .hotel-card. */
+.hotel-selection .hotel-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.hotel-card-selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.hotel-card-selected-badge {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: var(--primary);
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  z-index: 1;
+}
+
+.hotel-card-toggle {
+  cursor: pointer;
+}
+
+.hotel-card-toggle.active {
+  background: var(--primary);
+}
+
+.compare-action-bar {
+  margin-top: 1.3rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.compare-action-count {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  flex: 1 1 auto;
+}
+
+.compare-action-limit {
+  font-size: 0.8rem;
+  color: var(--warning);
+  flex-basis: 100%;
+}
+
+.compare-action-cta-disabled {
+  background: var(--border);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Page 2 (Compare & Choose) --- */
+
+/* Wider than .shell (960px) on purpose - five comparison columns need more
+   room than the single-column pages .shell was sized for. Same visual
+   language (card surface, lime top border), just a bigger stage. */
+.compare-shell {
+  max-width: 1240px;
+  margin: 2.5rem auto 3rem;
+  padding: 2.25rem 2rem 3rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--lime);
+  border-radius: 20px;
+}
+
+.compare-hero {
+  padding: 1rem 0 1.5rem;
+}
+
+.compare-scroll {
+  /* The frozen Section 3 layout rule: side-by-side on desktop, horizontal
+     scrolling on smaller screens. One grid handles both - at full width all
+     columns fit without scrolling; below that, this container (not the
+     page) scrolls, so the hero/footnote above and below never do. */
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.compare-grid {
+  display: grid;
+  gap: 1rem;
+  min-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .compare-grid {
+    /* Below the point where five 200px columns can fit, switch to a fixed
+       card width instead of shrinking columns further - "cards," per the
+       frozen wording, not five illegibly-narrow slivers. */
+    grid-template-columns: none !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 260px);
+  }
+}
+
+.compare-column {
+  position: relative;
+  background: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-column-image {
+  height: 5.5rem;
+  border-radius: 8px;
+  margin: -1rem -1.1rem 0.9rem;
+  background: linear-gradient(135deg, var(--primary) 0%, #8b85ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare-column-image span {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.compare-field {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.compare-field:first-of-type {
+  border-top: none;
+}
+
+.compare-field-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.compare-field-value {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.compare-field-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.compare-field-unavailable {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 0.82rem;
+}
+
+.compare-field-source {
+  margin-bottom: 0.4rem;
+}
+
+.compare-cta {
+  margin-top: auto;
+  padding-top: 0.9rem;
+  text-align: center;
+}

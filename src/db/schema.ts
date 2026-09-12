@@ -49,6 +49,17 @@ export const hotels = pgTable("hotels", {
   // explicitly curated, so this migration changes nothing about what's
   // currently live.
   featuredInIq: boolean("featured_in_iq").notNull().default(false),
+  // 2026-09-12 (claude/discovery-property-graph-architecture.md, "FROZEN
+  // 2026-09-12," Section 5): the RateManifest Property Graph's state field
+  // - PropertyState in src/lib/constants.ts ("draft" | "verified" |
+  // "curated"). Defaults "curated" because every row in this table today
+  // was hand-picked the same way the original catalog and the Exceptional
+  // Stays set were - see that constant's own comment for why a future
+  // automated discovery adapter must set this explicitly rather than rely
+  // on the default. Not a traveller-facing badge - Page 2 (Compare &
+  // Choose) must not present a "curated" property as better than a
+  // "draft" one just because RateManifest already knew about it.
+  state: text("state").notNull().default("curated"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
 });
 

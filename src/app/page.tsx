@@ -1,10 +1,11 @@
-import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
+import { activeDiscoverySource } from "@/lib/discovery";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
+import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { HeroArt } from "@/components/HeroArt";
 import { IconBolt, IconShieldCheck, IconStar, IconScales, IconLink } from "@/components/TrustIcons";
 
@@ -33,18 +34,28 @@ function defaultCheckOut(): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Page 1 of the four-page customer journey - Discover, see
+// Page 1 of the customer journey - Discover, see
 // claude/travel-decision-platform-assessment.md, "RateManifest — Final
 // Customer Journey": destination + dates + guests/rooms + trip intent up
-// top (DiscoverForm), a real shortlist of hotels below it, each with its
-// own "Check IQ →" tab that carries the visitor (and, once the form below
-// has been submitted, a trip id) on to Page 2. Replaces the 2026-09-05
-// "Sprint 3" reposition (Klook consolidated into one section further down
-// the same single page) - that was a mis-scoped reading of "reposition,
-// not remove" from the old roadmap doc; the actual requirement was this
-// real multi-page journey, not a homepage reshuffle. See
+// top (DiscoverForm), a real shortlist of hotels below it. Replaces the
+// 2026-09-05 "Sprint 3" reposition (Klook consolidated into one section
+// further down the same single page) - that was a mis-scoped reading of
+// "reposition, not remove" from the old roadmap doc; the actual requirement
+// was this real multi-page journey, not a homepage reshuffle. See
 // claude/travel-decision-platform-assessment.md's "four-page spec" section
 // for the correction record.
+//
+// RENUMBERED 2026-09-12 (claude/discovery-property-graph-architecture.md,
+// "FROZEN 2026-09-12"): each card used to link straight to Check IQ
+// (formerly "Page 2" of the four-page journey). That direct jump is gone -
+// the shortlist below is now a selection grid (HotelSelectionGrid), up to
+// 5 hotels, feeding the new /compare page. Check IQ is downstream of that
+// new page and is now "Page 3" under the frozen numbering; see that
+// document for the full Discover -> Compare -> Verify journey and why the
+// numbering changed. The hotel list itself is now sourced through
+// src/lib/discovery's DiscoverySource abstraction (today: the curated
+// catalog) rather than a direct `hotels` query, so a future real discovery
+// vendor (Track B) is a one-line swap, not a rewrite of this page.
 //
 // Homepage visual language (hero art, trust strip, no fabricated
 // review/trust data, no competitor logos) is carried over unchanged from
@@ -81,18 +92,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
 
-  // Zero contact with StayingAPI or its cache either way (plain catalog
-  // read, no browseCity()/supplier adapters - see check-iq/page.tsx's
-  // ensureLiveCheckTriggered(), the only place a live, credit-spending
-  // check ever happens) - but now also computed at all only when a trip
-  // exists, so there's nothing to render before a real search happened.
-  const topHotels = trip
-    ? hotels
-        .filter((h) => h.city === selectedCity)
-        .sort((a, b) => b.starRating - a.starRating || a.name.localeCompare(b.name))
-        .slice(0, 4)
-    : [];
-  const tripQuery = trip ? `&trip=${trip.id}` : "";
+  // Zero contact with StayingAPI or its cache either way - the active
+  // DiscoverySource (today: curatedCatalogSource, a plain catalog read, no
+  // supplier adapters - see check-iq/page.tsx's ensureLiveCheckTriggered(),
+  // the only place a live, credit-spending check ever happens) - but still
+  // computed at all only when a trip exists, so there's nothing to render
+  // before a real search happened. No `limit` passed - the frozen Section 2
+  // decision is broad exploration on Page 1, capped only by the 5-hotel
+  // *selection* limit HotelSelectionGrid enforces, not by how many cards
+  // are shown (the pre-2026-09-12 slice(0, 4) cap is gone with it).
+  const topHotels = trip ? await activeDiscoverySource.search({ destination: selectedCity, checkIn, checkOut }) : [];
 
   return (
     <div className="home-page">
@@ -198,31 +207,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {topHotels.length === 0 ? (
               <p className="empty-state">No properties in this catalog yet.</p>
             ) : (
-              <div className="hotel-grid home-hotel-grid">
-                {topHotels.map((hotel) => (
-                  <Link
-                    key={hotel.id}
-                    href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`}
-                    className="hotel-card home-hotel-card"
-                  >
-                    <div className="home-hotel-card-image" aria-hidden="true">
-                      <span>{hotel.name.charAt(0)}</span>
-                    </div>
-                    {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}
-                    <div className="hotel-card-name">{hotel.name}</div>
-                    <div className="hotel-card-meta">
-                      {hotel.area} · {hotel.starRating}-star
-                    </div>
-                    {/* Deliberately no price, "% below average," free-cancellation
-                        badge, or checked/not-checked note here - all of that is
-                        derived from the StayingAPI cache, and per the 2026-09-05
-                        correction above, Page 1 doesn't touch that cache at all.
-                        Check IQ (Page 2) is where a visitor first sees any rate
-                        data for a property. */}
-                    <span className="btn btn-block home-hotel-card-cta">Check IQ →</span>
-                  </Link>
-                ))}
-              </div>
+              // Deliberately no price, "% below average," free-cancellation badge,
+              // or checked/not-checked note anywhere in this grid - all of that is
+              // derived from the StayingAPI cache, and Page 1 doesn't touch that
+              // cache at all (the frozen "never render price on Page 1" rule).
+              // Check IQ (now Page 3) is still where a visitor first sees any rate
+              // data - reached only after Page 2 (Compare & Choose) below.
+              <HotelSelectionGrid hotels={topHotels} checkIn={checkIn} checkOut={checkOut} tripId={trip.id} />
             )}
           </section>
         )}

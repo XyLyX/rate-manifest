@@ -29,6 +29,26 @@ export type EventType = (typeof EVENT_TYPES)[number];
 export const PRICE_TRACKING_STATUSES = ["active", "triggered", "sent", "cancelled"] as const;
 export type PriceTrackingStatus = (typeof PRICE_TRACKING_STATUSES)[number];
 
+// RateManifest Property Graph state - see claude/discovery-property-graph-
+// architecture.md ("FROZEN 2026-09-12"), Section 5. Every canonical
+// property (today: every row in `hotels`) carries one of these three
+// values, entirely separate from any traveller-facing badge:
+//   - "draft"     - a lightweight identity record created automatically by
+//                    a discovery search, not yet reviewed or enriched.
+//   - "verified"  - identity/data has been confirmed with reasonable
+//                    confidence (automated match or a light human check).
+//   - "curated"   - manually selected and vetted by Navin, same bar the
+//                    existing hand-picked catalog has always used.
+// Per the frozen decision, Page 2 must NOT badge "curated" as better than
+// "draft"/"verified" in the comparison UI - the state is a data-model fact
+// for RateManifest's own inventory-quality tracking, not a traveller-facing
+// claim. Every hotel in this table today was hand-picked, so the column
+// defaults to "curated" (src/db/schema.ts) - a future real discovery
+// adapter (Track B) is expected to insert "draft" explicitly, never rely on
+// this default.
+export const PROPERTY_STATES = ["draft", "verified", "curated"] as const;
+export type PropertyState = (typeof PROPERTY_STATES)[number];
+
 // Trip intent, collected on Page 1 (Discover) of the four-page journey -
 // see claude/travel-decision-platform-assessment.md. Optional and
 // skippable there ("Skip" maps to UNSPECIFIED) - this is what Page 3

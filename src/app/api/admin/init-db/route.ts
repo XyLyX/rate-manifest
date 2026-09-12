@@ -39,6 +39,18 @@ CREATE TABLE IF NOT EXISTS hotels (
 -- until hotels are explicitly curated into the set.
 ALTER TABLE hotels ADD COLUMN IF NOT EXISTS featured_in_iq boolean NOT NULL DEFAULT false;
 
+-- 2026-09-12 - the RateManifest Property Graph's state field (claude/
+-- discovery-property-graph-architecture.md, "FROZEN 2026-09-12," Section 5;
+-- src/lib/constants.ts's PropertyState). DEFAULT 'curated' backfills every
+-- existing row correctly in the same ADD COLUMN statement, with no separate
+-- UPDATE needed - every hotel in this table as of this migration was
+-- hand-picked by Navin, same bar the rest of the catalog already meets. A
+-- future discovery adapter (Track B) must set this explicitly on insert
+-- ('draft' for an unreviewed discovery result) rather than rely on this
+-- default, which exists only to make this migration correct for the rows
+-- already here.
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'curated';
+
 -- 2026-09-11 - curates the initial Exceptional Stays / Rate Manifest IQ
 -- launch set (claude/rate-manifest-technical-blueprint.md, "Final property
 -- set... locked 2026-09-11"): the 5 real Dubai hotels that already existed
@@ -59,6 +71,17 @@ WHERE id IN (
   'rixos-premium-jbr',
   'one-and-only-royal-mirage'
 );
+
+-- 2026-09-11 - the first of the 7 candidates above to actually clear
+-- Navin's verification bar: a real live Check IQ (2026-09-25/26, one
+-- night) returned a genuine 3-source comparison (AED 4,533-4,565, "BOOK
+-- NOW", medium confidence) - not a "checked, nothing available" empty
+-- result. The other 6 came back "nothing available" for that same date on
+-- this same pass; see claude/rate-manifest-technical-blueprint.md's
+-- execution log for why that's being treated as inconclusive rather than
+-- disqualifying, and left unflagged pending Navin's call rather than
+-- retried unilaterally (each retry spends more real StayingAPI credit).
+UPDATE hotels SET featured_in_iq = true WHERE id = 'atlantis-the-royal';
 
 CREATE TABLE IF NOT EXISTS rooms (
   id text PRIMARY KEY,

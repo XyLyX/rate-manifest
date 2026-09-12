@@ -24,10 +24,23 @@ interface CheckIqPageProps {
   searchParams: Promise<{ hotel?: string; checkin?: string; checkout?: string; trip?: string }>;
 }
 
-// Page 2 of the four-page customer journey - Check IQ, "the heart of
-// RateManifest" per claude/travel-decision-platform-assessment.md's "THE
-// MOST IMPORTANT UX HIERARCHY": "Everything before it gets the customer
-// there. Everything after it builds on the decision already made." Merges
+// Check IQ, "the heart of RateManifest" per claude/travel-decision-
+// platform-assessment.md's "THE MOST IMPORTANT UX HIERARCHY": "Everything
+// before it gets the customer there. Everything after it builds on the
+// decision already made."
+//
+// RENUMBERED 2026-09-12 (claude/discovery-property-graph-architecture.md,
+// "FROZEN 2026-09-12"): this file and every comment/status entry predating
+// that freeze calls this page "Page 2" of a four-page Discover -> Check IQ
+// -> Complete Your Trip -> Confirm journey. Under the frozen numbering this
+// is now Page 3 (Live Rate Verification & IQ) - a new Page 2 (Compare &
+// Choose, src/app/compare/page.tsx) was inserted between Discover and this
+// page. Nothing about this page's own behavior changed (the frozen doc's
+// own words: "unchanged - matches the existing live behaviour"); only what
+// number precedes it and what now links into it (Page 1's shortlist used to
+// link straight here - it now goes through /compare first). Left as "Page
+// 2" in older comments/DECISIONS.md/status.md entries rather than rewritten
+// - those are dated historical record, not live documentation. Merges
 // what used to be two separate pages/steps:
 //
 //   - /hotel's free "Analyse This Hotel" preview gate (a deliberate pause
