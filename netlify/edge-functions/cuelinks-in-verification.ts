@@ -1,12 +1,15 @@
 import { HTMLRewriter } from "https://ghuc.cc/worker-tools/html-rewriter/index.ts";
 
-// Cuelinks site-verification <meta> tag - ratemanifest.in ONLY.
+// Cuelinks site-verification <meta> tag.
 //
-// ratemanifest.com and ratemanifest.in are the same Next.js deployment
-// (same Netlify site, ratemanifest.in added as a domain alias 2026-09-12 -
+// File named for its original scope (ratemanifest.in only, added
+// 2026-09-12) - kept as-is rather than renamed for this follow-up change.
+// UPDATE 2026-09-12: Navin's Cuelinks application was actually submitted
+// under ratemanifest.com, so the tag needs to render on BOTH domains now -
+// ratemanifest.com and ratemanifest.in (each with and without "www"), all
+// four served by this same Netlify site/deployment. No longer ".in only" -
 // see claude/status.md, "ratemanifest.in - second domain, Cuelinks
-// verification tag"). Cuelinks needs this tag in <head> for .in only; it
-// must never appear on .com.
+// verification tag" for the full history.
 //
 // This runs at the edge, before Next.js, instead of a Host-based check in
 // src/app/layout.tsx. Reading the Host header there (via next/headers)
@@ -14,8 +17,16 @@ import { HTMLRewriter } from "https://ghuc.cc/worker-tools/html-rewriter/index.t
 // /exceptional-stays's deliberate build-time static prerendering (see that
 // page's own header comment: "Public, crawlable, static-ish") as a side
 // effect of an unrelated verification tag. An edge function is a complete
-// no-op for every other host - Next.js's rendering is untouched either way.
-const CUELINKS_HOSTS = new Set(["ratemanifest.in", "www.ratemanifest.in"]);
+// no-op for every other host - Next.js's rendering is untouched either way
+// (there is no other host left to worry about today, but this still keeps
+// the tag from silently attaching itself to some future third domain on
+// this same deployment).
+const CUELINKS_HOSTS = new Set([
+  "ratemanifest.com",
+  "www.ratemanifest.com",
+  "ratemanifest.in",
+  "www.ratemanifest.in",
+]);
 const CUELINKS_META_TAG =
   '<meta name="cuelinks-verification" content="VERIFY-CL-OXLX8IJT" />';
 
