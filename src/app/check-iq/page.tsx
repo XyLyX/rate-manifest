@@ -8,6 +8,8 @@ import { getTrip } from "@/lib/trip";
 import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
 import { humanizeRoomType } from "@/lib/roomType";
 import { buildRateSnapshot, buildVerifyBeforeBooking } from "@/lib/scoring/rateSnapshot";
+import { getVerdictConfidence } from "@/lib/scoring/confidence";
+import { updateVerdictSnapshot } from "@/lib/verdict";
 import ResultsList from "@/components/ResultsList";
 import { LiveCheckStatus } from "@/components/LiveCheckStatus";
 import { YourHotelSummary } from "@/components/YourHotelSummary";
@@ -65,6 +67,10 @@ interface CheckIqPageProps {
 // reached only after a hotel/rate is actually selected below). Showing it
 // here, before a decision is made, worked against the guided step-by-step
 // design the final spec calls for.
+//
+// UX correction (2026-09-13): passes retryUrl to VerifiedRatePanel so the
+// "not-checked" state renders a direct "Try again →" link instead of
+// defensive copy about the check not being the property's fault.
 export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   const params = await searchParams;
   const hotelId = params.hotel;
@@ -84,6 +90,18 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
 
   const trip = tripId ? await getTrip(tripId) : null;
 
+  // Occupancy resolved here (2026-09-13) — authoritative source is the trip
+  // record when one exists. Without a trip (visitor reached Check IQ directly
+  // via a hand-crafted URL, or the trip lookup failed) the application's own
+  // defaults are used: adults=2 (matches trips.adults default and rooms
+  // .occupancy default), children=0 (matches trips.children default). These
+  // same values are used as the cache key, so the write path
+  // (ensureLiveCheckTriggered) and the read path (runSearch → adapter)
+  // always agree. childAges[] is not sent — Rate Manifest does not currently
+  // collect individual child ages (diagnostic 2026-09-13).
+  const adults = trip?.adults ?? 2;
+  const children = trip?.children ?? 0;
+
   const sessionId = await getSessionId();
   await logEvent({ type: "search", sessionId, hotelId, metadata: { checkIn, checkOut, tripId: tripId || null } });
 
@@ -94,9 +112,9 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   // runSearch() (a StayingAPI cache row landed here resolves immediately,
   // no extra round trip). Mock hotels and already-checked dates fall
   // straight through untouched.
-  const liveCheck = await ensureLiveCheckTriggered(hotelId, checkIn, checkOut);
+  const liveCheck = await ensureLiveCheckTriggered(hotelId, checkIn, checkOut, adults, children);
 
-  const result = await runSearch(hotelId, checkIn, checkOut);
+  const result = await runSearch(hotelId, checkIn, checkOut, adults, children);
 
   if (!result) {
     return (
@@ -161,6 +179,22 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
       })
     : [];
 
+  // 2026-09-13: overwrite the proxy-based confidence stored by
+  // recordVerdict() (which uses cancellationKnown ? 0 : 1 as its
+  // uncertainty proxy) with the full-snapshot-based confidence computed
+  // here using the same three inputs that RateManifestVerdict.tsx uses.
+  // This keeps verdict.confidence and the displayed Verdict panel in sync,
+  // so Confirm's applyConfidenceGate() sees the same tier the visitor saw
+  // on Check IQ. Fire-and-forget: a failed write must never block the page.
+  if (result.verdictId && showComparison) {
+    const snapshotConfidence = getVerdictConfidence({
+      uncertainFieldCount: buildVerifyBeforeBooking(rateSnapshotFields).length,
+      hasReliabilityData: available[0]!.hasReliabilityData,
+      sourcesComparedCount: available.length,
+    }).tier;
+    void updateVerdictSnapshot(result.verdictId, rateSnapshotFields, snapshotConfidence);
+  }
+
   return (
     <div className="shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
@@ -205,7 +239,8 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
 
       {/* Step 2: Rate Verified - real hotels only. See VerifiedRatePanel.tsx
           for why mock hotels skip this entirely (the .demo-banner above
-          already says the prices are simulated). */}
+          already says the prices are simulated). retryUrl passed only in
+          the not-checked state so the panel can offer "Try again →". */}
       {!result.hotel.isMockData && liveCheck.kind !== "checking" && (
         <VerifiedRatePanel
           state={verifiedState}
@@ -214,11 +249,12 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
           cheapestTotal={result.cheapestTotal}
           nights={result.nights}
           currency={available[0]?.currency ?? "AED"}
+          retryUrl={verifiedState === "not-checked" ? currentUrl : undefined}
         />
       )}
 
       {liveCheck.kind === "checking" ? (
-        <LiveCheckStatus hotelId={result.hotel.id} checkIn={checkIn} checkOut={checkOut} />
+        <LiveCheckStatus hotelId={result.hotel.id} checkIn={checkIn} checkOut={checkOut} adults={adults} children={children} />
       ) : showComparison ? (
         <>
           {/* Non-null: showComparison already guarantees available.length > 0. */}

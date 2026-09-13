@@ -16,11 +16,16 @@ export async function GET(request: Request) {
   const hotelId = url.searchParams.get("hotel");
   const checkIn = url.searchParams.get("checkin");
   const checkOut = url.searchParams.get("checkout");
+  // Occupancy added 2026-09-13 — threaded through to pollLiveCheck so it
+  // looks up the correct five-column cache row. Defaults (2/0) match the
+  // application-wide occupancy defaults and the stayingApiRefresh defaults.
+  const adults = Number(url.searchParams.get("adults") ?? 2);
+  const children = Number(url.searchParams.get("children") ?? 0);
 
   if (!hotelId || !checkIn || !checkOut) {
     return NextResponse.json({ error: "missing hotel/checkin/checkout" }, { status: 400 });
   }
 
-  const result = await pollLiveCheck(hotelId, checkIn, checkOut);
+  const result = await pollLiveCheck(hotelId, checkIn, checkOut, adults, children);
   return NextResponse.json(result);
 }

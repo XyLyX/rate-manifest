@@ -12,6 +12,14 @@ import { db, schema } from "@/db/client";
  * configured.
  */
 export async function markAlertSent(formData: FormData) {
+  // PHASE 0.1 FIX (2026-09-12): see checkins/actions.ts's updateOutcomeStatus
+  // for why this is checked again here, not just on the page that renders
+  // the form - same ADMIN_SECRET, same reasoning.
+  const adminSecret = String(formData.get("adminSecret") ?? "");
+  if (!process.env.ADMIN_SECRET || adminSecret !== process.env.ADMIN_SECRET) {
+    throw new Error("Forbidden.");
+  }
+
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Invalid price alert.");
 

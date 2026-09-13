@@ -1,8 +1,19 @@
 import Link from "next/link";
 import { inArray } from "drizzle-orm";
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function formatStayDates(checkIn: string, checkOut: string): string {
+  const inDate = new Date(checkIn + "T00:00:00Z");
+  const outDate = new Date(checkOut + "T00:00:00Z");
+  const nights = Math.round((outDate.getTime() - inDate.getTime()) / 86400000);
+  const inStr = `${inDate.getUTCDate()} ${MONTHS[inDate.getUTCMonth()]}`;
+  const outStr = `${outDate.getUTCDate()} ${MONTHS[outDate.getUTCMonth()]} ${outDate.getUTCFullYear()}`;
+  return `${inStr} → ${outStr} · ${nights} night${nights === 1 ? "" : "s"}`;
+}
 import { db, schema } from "@/db/client";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { JourneyProgress } from "@/components/JourneyProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +21,6 @@ interface ComparePageProps {
   searchParams: Promise<{ hotels?: string; checkin?: string; checkout?: string; trip?: string }>;
 }
 
-const UNAVAILABLE = "Not available from the source checked.";
 const MAX_COMPARE = 5;
 
 // Page 2 (Compare & Choose) - new 2026-09-12, see claude/discovery-
@@ -25,10 +35,9 @@ const MAX_COMPARE = 5;
 // them, and shows them side-by-side (desktop) / as a horizontally-
 // scrollable row of cards (smaller screens) - the frozen Section 3 layout
 // decision: "comparing five means showing five, not a carousel that hides
-// four." Every field that isn't reliably known renders UNAVAILABLE rather
-// than being invented or silently dropped (frozen Section 3's explicit
-// "Missing information" rule) - the same UNAVAILABLE pattern
-// src/app/hotel/[hotelId]/page.tsx already established for the same reason.
+// four." Only the four reliably-known fields (name, location, star
+// classification, source) are rendered; fields with no data in the hotels
+// table are omitted entirely rather than displayed as "Not available."
 //
 // Contains zero StayingAPI contact and zero price of any kind, current or
 // historical - the frozen Section 3 "Page 2 must NOT fabricate" list
@@ -38,6 +47,12 @@ const MAX_COMPARE = 5;
 // Check IQ, exactly the existing /check-iq?hotel=...&checkin=...&checkout=
 // ...&trip=... URL shape - the frozen Page 2 -> Page 3 handoff is
 // unchanged from how every other entry point into Check IQ already works.
+//
+// Track F (2026-09-13): added JourneyProgress at step 2.
+// UX correction (2026-09-13): removed "Property category" and "Facilities"
+// rows — showing identical "Not available" across all columns added no
+// information and made the product look broken. When the Property Graph
+// (Section 7, Level 2) populates these fields they can be re-added.
 export default async function ComparePage({ searchParams }: ComparePageProps) {
   const params = await searchParams;
   const checkIn = params.checkin;
@@ -100,6 +115,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
   return (
     <div className="compare-shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
+      <JourneyProgress step={2} />
 
       <div className="hero compare-hero">
         <div className="hero-eyebrow">Compare & choose</div>
@@ -113,6 +129,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
           Factual property information only — no prices or rate claims here. Choose one to run RateManifest
           IQ&apos;s live verification.
         </p>
+        <p className="compare-context-dates">{formatStayDates(checkIn, checkOut)}</p>
       </div>
 
       <div className="compare-scroll">
@@ -139,24 +156,6 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
               <div className="compare-field">
                 <div className="compare-field-label">Star classification</div>
                 <div className="compare-field-value">{hotel.starRating}-star</div>
-              </div>
-
-              {/* Every field below is genuinely not in RateManifest's data
-                  today (src/db/schema.ts's hotels table has no category,
-                  address, or facilities columns yet) - shown explicitly
-                  rather than hidden, per the frozen "don't hide the row
-                  merely because a hotel lacks the data" rule. All five
-                  columns render the same UNAVAILABLE value for these today,
-                  which is itself honest: RateManifest hasn't built this
-                  layer of the Property Graph (Section 7, Level 2) yet. */}
-              <div className="compare-field">
-                <div className="compare-field-label">Property category</div>
-                <div className="compare-field-value compare-field-unavailable">{UNAVAILABLE}</div>
-              </div>
-
-              <div className="compare-field">
-                <div className="compare-field-label">Facilities</div>
-                <div className="compare-field-value compare-field-unavailable">{UNAVAILABLE}</div>
               </div>
 
               <div className="compare-field compare-field-source">

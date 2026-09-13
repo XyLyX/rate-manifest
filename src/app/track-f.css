@@ -1,0 +1,237 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Track F — Five-Page UX Integration styles (2026-09-13)
+   Added as a separate import in layout.tsx rather than appending to the
+   67KB globals.css — keeps the Track F additions isolated and reviewable.
+   All selectors are scoped to Track F's own class names (.journey-*,
+   .confirm-route-*, .hotel-card-actions, .verified-rate-retry) and do not
+   touch any existing layout classes.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ─── Journey Progress ───────────────────────────────────────────────────── */
+
+.journey-progress {
+  display: flex;
+  align-items: center;
+  padding: 1rem var(--page-pad, 1.5rem);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  gap: 0;
+  /* Sits below the NavBar; a bottom border separates it from page content
+     without adding a full horizontal rule that would interrupt the eye. */
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.journey-progress::-webkit-scrollbar {
+  display: none;
+}
+
+/* Each step + its trailing connector sit in one flex item so the connector
+   stretches to fill exactly the gap between two dots. */
+.journey-item {
+  display: flex;
+  align-items: center;
+  /* Last item (step 5) gets no flex-grow; it stays dot+label only. */
+}
+.journey-item:last-child {
+  flex: 0 0 auto;
+}
+.journey-item:not(:last-child) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Step node: dot + label */
+.journey-step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* Circular dot */
+.journey-dot {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+/* Connector line between step nodes */
+.journey-connector {
+  flex: 1 1 0;
+  height: 1px;
+  margin: 0 0.4rem;
+  background: var(--border);
+  transition: background 0.15s;
+}
+.journey-connector-done {
+  background: var(--brand);
+  opacity: 0.5;
+}
+
+/* ── Completed step (n < active step) */
+.journey-step-done .journey-dot {
+  background: var(--brand);
+  color: #fff;
+}
+.journey-step-done .journey-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Active step (n === current step) */
+.journey-step-active .journey-dot {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent);
+}
+.journey-step-active .journey-label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ── Pending step (n > current step) */
+.journey-step-pending .journey-dot {
+  background: var(--surface-2, #f5f5f7);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.journey-step-pending .journey-label {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ─── Confirm page — Commercial route blocks ─────────────────────────────── */
+/* These replace the old hard-coded deepLink CTA. Track D's
+   resolveCommercialRoute() can return four route types; each gets its own
+   visual treatment here — no shared "confirm-cta" wrapper any more.        */
+
+.confirm-route-block {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0;
+}
+
+/* Unavailable — a verified booking path doesn't exist for this rate */
+.confirm-route-unavailable {
+  border-color: var(--signal-wait, #f87171);
+  background: color-mix(in srgb, var(--signal-wait, #f87171) 8%, transparent);
+}
+
+/* Inquiry only — rate was verified but no direct booking route available */
+.confirm-route-inquiry {
+  border-color: var(--signal-fair, #f59e0b);
+  background: color-mix(in srgb, var(--signal-fair, #f59e0b) 8%, transparent);
+}
+
+.confirm-route-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.confirm-route-note {
+  font-size: 0.875rem;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+.confirm-route-note:last-child {
+  margin-bottom: 0;
+}
+
+.confirm-route-reason {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  line-height: 1.5;
+}
+
+/* ─── Home hotel cards — uniform height + dual CTA layout ───────────────── */
+/* UX correction 2026-09-13: cards changed from <button> to <div> so a
+   primary Link (Check IQ) and a secondary toggle button (Shortlist) can
+   coexist as siblings without nesting interactive elements. Equal-height
+   cards require the card to be a flex column; the action row is pushed to
+   the bottom with margin-top: auto so all cards align regardless of how
+   long the hotel name or area string is.                                    */
+
+.home-hotel-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Action row containing the "Check IQ →" link and the "Shortlist" toggle */
+.hotel-card-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+}
+
+/* Primary CTA — inherits .btn and .btn-block sizing from globals.css */
+.hotel-card-check-iq {
+  text-align: center;
+}
+
+/* Secondary Shortlist toggle — ghost style, smaller than the primary CTA */
+.hotel-card-shortlist {
+  align-self: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius, 4px);
+  transition: color 0.15s, background 0.1s;
+  line-height: 1.4;
+}
+.hotel-card-shortlist:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+/* Active / shortlisted state */
+.hotel-card-shortlist-on {
+  color: var(--brand);
+  font-weight: 600;
+}
+.hotel-card-shortlist-on:hover {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+/* ─── VerifiedRatePanel — "not-checked" retry link ──────────────────────── */
+/* Rendered by VerifiedRatePanel when state === "not-checked" and a
+   retryUrl is supplied by the parent page. The link reloads the same
+   hotel/dates combination so the visitor can try the live check again
+   without navigating back.                                                  */
+
+.verified-rate-retry {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.verified-rate-retry:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}

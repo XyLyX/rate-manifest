@@ -22,11 +22,15 @@ interface HotelSelectionGridProps {
 // toggles selection, up to five, and a single "Compare selected" action
 // carries the chosen properties into the new /compare page (Page 2).
 //
-// Selection lives in plain component state, not the URL, while the visitor
-// is still choosing - only submitted to /compare as a query string once
-// they've decided (see buildCompareHref below). Nothing here calls
-// StayingAPI or any other paid resource - the frozen "critical rule" for
-// Page 1 - this component only ever toggles which ids are selected.
+// 2026-09-13 (user feedback): restructured so the primary action per card
+// is "Check IQ →" (a direct link to /check-iq with dates/trip already in
+// the URL) and "Shortlist" is the secondary toggle that feeds the compare
+// flow. Cards are now div-based (not button-based) to allow both a Link and
+// a toggle button as siblings without nesting interactive elements. CSS in
+// track-f.css makes every card the same height by pushing the action row to
+// the bottom. No new data fields added - only the four reliable fields
+// (name, area, star rating, image placeholder) are shown; UNAVAILABLE rows
+// are omitted entirely rather than surfaced as "Not available" clutter.
 export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelSelectionGridProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -49,69 +53,71 @@ export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelS
     });
   }
 
+  const tripQuery = tripId ? `&trip=${tripId}` : "";
   const compareHref =
     `/compare?hotels=${selected.join(",")}` +
     `&checkin=${checkIn}&checkout=${checkOut}` +
-    (tripId ? `&trip=${tripId}` : "");
+    tripQuery;
 
   return (
     <div className="hotel-selection">
       <div className="hotel-grid home-hotel-grid">
         {hotels.map((hotel) => {
           const isSelected = selected.includes(hotel.id);
+          const checkIqHref = `/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`;
           return (
-            <button
+            <div
               key={hotel.id}
-              type="button"
               className={isSelected ? "hotel-card home-hotel-card hotel-card-selected" : "hotel-card home-hotel-card"}
-              aria-pressed={isSelected}
-              onClick={() => toggle(hotel.id)}
             >
               <div className="home-hotel-card-image" aria-hidden="true">
                 <span>{hotel.name.charAt(0)}</span>
               </div>
               {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}
-              {isSelected && (
-                <span className="hotel-card-selected-badge" aria-hidden="true">
-                  ✓ Selected
-                </span>
-              )}
+
               <div className="hotel-card-name">{hotel.name}</div>
               <div className="hotel-card-meta">
                 {hotel.area} · {hotel.starRating}-star
               </div>
-              {/* Deliberately no price here either - same 2026-09-05 rule
-                  as before, now also the frozen Section 2/3 "never render
-                  price on Page 1" rule. */}
-              <span className={isSelected ? "btn btn-block hotel-card-toggle active" : "btn-ghost btn-block hotel-card-toggle"}>
-                {isSelected ? "Remove from compare" : "Add to compare"}
-              </span>
-            </button>
+
+              {/* Two actions; primary (Check IQ) and secondary (Shortlist).
+                  "Deliberately no price here" - same frozen Section 2/3 rule
+                  as before. Card is a div (not a button) so the Link and the
+                  toggle button can coexist without nesting interactive
+                  elements inside one another. */}
+              <div className="hotel-card-actions">
+                <Link href={checkIqHref} className="btn btn-block hotel-card-check-iq">
+                  Check IQ →
+                </Link>
+                <button
+                  type="button"
+                  className={
+                    isSelected
+                      ? "btn-ghost btn-sm hotel-card-shortlist hotel-card-shortlist-on"
+                      : "btn-ghost btn-sm hotel-card-shortlist"
+                  }
+                  onClick={() => toggle(hotel.id)}
+                  aria-pressed={isSelected}
+                >
+                  {isSelected ? "✓ Shortlisted" : "Shortlist"}
+                </button>
+              </div>
+            </div>
           );
         })}
       </div>
 
-      {hotels.length === 0 ? null : (
+      {selected.length > 0 && (
         <div className="compare-action-bar">
           <div className="compare-action-count">
-            {selected.length === 0
-              ? "Select up to 5 hotels to compare."
-              : `${selected.length} of ${MAX_SELECTION} selected.`}
+            {selected.length} hotel{selected.length === 1 ? "" : "s"} shortlisted.
+            {limitNotice && (
+              <span> You can compare up to {MAX_SELECTION} at a time — remove one to add another.</span>
+            )}
           </div>
-          {limitNotice && (
-            <div className="compare-action-limit">
-              You can compare up to {MAX_SELECTION} hotels at a time — remove one to add another.
-            </div>
-          )}
-          {selected.length > 0 ? (
-            <Link href={compareHref} className="btn compare-action-cta">
-              Compare {selected.length} hotel{selected.length === 1 ? "" : "s"} →
-            </Link>
-          ) : (
-            <span className="btn compare-action-cta compare-action-cta-disabled" aria-disabled="true">
-              Compare →
-            </span>
-          )}
+          <Link href={compareHref} className="btn compare-action-cta">
+            Compare {selected.length} hotel{selected.length === 1 ? "" : "s"} side by side →
+          </Link>
         </div>
       )}
     </div>

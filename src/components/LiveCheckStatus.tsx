@@ -7,6 +7,10 @@ interface LiveCheckStatusProps {
   hotelId: string;
   checkIn: string;
   checkOut: string;
+  // Occupancy added 2026-09-13 — included in the poll URL so the API route
+  // can look up the correct five-column cache row via pollLiveCheck.
+  adults: number;
+  children: number;
 }
 
 // Polls /api/live-check-status every few seconds while ensureLiveCheckTriggered()
@@ -20,7 +24,7 @@ interface LiveCheckStatusProps {
 const POLL_INTERVAL_MS = 4000;
 const MAX_ATTEMPTS = 60; // ~4 minutes at 4s apart
 
-export function LiveCheckStatus({ hotelId, checkIn, checkOut }: LiveCheckStatusProps) {
+export function LiveCheckStatus({ hotelId, checkIn, checkOut, adults, children }: LiveCheckStatusProps) {
   const router = useRouter();
   const [gaveUp, setGaveUp] = useState(false);
   const stoppedRef = useRef(false);
@@ -35,7 +39,7 @@ export function LiveCheckStatus({ hotelId, checkIn, checkOut }: LiveCheckStatusP
       if (stoppedRef.current) return;
       try {
         const res = await fetch(
-          `/api/live-check-status?hotel=${encodeURIComponent(hotelId)}&checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}`
+          `/api/live-check-status?hotel=${encodeURIComponent(hotelId)}&checkin=${encodeURIComponent(checkIn)}&checkout=${encodeURIComponent(checkOut)}&adults=${adults}&children=${children}`
         );
         const data = await res.json();
         if (data.status === "ready" || data.status === "error" || data.status === "no-pending-job") {
@@ -62,7 +66,7 @@ export function LiveCheckStatus({ hotelId, checkIn, checkOut }: LiveCheckStatusP
       stoppedRef.current = true;
       clearTimeout(timer);
     };
-  }, [hotelId, checkIn, checkOut, router]);
+  }, [hotelId, checkIn, checkOut, adults, children, router]);
 
   if (gaveUp) {
     return (

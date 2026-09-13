@@ -64,7 +64,7 @@ export function YourHotelSummary({
           </span>
         </div>
         <div>
-          <span className="your-hotel-stat-label">Room</span>
+          <span className="your-hotel-stat-label">Room preference</span>
           <span className="your-hotel-stat-value">{roomTypeLabel}</span>
         </div>
       </div>

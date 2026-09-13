@@ -1,7 +1,10 @@
 import { db, schema } from "@/db/client";
+import { eq } from "drizzle-orm";
 import { newId } from "@/lib/id";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
 import type { DisplayOffer } from "@/lib/search";
+import type { SnapshotField } from "@/lib/scoring/rateSnapshot";
+import type { ConfidenceTier } from "@/lib/scoring/confidence";
 
 // The Decision Audit Trail's one writer. Persists exactly what
 // scoreOffers()/getDealSignal() already computed and showed on the
@@ -52,6 +55,11 @@ export interface RecordVerdictInput {
   cheapestTotal: number | null;
   averageTotal: number | null;
   currency: string;
+  // OQ5 (2026-09-12, claude/phase1.1-architecture-decisions.md): the
+  // confidence tier for the top offer, read from ScoredOffer.confidence
+  // (set by bestDealScore.ts's scoreOffers()). Null when nothing was
+  // available to score (same as score:0 / no availability).
+  confidence: string | null;
 }
 
 // Return value added 2026-09-05 for the four-page journey's Page 2 (Check
@@ -96,6 +104,7 @@ export async function recordVerdict(input: RecordVerdictInput): Promise<string |
       averageTotal: input.averageTotal,
       currency: input.currency,
       evidenceJson: JSON.stringify(evidence),
+      confidence: input.confidence,
     });
     return id;
   } catch (err) {
@@ -104,5 +113,30 @@ export async function recordVerdict(input: RecordVerdictInput): Promise<string |
     // page down - see the module comment above.
     console.error("recordVerdict: failed to persist verdict (non-fatal):", err);
     return null;
+  }
+}
+
+// 2026-09-13: follow-up writer called from check-iq/page.tsx after
+// buildRateSnapshot() has run. recordVerdict() is called inside
+// runSearch() — before the snapshot is available — so the snapshot is
+// written here in a separate targeted UPDATE rather than passed into
+// recordVerdict() directly. confidence overwrites the proxy-based tier
+// stored by recordVerdict() with the full-snapshot-based tier computed
+// by getVerdictConfidence() in check-iq/page.tsx (same inputs as
+// RateManifestVerdict.tsx uses, so Check IQ display and audit trail
+// now agree). Same never-throws discipline: a failed snapshot/confidence
+// write must not break Check IQ for a real visitor.
+export async function updateVerdictSnapshot(
+  verdictId: string,
+  snapshot: SnapshotField[],
+  confidence: ConfidenceTier
+): Promise<void> {
+  try {
+    await db
+      .update(schema.verdicts)
+      .set({ rateSnapshotJson: JSON.stringify(snapshot), confidence })
+      .where(eq(schema.verdicts.id, verdictId));
+  } catch (err) {
+    console.error("updateVerdictSnapshot: failed to persist rate snapshot (non-fatal):", err);
   }
 }

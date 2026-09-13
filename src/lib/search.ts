@@ -29,6 +29,14 @@ export interface DisplayOffer extends ScoredOffer {
   // AED before it ever reaches this file, and the mock adapter only ever
   // produces AED - but the field is now real, not asserted.
   currency: string;
+  // OQ6 (Track A added these to SupplierOffer and the rates schema;
+  // Track C wires them through so downstream components and the audit trail
+  // see real values when the source provides them, or undefined/null when it
+  // doesn't — never invented. See suppliers/types.ts for the field contract.
+  mealIncluded?: boolean;
+  mealConfidence?: "confirmed" | "unknown";
+  paymentTerms?: string;
+  paymentTermsConfidence?: "confirmed" | "unknown";
 }
 
 export interface SearchResult {
@@ -74,7 +82,16 @@ function nightsBetween(checkIn: string, checkOut: string): number {
  * results page needs to render. This is the one place that touches every
  * adapter — the UI never calls an adapter directly.
  */
-export async function runSearch(hotelId: string, checkIn: string, checkOut: string): Promise<SearchResult | null> {
+export async function runSearch(
+  hotelId: string,
+  checkIn: string,
+  checkOut: string,
+  // Occupancy added 2026-09-13 — threaded through to each adapter's
+  // getOffers() call so the StayingAPI adapter reads the correct cache row
+  // for the actual party size. Defaults mirror trip/room defaults.
+  adults: number = 2,
+  children: number = 0
+): Promise<SearchResult | null> {
   const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
   if (!hotel) return null;
 
@@ -82,7 +99,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
   const searchId = `search_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   const results = await Promise.allSettled(
-    SUPPLIER_ADAPTERS.map((adapter) => adapter.getOffers({ hotelId, checkIn, checkOut }))
+    SUPPLIER_ADAPTERS.map((adapter) => adapter.getOffers({ hotelId, checkIn, checkOut, adults, children }))
   );
 
   const offersBySupplier: { adapterSlug: string; offers: SupplierOffer[] }[] = [];
@@ -158,6 +175,13 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
         taxesFeesPerNight: offer.taxesFeesPerNight,
         totalPrice: offer.totalPrice,
         soldOut: offer.soldOut,
+        // OQ6 (Track A added these columns to the rates schema; Track C
+        // populates them when the source provides the data, passes nothing
+        // when it doesn't — no default, no invented value).
+        mealIncluded: offer.mealIncluded,
+        mealConfidence: offer.mealConfidence,
+        paymentTerms: offer.paymentTerms,
+        paymentTermsConfidence: offer.paymentTermsConfidence,
       });
 
       await db.insert(schema.cancellations).values({
@@ -252,6 +276,12 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
       cancellationDeadlineIso: offer?.cancellation.deadlineIso ?? null,
       checkedAt: offer?.checkedAt ?? null,
       currency: offer?.currency ?? "AED",
+      // OQ6: carry meal/payment through as-is — undefined when the source
+      // didn't provide them, never defaulted to a positive or negative value.
+      mealIncluded: offer?.mealIncluded,
+      mealConfidence: offer?.mealConfidence,
+      paymentTerms: offer?.paymentTerms,
+      paymentTermsConfidence: offer?.paymentTermsConfidence,
     };
   });
 
@@ -278,6 +308,11 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
   // falls back to "AED" only when nothing was available to read it from,
   // matching every currency column's own schema default.
   const currency = enriched.find((o) => !o.soldOut)?.currency ?? "AED";
+  // OQ5: the top available offer's confidence tier, already computed by
+  // scoreOffers() and sitting on the enriched offer — read it once here
+  // rather than recomputing. Null when there's nothing available to score,
+  // same as score:0 for the same case.
+  const topConfidence = enriched.find((o) => !o.soldOut)?.confidence ?? null;
   const verdictId = await recordVerdict({
     searchId,
     hotelId,
@@ -286,6 +321,7 @@ export async function runSearch(hotelId: string, checkIn: string, checkOut: stri
     cheapestTotal,
     averageTotal,
     currency,
+    confidence: topConfidence,
   });
 
   return {

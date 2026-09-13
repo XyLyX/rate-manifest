@@ -12,6 +12,7 @@
 // undermine the entire "we stand behind the booking" premise.
 
 import { MIN_BOOKING_OUTCOMES_FOR_RELIABILITY_SCORE } from "@/lib/constants";
+import { getVerdictConfidence, type ConfidenceTier } from "@/lib/scoring/confidence";
 
 export interface ScorableOffer {
   supplierSlug: string;
@@ -44,6 +45,13 @@ export interface ScoredOffer extends ScorableOffer {
   score: number; // 0-100, higher is better. Only meaningful relative to other offers in the same result set.
   reasons: ScoreReason[];
   hasReliabilityData: boolean;
+  // OQ5 (2026-09-12, claude/phase1.1-architecture-decisions.md): the
+  // Verdict's second dimension. Separate from score — "how much do we
+  // actually know backing this number?" Three yes/no signals already
+  // computed here: cancellation known (cancellationKnown), supplier has
+  // track record (hasReliabilityData), more than one source compared
+  // (available.length > 1). See confidence.ts for the full rationale.
+  confidence: ConfidenceTier;
 }
 
 // MARKET - the fourth scoring component, added 2026-09-07 per Navin's
@@ -91,6 +99,7 @@ export function scoreOffers(offers: ScorableOffer[], market: MarketInsight | nul
       score: 0,
       reasons: [{ text: "No availability", tone: "neutral" }],
       hasReliabilityData: false,
+      confidence: "low" as ConfidenceTier,
     }));
   }
 
@@ -100,7 +109,7 @@ export function scoreOffers(offers: ScorableOffer[], market: MarketInsight | nul
 
   const scored = offers.map((o): ScoredOffer => {
     if (o.soldOut) {
-      return { ...o, score: 0, reasons: [{ text: "No availability", tone: "neutral" }], hasReliabilityData: false };
+      return { ...o, score: 0, reasons: [{ text: "No availability", tone: "neutral" }], hasReliabilityData: false, confidence: "low" };
     }
 
     const reasons: ScoreReason[] = [];
@@ -120,7 +129,7 @@ export function scoreOffers(offers: ScorableOffer[], market: MarketInsight | nul
     if (o.cancellationKnown && o.isFreeCancellation) {
       reasons.push({ text: "Free cancellation", tone: "positive" });
     } else if (!o.cancellationKnown) {
-      reasons.push({ text: "Cancellation terms not provided by this source", tone: "neutral" });
+      reasons.push({ text: "Cancellation not confirmed by this source", tone: "neutral" });
     }
 
     // Reliability component: only counted when there's enough data to mean
@@ -174,7 +183,17 @@ export function scoreOffers(offers: ScorableOffer[], market: MarketInsight | nul
         WEIGHTS.reliability * reliabilityScore +
         WEIGHTS.market * marketScore);
 
-    return { ...o, score: Math.round(score * 10) / 10, reasons, hasReliabilityData };
+    // OQ5: per-offer confidence. uncertainFieldCount uses cancellationKnown
+    // as its one proxy at scoring time — 1 if cancellation terms were never
+    // provided, 0 if the source confirmed them. sourcesComparedCount is the
+    // full available set, same array this offer was ranked against.
+    const confidence = getVerdictConfidence({
+      uncertainFieldCount: o.cancellationKnown ? 0 : 1,
+      hasReliabilityData,
+      sourcesComparedCount: available.length,
+    }).tier;
+
+    return { ...o, score: Math.round(score * 10) / 10, reasons, hasReliabilityData, confidence };
   });
 
   return scored.sort((a, b) => b.score - a.score);

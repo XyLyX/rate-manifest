@@ -1,15 +1,26 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { markAlertSent } from "./actions";
 export const dynamic = "force-dynamic";
 
-// Internal, unauthenticated by design (see DECISIONS.md — same rule as
-// /admin/checkins). Every row here is a customer who opted into "track
-// this price" and whose stated drop threshold has now been cleared;
-// someone needs to actually email them, since there's no sender wired up
-// yet.
-export default async function PriceAlertsAdminPage() {
+// PHASE 0.1 FIX (2026-09-12): was "unauthenticated by design... same rule
+// as /admin/checkins" per DECISIONS.md - see that page's own comment for
+// the full reasoning; same ADMIN_SECRET gate, applied the same way. Every
+// row here is a customer who opted into "track this price" and whose
+// stated drop threshold has now been cleared; someone needs to actually
+// email them, since there's no sender wired up yet.
+export default async function PriceAlertsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ secret?: string }>;
+}) {
+  const { secret } = await searchParams;
+  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
+    notFound();
+  }
+
   const triggered = await db.query.priceTracking.findMany({
     where: eq(schema.priceTracking.status, "triggered"),
     orderBy: [desc(schema.priceTracking.triggeredAt)],
@@ -85,6 +96,7 @@ export default async function PriceAlertsAdminPage() {
                   </div>
                   <form action={markAlertSent} className="admin-form">
                     <input type="hidden" name="id" value={tracker.id} />
+                    <input type="hidden" name="adminSecret" value={secret} />
                     <button type="submit" className="btn btn-ghost">
                       Mark as sent
                     </button>

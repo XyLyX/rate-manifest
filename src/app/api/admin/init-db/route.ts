@@ -51,6 +51,28 @@ ALTER TABLE hotels ADD COLUMN IF NOT EXISTS featured_in_iq boolean NOT NULL DEFA
 -- already here.
 ALTER TABLE hotels ADD COLUMN IF NOT EXISTS state text NOT NULL DEFAULT 'curated';
 
+-- 2026-09-12, Phase 1.1 Track A (claude/phase1.1-architecture-decisions.md,
+-- Open Question 2) - Property Contract enrichment fields. All nullable, no
+-- DEFAULT, so every existing row is valid the instant this runs with no
+-- backfill: a null value here means the same thing "unknown" means
+-- everywhere else in this schema. Nothing populates these yet - this is
+-- schema capability only, per that decision's own instruction not to
+-- create fake/default enrichment data just to satisfy the shape.
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS address text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS country text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS latitude real;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS longitude real;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS category text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS website text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS aliases text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS facilities text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS accessibility_attributes text;
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS images text;
+-- "confirmed" | "unknown", one record-level flag for the enrichment fields
+-- above as a group - see src/db/schema.ts's own comment on this column for
+-- why this isn't a per-field flag or a new confidence scale.
+ALTER TABLE hotels ADD COLUMN IF NOT EXISTS enrichment_confidence text;
+
 -- 2026-09-11 - curates the initial Exceptional Stays / Rate Manifest IQ
 -- launch set (claude/rate-manifest-technical-blueprint.md, "Final property
 -- set... locked 2026-09-11"): the 5 real Dubai hotels that already existed
@@ -124,6 +146,16 @@ CREATE TABLE IF NOT EXISTS rates (
 CREATE INDEX IF NOT EXISTS rates_hotel_checkin_idx ON rates (hotel_id, check_in);
 CREATE INDEX IF NOT EXISTS rates_search_idx ON rates (search_id);
 
+-- 2026-09-12, Phase 1.1 Track A (claude/phase1.1-architecture-decisions.md,
+-- Open Question 6) - the approved meal/payment-terms extension to the
+-- rates table, each paired with its own "confirmed" | "unknown" confidence
+-- flag (same vocabulary as the existing cancellation/taxes confidence
+-- fields). All nullable, no DEFAULT - no adapter populates these yet.
+ALTER TABLE rates ADD COLUMN IF NOT EXISTS meal_included boolean;
+ALTER TABLE rates ADD COLUMN IF NOT EXISTS meal_confidence text;
+ALTER TABLE rates ADD COLUMN IF NOT EXISTS payment_terms text;
+ALTER TABLE rates ADD COLUMN IF NOT EXISTS payment_terms_confidence text;
+
 CREATE TABLE IF NOT EXISTS cancellations (
   id text PRIMARY KEY,
   rate_id text NOT NULL UNIQUE REFERENCES rates(id) ON DELETE CASCADE,
@@ -147,6 +179,14 @@ CREATE TABLE IF NOT EXISTS price_history (
 CREATE UNIQUE INDEX IF NOT EXISTS price_history_unique_obs
   ON price_history (hotel_id, supplier_id, check_in, observed_date);
 CREATE INDEX IF NOT EXISTS price_history_hotel_supplier_idx ON price_history (hotel_id, supplier_id);
+
+-- 2026-09-12, Phase 1.1 Track A - same extension, same reasoning as rates'
+-- own block above; kept in parity across both tables per the Open Question
+-- 6 decision to extend "these three tables," not build a fourth.
+ALTER TABLE price_history ADD COLUMN IF NOT EXISTS meal_included boolean;
+ALTER TABLE price_history ADD COLUMN IF NOT EXISTS meal_confidence text;
+ALTER TABLE price_history ADD COLUMN IF NOT EXISTS payment_terms text;
+ALTER TABLE price_history ADD COLUMN IF NOT EXISTS payment_terms_confidence text;
 
 CREATE TABLE IF NOT EXISTS booking_outcomes (
   id text PRIMARY KEY,
@@ -216,6 +256,13 @@ CREATE TABLE IF NOT EXISTS verdicts (
 CREATE INDEX IF NOT EXISTS verdicts_hotel_generated_idx ON verdicts (hotel_id, generated_at);
 CREATE INDEX IF NOT EXISTS verdicts_search_idx ON verdicts (search_id);
 
+-- 2026-09-12, Phase 1.1 Track C (OQ5) - confidence tier added after
+-- verdicts already existed in production. Nullable so rows written before
+-- this column existed are valid without backfill; read null as "unknown".
+-- See src/db/schema.ts's own comment on this column and src/lib/confidence.ts.
+ALTER TABLE verdicts ADD COLUMN IF NOT EXISTS confidence text;
+ALTER TABLE verdicts ADD COLUMN IF NOT EXISTS rate_snapshot_json text;
+
 CREATE TABLE IF NOT EXISTS staying_api_cache (
   id text PRIMARY KEY,
   hotel_id text NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
@@ -230,6 +277,24 @@ CREATE TABLE IF NOT EXISTS staying_api_cache (
 
 CREATE UNIQUE INDEX IF NOT EXISTS staying_api_cache_hotel_checkin_idx
   ON staying_api_cache (hotel_id, check_in, check_out);
+
+-- 2026-09-13 - raw_offer_count: pre-filter StayingAPI offer count, written
+-- at the same moment as offers_json. Zero = StayingAPI returned nothing;
+-- non-zero with offers_json='[]' = mapOffers() discarded all offers (e.g.
+-- google_hotels or currency mismatch). Nullable so existing rows stay valid.
+ALTER TABLE staying_api_cache ADD COLUMN IF NOT EXISTS raw_offer_count integer;
+
+-- 2026-09-13 - adults/children: occupancy columns added to cache identity so
+-- a family search and a couple search for the same hotel/dates get separate
+-- rows. Defaults match the application-wide occupancy defaults (trips.adults
+-- default 2, trips.children default 0) so existing rows are migrated honestly
+-- without inventing occupancy data. NOT NULL + DEFAULT means existing rows
+-- are transparently assigned the default occupancy, which matches what the
+-- original refresh (pre-occupancy) would have requested. Unique index remains
+-- (hotel_id, check_in, check_out) for now - see DECISIONS.md; index redesign
+-- deferred until we confirm whether per-occupancy caching is actually needed.
+ALTER TABLE staying_api_cache ADD COLUMN IF NOT EXISTS adults integer NOT NULL DEFAULT 2;
+ALTER TABLE staying_api_cache ADD COLUMN IF NOT EXISTS children integer NOT NULL DEFAULT 0;
 
 -- Four-page journey (2026-09-05): Discover -> Check IQ -> Complete The Trip
 -- -> Confirm & Book. See src/db/schema.ts's own comment above these three
@@ -279,6 +344,44 @@ CREATE TABLE IF NOT EXISTS trip_experiences (
 CREATE INDEX IF NOT EXISTS trip_experiences_trip_idx ON trip_experiences (trip_id);
 CREATE UNIQUE INDEX IF NOT EXISTS trip_experiences_trip_product_idx
   ON trip_experiences (trip_id, supplier_product_id);
+
+-- 2026-09-13, Phase 1.1 Track D (Commercial Router) - five supplier
+-- capability columns. All use ALTER TABLE ADD COLUMN IF NOT EXISTS
+-- (idempotent, safe to re-run regardless of production state).
+--
+-- Defaults are conservative by design:
+--   supports_discovery / supports_rate_verification default TRUE because
+--     every registered adapter already performs these functions.
+--   supports_commercial_booking defaults FALSE because no supplier has a
+--     confirmed commercial booking path — being integration_type='api_partner'
+--     does NOT imply this (StayingAPI supplies outboundUrls for rate
+--     verification only; its commercial booking capability is unconfirmed).
+--   has_affiliate_program defaults FALSE — no affiliate relationship exists.
+--   affiliate_id_env_key is nullable text — null until an affiliate
+--     relationship is established and the env var name is known.
+--
+-- See src/lib/commercial/router.ts for how these flags drive routing.
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supports_discovery boolean NOT NULL DEFAULT true;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supports_rate_verification boolean NOT NULL DEFAULT true;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS supports_commercial_booking boolean NOT NULL DEFAULT false;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS has_affiliate_program boolean NOT NULL DEFAULT false;
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS affiliate_id_env_key text;
+
+-- Conservative initialisation for every known supplier slug. The DEFAULT
+-- above handles rows inserted by this run's CREATE TABLE / INSERT block,
+-- but for rows that pre-date this ADD COLUMN (already in production), the
+-- DEFAULT is only applied at ADD COLUMN time. On a re-run, ADD COLUMN IF
+-- NOT EXISTS is a no-op and the columns already hold values. This UPDATE
+-- is therefore belt-and-suspenders: it explicitly writes the safe values
+-- for every named slug without touching any column that should stay at its
+-- natural default (supports_discovery, supports_rate_verification).
+-- Never promotes any supplier to commercial capability — that requires a
+-- deliberate future decision with confirmed capability evidence.
+UPDATE suppliers
+SET
+  supports_commercial_booking = false,
+  has_affiliate_program = false
+WHERE slug IN ('booking', 'expedia', 'agoda', 'hotelscom', 'tripcom', 'direct', 'priceline');
 
 INSERT INTO suppliers (id, slug, name, integration_type, requires_click_to_reveal, allows_multi_supplier_display, tos_notes)
 VALUES
@@ -423,12 +526,31 @@ DELETE FROM hotels WHERE id = 'ibis-deira-city-centre';
 -- emirate has a real, StayingAPI-backed hotel set, drop them rather than
 -- keep mixing simulated properties into what visitors browse. Their
 -- INSERT statements were removed above (a fresh DB never creates them
--- again); this DELETE cleans up rows already sitting in production. Same
+-- again); these DELETEs clean up rows already sitting in production. Same
 -- cascade-safe, re-run-forever-harmless shape as the ibis delete above -
 -- rooms/rates/cancellations/price_history/booking_outcomes/price_tracking/
 -- staying_api_cache all cascade off hotel_id, and events.hotel_id just
 -- goes null for any historical event tied to one of these ids.
-DELETE FROM hotels WHERE is_mock_data = true;
+--
+-- PHASE 0.1 FIX (2026-09-12): this used to be a single blanket
+-- "DELETE FROM hotels WHERE is_mock_data = true" - deleting by the
+-- is_mock_data COLUMN VALUE, not by these six specific ids. Since
+-- is_mock_data defaults to true for any row that doesn't explicitly set it
+-- false (see the CREATE TABLE above), that statement would silently
+-- destroy any future hotel this script never seeded itself - a Discovery/
+-- Property Graph adapter's "draft" candidate, or any other legitimate row
+-- added by hand - the instant this route ran again, with this idempotent
+-- script offering no way to recover it. Rewritten as six explicit
+-- id-scoped deletes, the same already-safe pattern as the
+-- ibis-deira-city-centre line above, so this can only ever remove these
+-- six known-fictional rows and nothing else, regardless of what
+-- is_mock_data happens to be set on any other row.
+DELETE FROM hotels WHERE id = 'marina-skyline';
+DELETE FROM hotels WHERE id = 'old-town-courtyard';
+DELETE FROM hotels WHERE id = 'palm-crescent';
+DELETE FROM hotels WHERE id = 'business-bay-central';
+DELETE FROM hotels WHERE id = 'al-fahidi-heritage';
+DELETE FROM hotels WHERE id = 'jbr-beachfront';
 `;
 
 export async function GET(request: Request) {

@@ -1,17 +1,37 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { updateOutcomeStatus } from "./actions";
 export const dynamic = "force-dynamic";
 
-// Internal, unauthenticated by design (see DECISIONS.md — this stays a
-// localhost-only tool until real auth is worth adding). This is where the
-// manual half of the WhatsApp check-in mechanism lives: a guest messages
-// Rate Manifest's own WhatsApp number from the stub-booking page (or, once
-// real, the real booking confirmation), and whoever reads that reply
-// records what happened here — matched by the short ref code both sides
-// can see.
-export default async function CheckinsAdminPage() {
+// PHASE 0.1 FIX (2026-09-12): was "unauthenticated by design... a
+// localhost-only tool until real auth is worth adding" per DECISIONS.md -
+// but this has been deployed to production the whole time, publicly
+// reachable by anyone who requests this exact path. No auth mechanism
+// exists anywhere else in the app to "reuse" (see the Phase 0 audit, AI/
+// Auth Architecture Audit) except the long-random-secret-in-a-query-param
+// pattern /api/admin/init-db and the StayingAPI refresh routes already use
+// - applied here the same way, adapted to a page instead of a route
+// handler: notFound() (a plain 404, revealing nothing) instead of a JSON
+// 403, since a page has no NextResponse to return. Requires ADMIN_SECRET
+// to be set in the environment (see .env.example) - unset, this page 404s
+// for everyone, including Navin, rather than failing open. This is where
+// the manual half of the WhatsApp check-in mechanism lives: a guest
+// messages Rate Manifest's own WhatsApp number from the stub-booking page
+// (or, once real, the real booking confirmation), and whoever reads that
+// reply records what happened here — matched by the short ref code both
+// sides can see.
+export default async function CheckinsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ secret?: string }>;
+}) {
+  const { secret } = await searchParams;
+  if (!process.env.ADMIN_SECRET || secret !== process.env.ADMIN_SECRET) {
+    notFound();
+  }
+
   const outcomes = await db.query.bookingOutcomes.findMany({
     orderBy: [desc(schema.bookingOutcomes.clickedAt)],
     limit: 100,
@@ -73,6 +93,7 @@ export default async function CheckinsAdminPage() {
                   className="admin-form"
                 >
                   <input type="hidden" name="outcomeId" value={outcome.id} />
+                  <input type="hidden" name="adminSecret" value={secret} />
                   <select name="status" defaultValue={outcome.status}>
                     <option value="clicked">Clicked (awaiting reply)</option>
                     <option value="confirmed_via_followup">Confirmed via WhatsApp</option>

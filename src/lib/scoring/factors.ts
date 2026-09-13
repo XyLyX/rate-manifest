@@ -6,13 +6,10 @@ import type { DisplayOffer } from "@/lib/search";
 // 09-03 so both places build the exact same honest factor list from the
 // exact same rules, rather than two copies drifting apart. Every factor is
 // backed by a real field on the offer - deliberately does NOT include
-// breakfast/board basis, since that isn't tracked anywhere in the supplier
-// adapter data model yet, and showing a green "Breakfast included" tick
-// with nothing behind it would be exactly the kind of fabricated signal
-// DECISIONS.md rules out. Room "equivalence" is safe to state as a
-// structural fact - every offer compared here is already for the same
-// normalized room type, by construction, before scoring ever runs (see
-// bestDealScore.ts).
+// breakfast/board basis (not tracked in the supplier adapter data model yet)
+// or room equivalence (StayingAPI's price-compare endpoint does not return
+// room-type data per offer, so the local rooms table's normalized type
+// cannot be presented as a per-offer confirmed fact - 2026-09-13).
 export interface DealFactor {
   label: string;
   positive: boolean | null; // null = neutral, no green/red claim either way
@@ -41,12 +38,7 @@ export function buildDealFactors(offer: DisplayOffer): DealFactor[] {
       positive: offer.taxesConfirmed ? true : null,
       text: offer.taxesConfirmed
         ? "Included in the total shown"
-        : "Bundled into the total price — not itemized by this source",
-    },
-    {
-      label: "Room",
-      positive: true,
-      text: "Same normalized room type across every offer compared",
+        : "Tax treatment not confirmed — verify total at checkout",
     },
     {
       label: "Supplier",

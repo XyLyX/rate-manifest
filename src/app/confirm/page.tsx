@@ -3,8 +3,10 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { getTrip, getLatestTripSelection, getTripExperiences } from "@/lib/trip";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
+import { resolveCommercialRoute } from "@/lib/commercial";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { JourneyProgress } from "@/components/JourneyProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,16 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 // trip_selections, trip_experiences, and the verdicts row Page 2's
 // Decision Audit Trail produced) - this page is a summary, not a new
 // computation.
+//
+// Track F (2026-09-13): replaced the hard-coded `selection.deepLink` CTA
+// with a call to resolveCommercialRoute(tripId) from Track D's commercial
+// router (src/lib/commercial/index.ts). The router is the SOLE authority
+// on the booking URL and route type — this page never constructs a booking
+// URL or accesses selection.deepLink directly. Four route outcomes:
+//   affiliate_outbound / direct_outbound → CTA with route.bookingUrl
+//   inquiry_only                         → rate verified, no direct route
+//   unavailable (or router returns null) → explanation, return-to-check CTA
+// Also added JourneyProgress at step 5.
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const tripId = (await searchParams).trip;
 
@@ -75,6 +87,14 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
     : null;
   const signal = verdict ? getDealSignal(verdict.score) : null;
 
+  // Track D commercial router — the SOLE authority on booking URL and
+  // route type. Returns null only when no selection exists for the trip
+  // (already guarded above), so null here means the router itself hit an
+  // unrecoverable error (treated identically to routeType === "unavailable").
+  // resolveCommercialRoute reads the same trip_selections row via
+  // getLatestTripSelection internally — consistent with what we read above.
+  const route = await resolveCommercialRoute(tripId);
+
   // Summed as one total on the assumption both are in the same currency -
   // true today (the hotel rate is always AED-filtered, and Page 3 always
   // requests Viator experiences in "AED" too, see complete-your-trip/
@@ -83,9 +103,40 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const experiencesTotal = experiences.reduce((sum, e) => sum + (e.price ?? 0), 0);
   const estimatedTotal = selection.totalPrice + experiencesTotal;
 
+  // Human-readable explanation for each unavailable reason, shown in the
+  // unavailable route block so the customer understands why they can't book
+  // directly from here rather than seeing a generic error.
+  function unavailableMessage(
+    reason?: "supplier_rates_only" | "no_booking_url" | "property_not_mappable" | "affiliate_unavailable" | "supplier_inactive"
+  ): string {
+    switch (reason) {
+      case "supplier_rates_only":
+        return "This supplier's rates are verified by RateManifest but booking must be completed directly on their site — visit the supplier's website to complete your booking.";
+      case "no_booking_url":
+        return "A direct booking link for this rate isn't available. Visit the supplier's website to book.";
+      case "property_not_mappable":
+        return "This property couldn't be matched to a direct booking destination. Search for it on the supplier's site to complete your booking.";
+      case "affiliate_unavailable":
+        return "The affiliate booking route for this supplier isn't active right now. Visit the supplier's site directly.";
+      case "supplier_inactive":
+        return "This supplier is no longer active on RateManifest. You may still book directly through their own website.";
+      default:
+        return "A verified booking route for this rate isn't available right now. You can search for the same property directly on the supplier's site.";
+    }
+  }
+
+  const isBookable =
+    route !== null &&
+    (route.routeType === "affiliate_outbound" || route.routeType === "direct_outbound") &&
+    route.bookingUrl !== null;
+
+  const isInquiryOnly = route !== null && route.routeType === "inquiry_only";
+  const isUnavailable = route === null || route.routeType === "unavailable";
+
   return (
     <div className="shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
+      <JourneyProgress step={5} />
 
       <div className="confirm-summary">
         <div className="your-hotel-eyebrow">Confirm &amp; book</div>
@@ -162,13 +213,57 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
           </p>
         </div>
 
-        <a className="btn confirm-cta" href={selection.deepLink} target="_blank" rel="noopener noreferrer">
-          Confirm &amp; book →
-        </a>
-        <p className="confirm-disclosure">
-          RateManifest doesn&apos;t process payment or hold your reservation — this takes you to{" "}
-          {selection.supplierName} to complete the booking on their site.
-        </p>
+        {/* ── Commercial route — Track D integration ────────────────────────
+            resolveCommercialRoute() is the sole authority on the booking
+            URL. Three outcome branches: bookable, inquiry-only, unavailable.
+            selection.deepLink is never used directly here. */}
+
+        {isBookable && route && route.bookingUrl && (
+          <>
+            <a
+              className="btn confirm-cta"
+              href={route.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {route.displayLabel} →
+            </a>
+            <p className="confirm-disclosure">
+              RateManifest doesn&apos;t process payment or hold your reservation — this takes you to{" "}
+              {route.supplierName} to complete the booking on their site.
+              {route.routeType === "direct_outbound" && " No affiliate link is involved."}
+            </p>
+          </>
+        )}
+
+        {isInquiryOnly && route && (
+          <div className="confirm-route-block confirm-route-inquiry">
+            <div className="confirm-route-label">Booking</div>
+            <p className="confirm-route-note">
+              RateManifest verified the rate at {route.supplierName}, but a direct booking route
+              isn&apos;t available for this provider yet.
+            </p>
+            <p className="confirm-route-reason">
+              Visit {route.supplierName}&apos;s website directly to complete your booking using the rate
+              details shown above.
+            </p>
+          </div>
+        )}
+
+        {isUnavailable && (
+          <div className="confirm-route-block confirm-route-unavailable">
+            <div className="confirm-route-label">Booking</div>
+            <p className="confirm-route-note">
+              {unavailableMessage(route?.unavailableReason)}
+            </p>
+            <Link
+              href={`/check-iq?hotel=${selection.hotelId}&checkin=${trip.checkIn}&checkout=${trip.checkOut}&trip=${tripId}`}
+              className="btn btn-ghost"
+            >
+              ← Return to rate check
+            </Link>
+          </div>
+        )}
 
         {experiences.length > 0 && (
           <div className="confirm-experience-links">

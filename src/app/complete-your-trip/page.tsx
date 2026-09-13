@@ -6,6 +6,7 @@ import { ThingsToDoSection } from "@/components/ThingsToDoSection";
 import { KlookTripSection } from "@/components/KlookTripSection";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { JourneyProgress } from "@/components/JourneyProgress";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ interface CompleteYourTripPageProps {
 // showing "complete your trip" content before a hotel/rate was even
 // chosen worked against the guided step-by-step design. Here, it's the
 // right moment: the decision that matters most (Page 2) is already made.
+//
+// Track F (2026-09-13): added JourneyProgress at step 4. No other changes.
 export default async function CompleteYourTripPage({ searchParams }: CompleteYourTripPageProps) {
   const tripId = (await searchParams).trip;
 
@@ -78,6 +81,7 @@ export default async function CompleteYourTripPage({ searchParams }: CompleteYou
   return (
     <div className="shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
+      <JourneyProgress step={4} />
 
       {/* "No repeated info" - what was already decided on Page 2, carried
           forward as a read-only recap rather than silently dropped. */}

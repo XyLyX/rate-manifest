@@ -181,7 +181,7 @@ function mapOffers(
 }
 
 export type SubmitOutcome =
-  | { status: "ready"; offers: SupplierOffer[] }
+  | { status: "ready"; offers: SupplierOffer[]; rawOfferCount: number }
   | { status: "pending"; jobId: string; pollUrl: string }
   | { status: "error"; message: string };
 
@@ -195,7 +195,13 @@ export type SubmitOutcome =
 export async function submitStayingApiJob(
   hotelId: string,
   checkIn: string,
-  checkOut: string
+  checkOut: string,
+  // Occupancy added 2026-09-13 — sent to /v1/price-compare so StayingAPI
+  // returns rates appropriate for the actual party size. Defaults mirror the
+  // application's own trip/room defaults. childAges[] is deliberately omitted:
+  // Rate Manifest does not currently collect individual child ages.
+  adults: number = 2,
+  children: number = 0
 ): Promise<SubmitOutcome> {
   const apiKey = process.env.STAYINGAPI_KEY;
   if (!apiKey) return { status: "error", message: "STAYINGAPI_KEY not configured" };
@@ -212,6 +218,8 @@ export async function submitStayingApiJob(
   url.searchParams.set("checkIn", checkIn);
   url.searchParams.set("checkOut", checkOut);
   url.searchParams.set("currency", "AED");
+  url.searchParams.set("adults", String(adults));
+  url.searchParams.set("children", String(children));
 
   try {
     const res = await fetch(url.toString(), {
@@ -225,9 +233,10 @@ export async function submitStayingApiJob(
       return { status: "pending", jobId: json.data.jobId, pollUrl: `${STAYINGAPI_ORIGIN}${json.data.pollUrl}` };
     }
     if (res.ok && json?.data?.offers) {
+      const rawOfferCount = (json.data.offers as unknown[]).length;
       const offers = mapOffers(json.data, hotel.name, room.normalizedType, checkIn, checkOut);
       logMappingDiagnostics(hotel.name, checkIn, checkOut, json.data.offers, offers.length);
-      return { status: "ready", offers };
+      return { status: "ready", offers, rawOfferCount };
     }
     return { status: "error", message: `unexpected response: ${JSON.stringify(json).slice(0, 500)}` };
   } catch (err) {
@@ -329,7 +338,15 @@ const FAILED_CHECK_RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
  * INSERT) once the cooldown above has elapsed - see the existing.status
  * === "failed" branch below.
  */
-export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string, checkOut: string): Promise<LiveCheckState> {
+export async function ensureLiveCheckTriggered(
+  hotelId: string,
+  checkIn: string,
+  checkOut: string,
+  // Occupancy added 2026-09-13 — now part of the cache identity so different
+  // occupancies don't share a cached result. Defaults mirror trip/room defaults.
+  adults: number = 2,
+  children: number = 0
+): Promise<LiveCheckState> {
   const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
   if (!hotel || hotel.isMockData) return { kind: "not-applicable" };
 
@@ -337,7 +354,9 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
     where: and(
       eq(schema.stayingApiCache.hotelId, hotelId),
       eq(schema.stayingApiCache.checkIn, new Date(checkIn)),
-      eq(schema.stayingApiCache.checkOut, new Date(checkOut))
+      eq(schema.stayingApiCache.checkOut, new Date(checkOut)),
+      eq(schema.stayingApiCache.adults, adults),
+      eq(schema.stayingApiCache.children, children)
     ),
   });
 
@@ -378,6 +397,8 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
         hotelId,
         checkIn: new Date(checkIn),
         checkOut: new Date(checkOut),
+        adults,
+        children,
         status: "pending",
         jobId: null,
         pollUrl: null,
@@ -385,7 +406,7 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
         refreshedAt: new Date(),
       })
       .onConflictDoNothing({
-        target: [schema.stayingApiCache.hotelId, schema.stayingApiCache.checkIn, schema.stayingApiCache.checkOut],
+        target: [schema.stayingApiCache.hotelId, schema.stayingApiCache.checkIn, schema.stayingApiCache.checkOut, schema.stayingApiCache.adults, schema.stayingApiCache.children],
       })
       .returning({ id: schema.stayingApiCache.id });
 
@@ -397,12 +418,12 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
     placeholderId = freshId;
   }
 
-  const outcome = await submitStayingApiJob(hotelId, checkIn, checkOut);
+  const outcome = await submitStayingApiJob(hotelId, checkIn, checkOut, adults, children);
 
   if (outcome.status === "ready") {
     await db
       .update(schema.stayingApiCache)
-      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), rawOfferCount: outcome.rawOfferCount, jobId: null, pollUrl: null, refreshedAt: new Date() })
       .where(eq(schema.stayingApiCache.id, placeholderId));
     return { kind: "ready" };
   }
@@ -436,13 +457,21 @@ export async function ensureLiveCheckTriggered(hotelId: string, checkIn: string,
 export async function pollLiveCheck(
   hotelId: string,
   checkIn: string,
-  checkOut: string
+  checkOut: string,
+  // Occupancy added 2026-09-13 — must match the five-column cache identity
+  // used by ensureLiveCheckTriggered and stayingApiAdapter; defaults mirror
+  // the application-wide occupancy defaults so existing callers without
+  // explicit occupancy still read the correct row.
+  adults: number = 2,
+  children: number = 0
 ): Promise<{ status: "ready" | "pending" | "error" | "no-pending-job" }> {
   const row = await db.query.stayingApiCache.findFirst({
     where: and(
       eq(schema.stayingApiCache.hotelId, hotelId),
       eq(schema.stayingApiCache.checkIn, new Date(checkIn)),
-      eq(schema.stayingApiCache.checkOut, new Date(checkOut))
+      eq(schema.stayingApiCache.checkOut, new Date(checkOut)),
+      eq(schema.stayingApiCache.adults, adults),
+      eq(schema.stayingApiCache.children, children)
     ),
   });
   if (!row) return { status: "no-pending-job" };
@@ -462,7 +491,7 @@ export async function pollLiveCheck(
   if (outcome.status === "ready") {
     await db
       .update(schema.stayingApiCache)
-      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), jobId: null, pollUrl: null, refreshedAt: new Date() })
+      .set({ status: "ready", offersJson: JSON.stringify(outcome.offers), rawOfferCount: outcome.rawOfferCount, jobId: null, pollUrl: null, refreshedAt: new Date() })
       .where(eq(schema.stayingApiCache.id, row.id));
     return { status: "ready" };
   }
@@ -485,7 +514,7 @@ export async function pollLiveCheck(
 }
 
 export type PollOutcome =
-  | { status: "ready"; offers: SupplierOffer[] }
+  | { status: "ready"; offers: SupplierOffer[]; rawOfferCount: number }
   | { status: "pending" }
   | { status: "error"; message: string };
 
@@ -516,19 +545,41 @@ export async function pollStayingApiJob(
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const json: any = await res.json();
+
+    // 2026-09-13 diagnostic: log exact StayingAPI poll response shape after
+    // 24 simultaneous jobs all remained "pending" for 7 minutes in production.
+    // Captures structure only - no auth headers, no API key, no full body.
+    // Remove once root cause is confirmed.
+    const topKeys = Object.keys(json ?? {});
+    const dataKeys = Object.keys(json?.data ?? {});
+    console.log(
+      `[stayingApiRefresh] poll diagnostic hotel=${hotelId} httpStatus=${res.status}` +
+      ` topKeys=${JSON.stringify(topKeys)}` +
+      ` dataKeys=${JSON.stringify(dataKeys)}` +
+      ` data.status=${JSON.stringify(json?.data?.status)}` +
+      ` json.status=${JSON.stringify(json?.status)}` +
+      ` data.state=${JSON.stringify(json?.data?.state)}`
+    );
+
     const jobStatus = json?.data?.status;
 
     if (jobStatus === "completed") {
       const result = json.data.result;
+      const rawOfferCount = (result?.offers as unknown[] | undefined)?.length ?? 0;
       const offers = result ? mapOffers(result, hotel.name, room.normalizedType, checkIn, checkOut) : [];
       logMappingDiagnostics(hotel.name, checkIn, checkOut, result?.offers ?? [], offers.length);
-      return { status: "ready", offers };
+      return { status: "ready", offers, rawOfferCount };
     }
     if (jobStatus === "failed") {
       const message = json?.data?.error?.message ?? "job failed";
       console.error(`[stayingApiRefresh] pollStayingApiJob: job failed for ${hotel.name} ${checkIn}->${checkOut}:`, message);
       return { status: "error", message };
     }
+    // Unrecognised status - still pending. Diagnostic log above shows exact shape.
+    console.log(
+      `[stayingApiRefresh] pollStayingApiJob: unrecognised jobStatus=${JSON.stringify(jobStatus)}` +
+      ` for hotel=${hotelId} ${checkIn}->${checkOut} - remaining pending`
+    );
     return { status: "pending" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

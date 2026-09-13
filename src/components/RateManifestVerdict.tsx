@@ -52,6 +52,20 @@ export function RateManifestVerdict({
     sourcesComparedCount: offers.length,
   });
 
+  // 2026-09-13: presentation-layer confidence gate. The underlying score and
+  // confidence calculation are unchanged - this only guards what action word
+  // is displayed. A low-confidence verdict or a medium-confidence verdict
+  // with only one available source must never tell a visitor to "BOOK NOW"
+  // on the basis of a single, incompletely-confirmed offer.
+  //   low confidence (0/3 signals)  → always WATCH
+  //   medium + single source         → WATCH (comparison is impossible)
+  //   otherwise                      → preserve signal.action unchanged
+  const availableCount = offers.filter((o) => !o.soldOut).length;
+  const displayAction =
+    confidence.tier === "low" || (confidence.tier === "medium" && availableCount <= 1)
+      ? "WATCH"
+      : signal.action;
+
   return (
     <div className="rate-verdict-panel" style={{ "--ring-color": `var(${signal.colorVar})` } as React.CSSProperties}>
       <div className="rate-verdict-ring" style={{ "--score": offer.score } as React.CSSProperties}>
@@ -74,14 +88,22 @@ export function RateManifestVerdict({
             softer prose sentence below it. Same tier-color classes as
             Page 4's badge (rate-verdict-action-{tier}), reusing the exact
             strong/good/fair/weak palette so the two pages agree visually. */}
-        <div className={`rate-verdict-action rate-verdict-action-${signal.tier}`}>{signal.action}</div>
+        <div className={`rate-verdict-action rate-verdict-action-${signal.tier}`}>{displayAction}</div>
         <div className="rate-verdict-hotel">
           {hotelName} · {offer.currency} {Math.round(offer.totalPrice).toLocaleString("en-AE")}
         </div>
         <div className="rate-verdict-headline">{signal.verdict}</div>
+        {/* Fix 4 (2026-09-13): single-source low-confidence explanatory line —
+            shown only when confidence is low AND only one source is available,
+            so "Good" score label and WATCH action are not left unexplained.
+            Does not change score, thresholds, or confidence logic. */}
+        {confidence.tier === "low" && availableCount <= 1 && (
+          <div className="rate-verdict-single-source">Based on 1 source — limited comparison.</div>
+        )}
         <div className="rate-verdict-footnote">
-          Based on {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} checked for these dates — price,
-          cancellation terms, and supplier track record where we have it.
+          Based on the total price returned by {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} for these
+          exact dates. Cancellation terms, taxes, and supplier track record were not available from{" "}
+          {sourcesChecked === 1 ? "this source" : "these sources"}.
         </div>
         {uncertainFields.length > 0 && (
           <div className="rate-verdict-caveat">

@@ -279,7 +279,7 @@ function OfferRow({
             // returned one all-in total with no nightly/tax split - "+
             // {currency} 0 tax" would read as a confirmed zero, which isn't
             // true. See suppliers/types.ts's taxesConfidence.
-            <>{offer.currency} {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night · taxes &amp; fees included, not itemized</>
+            <>{offer.currency} {Math.round(offer.nightlyPrice).toLocaleString("en-AE")}/night · taxes &amp; fees not itemized by this source</>
           )}
         </div>
         {savings > 0 && (

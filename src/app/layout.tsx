@@ -19,6 +19,11 @@ import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
 import "./globals.css";
+// Track F (2026-09-13): journey progress indicator + confirm route block
+// styles — kept in a separate file rather than appended to globals.css so
+// Track F additions stay isolated and reviewable. See track-f.css for the
+// full rationale.
+import "./track-f.css";
 
 export const metadata: Metadata = {
   title: "Rate Manifest",

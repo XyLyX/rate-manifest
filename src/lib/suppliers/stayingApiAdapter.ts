@@ -58,11 +58,17 @@ export const stayingApiAdapter: SupplierAdapter = {
     // refreshed, so this is a cheap early exit rather than a wasted query.
     if (!hotel || hotel.isMockData) return [];
 
+    // Occupancy added to WHERE 2026-09-13 — adults and children are now part
+    // of the cache identity. Defaults (2/0) match the application-wide
+    // occupancy defaults so a caller without explicit occupancy reads the same
+    // row that was written with those defaults.
     const cached = await db.query.stayingApiCache.findFirst({
       where: and(
         eq(schema.stayingApiCache.hotelId, hotel.id),
         eq(schema.stayingApiCache.checkIn, new Date(params.checkIn)),
-        eq(schema.stayingApiCache.checkOut, new Date(params.checkOut))
+        eq(schema.stayingApiCache.checkOut, new Date(params.checkOut)),
+        eq(schema.stayingApiCache.adults, params.adults ?? 2),
+        eq(schema.stayingApiCache.children, params.children ?? 0)
       ),
     });
     if (!cached || cached.status !== "ready" || !cached.offersJson) return [];

@@ -142,6 +142,7 @@ export async function GET(request: Request) {
       const values = {
         status: "ready",
         offersJson: JSON.stringify(outcome.offers),
+        rawOfferCount: outcome.rawOfferCount,
         jobId: null,
         pollUrl: null,
         refreshedAt: new Date(),

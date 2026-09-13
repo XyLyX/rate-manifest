@@ -8,6 +8,13 @@ export interface SearchParams {
   hotelId: string;
   checkIn: string; // ISO date, e.g. "2026-09-14"
   checkOut: string; // ISO date
+  // Occupancy added 2026-09-13 — optional so non-StayingAPI adapters can
+  // ignore them without change. Defaults (adults: 2, children: 0) mirror the
+  // application's own trip/room defaults everywhere occupancy is used.
+  // childAges[] deliberately omitted — Rate Manifest does not currently
+  // collect individual child ages.
+  adults?: number;
+  children?: number;
 }
 
 export interface SupplierOffer {
@@ -62,6 +69,22 @@ export interface SupplierOffer {
   // null-safe everywhere downstream so adding a freshness display never
   // requires every adapter to support it.
   checkedAt?: string | null;
+
+  // --- Phase 1.1 Track A (claude/phase1.1-architecture-decisions.md, Open
+  // Question 6): the type-level counterpart to the meal/payment columns
+  // added to the rates and price_history tables (src/db/schema.ts). Both
+  // optional - no current adapter (mockAdapter, stayingApiAdapter) sets
+  // them, since neither can honestly claim to know either fact today (see
+  // the technical blueprint's own "Gap 1: meal inclusion isn't captured
+  // anywhere" finding). Wiring a real adapter to populate these, and
+  // persisting them via search.ts, is Track C's job, not this one - this
+  // is schema/type capability only. Same "confirmed" | "unknown" vocabulary
+  // as taxesConfidence/cancellation.confidence above; deliberately not a
+  // new confidence scale.
+  mealIncluded?: boolean;
+  mealConfidence?: "confirmed" | "unknown";
+  paymentTerms?: string;
+  paymentTermsConfidence?: "confirmed" | "unknown";
 }
 
 export interface SupplierAdapter {

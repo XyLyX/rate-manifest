@@ -20,6 +20,15 @@ import { Logo } from "./Logo";
 // wishlist/account icons - none of those are real features (no flight
 // data source, no accounts system), and a tab or icon that goes nowhere
 // or does nothing is worse than one that's simply not there yet.
+// 2026-09-11: added "Exceptional Stays" and "Methodology" tabs (claude/
+// rate-manifest-technical-blueprint.md, Section 12) to complete the
+// reviewer-walkthrough path (Homepage -> Exceptional Stays -> Property IQ
+// -> Methodology -> Check IQ). Folded the old "How it works" anchor tab
+// into "Methodology" rather than keeping both - the homepage's #how-it-
+// works teaser section still exists (unchanged) and is still reachable by
+// scrolling, but the nav's own "explain the product" slot now points at
+// the full page rather than a 3-card teaser, since having both said
+// overlapping things.
 export function NavBar({
   ctaLabel = "Search",
   ctaHref = "/",
@@ -28,7 +37,7 @@ export function NavBar({
 }: {
   ctaLabel?: string;
   ctaHref?: string;
-  active?: "hotels" | "none";
+  active?: "hotels" | "exceptional-stays" | "methodology" | "none";
   // "home" drops the sticky/negative-margin/background treatment that
   // makes this bar read as the top edge of the .shell card everywhere
   // else - the homepage hero is no longer inside .shell (see
@@ -47,8 +56,14 @@ export function NavBar({
         <Link href="/" className={active === "hotels" ? "nav-tab active" : "nav-tab"}>
           Hotels
         </Link>
-        <Link href="/#how-it-works" className="nav-tab">
-          How it works
+        <Link
+          href="/exceptional-stays"
+          className={active === "exceptional-stays" ? "nav-tab active" : "nav-tab"}
+        >
+          Exceptional Stays
+        </Link>
+        <Link href="/methodology" className={active === "methodology" ? "nav-tab active" : "nav-tab"}>
+          Methodology
         </Link>
         <Link href="/for-business" className="nav-tab">
           For Business

@@ -61,6 +61,34 @@ export const hotels = pgTable("hotels", {
   // "draft" one just because RateManifest already knew about it.
   state: text("state").notNull().default("curated"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+
+  // --- Phase 1.1 Track A (2026-09-12, claude/phase1.1-architecture-
+  // decisions.md, Open Question 2): Property Contract enrichment fields.
+  // Schema capability only - additive and nullable, per that decision's own
+  // instruction: no existing row is required to have a value, and nothing
+  // in this migration backfills one. Compare & Choose (src/app/compare/
+  // page.tsx) keeps rendering "Not available from the source checked" for
+  // any property missing a given field here, exactly as it does today.
+  address: text("address"),
+  country: text("country"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  // Property category/type (e.g. "resort", "boutique", "business hotel") -
+  // free text for now, not a closed enum; the real vocabulary isn't decided
+  // yet and inventing one here would be inventing a classification this
+  // decision doesn't authorize.
+  category: text("category"),
+  website: text("website"),
+  // JSON-encoded string[] - same "encode as text" convention already used
+  // elsewhere in this schema (see events.metadata, verdicts.reasons_json).
+  aliases: text("aliases"),
+  facilities: text("facilities"),
+  accessibilityAttributes: text("accessibility_attributes"),
+  images: text("images"),
+  // "confirmed" | "unknown", one record-level flag for the enrichment fields
+  // above as a group - see src/db/schema.ts's own comment on this column for
+  // why this isn't a per-field flag or a new confidence scale.
+  enrichmentConfidence: text("enrichment_confidence"),
 });
 
 export const rooms = pgTable("rooms", {
@@ -88,6 +116,31 @@ export const suppliers = pgTable("suppliers", {
   reliabilityScore: real("reliability_score"),
   bookingOutcomeCount: integer("booking_outcome_count").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+
+  // --- Phase 1.1 Track D (2026-09-13, Commercial Router): five supplier
+  // capability flags. All default to the conservative safe value - a supplier
+  // is assumed capable of discovery/rate-verification (they already are, by
+  // being in the adapter registry) but NOT capable of commercial booking and
+  // NOT enrolled in any affiliate programme, until explicitly set otherwise.
+  //
+  // Being an api_partner does NOT imply supportsCommercialBooking - StayingAPI
+  // is integration_type = 'api_partner' and is the sole real data source
+  // today, but its commercial booking capability is unconfirmed (it supplies
+  // outboundUrls for rate-verification purposes only). supportsCommercialBooking
+  // must NEVER be set true for StayingAPI / priceline without a deliberate
+  // future decision backed by confirmed affiliate or direct-booking capability.
+  //
+  // See the Track D implementation brief and the Commercial Router
+  // (src/lib/commercial/router.ts) for how these flags are consumed.
+  supportsDiscovery: boolean("supports_discovery").notNull().default(true),
+  supportsRateVerification: boolean("supports_rate_verification").notNull().default(true),
+  supportsCommercialBooking: boolean("supports_commercial_booking").notNull().default(false),
+  hasAffiliateProgram: boolean("has_affiliate_program").notNull().default(false),
+  // The environment variable name that holds the affiliate ID for this
+  // supplier, e.g. "BOOKING_AFFILIATE_ID". Null when hasAffiliateProgram
+  // is false. The router resolves process.env[affiliateIdEnvKey] at
+  // route-resolution time — never stored in the DB itself.
+  affiliateIdEnvKey: text("affiliate_id_env_key"),
 });
 
 export const rates = pgTable(
@@ -117,6 +170,23 @@ export const rates = pgTable(
     // booking - capturedAt is what lets us tell "the price we showed" apart
     // from "the price now"
     capturedAt: timestamp("captured_at", { mode: "date" }).notNull().default(sql`now()`),
+
+    // --- Phase 1.1 Track A (claude/phase1.1-architecture-decisions.md,
+    // Open Question 6): the two named, already-approved Rate Observation
+    // extensions - meal inclusion and payment terms - added to the
+    // existing rates table rather than a new table, ratifying the current
+    // three-table split (rates / price_history / verdicts.evidence_json) as
+    // the standing contract. Each pairs with its own "confirmed" | "unknown"
+    // confidence flag, the exact pattern cancellation.confidence and
+    // taxesConfidence already use on SupplierOffer (src/lib/suppliers/
+    // types.ts) - no adapter populates these yet (none can, honestly, per
+    // "never invent"), so every existing and new row simply has both pairs
+    // null until a supplier adapter is extended to set them - a later
+    // Track C change, not this one.
+    mealIncluded: boolean("meal_included"),
+    mealConfidence: text("meal_confidence"),
+    paymentTerms: text("payment_terms"),
+    paymentTermsConfidence: text("payment_terms_confidence"),
   },
   (t) => [index("rates_hotel_checkin_idx").on(t.hotelId, t.checkIn), index("rates_search_idx").on(t.searchId)]
 );
@@ -154,6 +224,15 @@ export const priceHistory = pgTable(
     totalPrice: real("total_price").notNull(),
     soldOut: boolean("sold_out").notNull().default(false),
     observedAt: timestamp("observed_at", { mode: "date" }).notNull().default(sql`now()`),
+
+    // --- Phase 1.1 Track A - same extension and same reasoning as rates'
+    // own comment above; kept in parity across both tables per the Open
+    // Question 6 decision to extend fields "within these three tables"
+    // rather than build a fourth. Null on every existing row; no backfill.
+    mealIncluded: boolean("meal_included"),
+    mealConfidence: text("meal_confidence"),
+    paymentTerms: text("payment_terms"),
+    paymentTermsConfidence: text("payment_terms_confidence"),
   },
   (t) => [
     uniqueIndex("price_history_unique_obs").on(t.hotelId, t.supplierId, t.checkIn, t.observedDate),
@@ -277,9 +356,27 @@ export const stayingApiCache = pgTable(
     // JSON-encoded SupplierOffer[], null until status = "ready" - same
     // "encode as text" convention as events.metadata below.
     offersJson: text("offers_json"),
+    // Count of raw offers returned by StayingAPI BEFORE any currency or
+    // supplier allow-list filtering. Nullable for backwards compatibility with
+    // rows written before this column existed. Zero means StayingAPI itself
+    // returned no offers; non-zero with offersJson="[]" means mapOffers()
+    // discarded everything. Written by stayingApiRefresh.ts at the same time
+    // offersJson is written.
+    rawOfferCount: integer("raw_offer_count"),
     refreshedAt: timestamp("refreshed_at", { mode: "date" }).notNull().default(sql`now()`),
+    // Occupancy added 2026-09-13 — adults and children count are now part of
+    // the cache identity because StayingAPI's price-compare result can differ
+    // by occupancy. Previously the cache key was (hotelId, checkIn, checkOut)
+    // only, meaning a family search and a couple search for the same
+    // hotel/dates silently shared one row. Defaults match the application-wide
+    // occupancy defaults (trips.adults default 2, trips.children default 0) so
+    // existing rows are migrated honestly without inventing occupancy data.
+    // childAges[] is deliberately not stored or sent — Rate Manifest does not
+    // currently collect individual child ages (see diagnostic 2026-09-13).
+    adults: integer("adults").notNull().default(2),
+    children: integer("children").notNull().default(0),
   },
-  (t) => [uniqueIndex("staying_api_cache_hotel_checkin_idx").on(t.hotelId, t.checkIn, t.checkOut)]
+  (t) => [uniqueIndex("staying_api_cache_hotel_checkin_idx").on(t.hotelId, t.checkIn, t.checkOut, t.adults, t.children)]
 );
 
 // The Decision Audit Trail - one immutable row per runSearch() call,
@@ -328,6 +425,17 @@ export const verdicts = pgTable(
     // JSON-encoded VerdictEvidenceOffer[] - every offer actually compared,
     // not just the winner. See src/lib/verdict.ts.
     evidenceJson: text("evidence_json").notNull(),
+    // OQ5 (2026-09-12, claude/phase1.1-architecture-decisions.md): the
+    // confidence tier ("high" | "medium" | "low") for this verdict's top
+    // offer, as computed by confidence.ts's getVerdictConfidence() via
+    // bestDealScore.ts's scoreOffers(). Nullable because rows written before
+    // this column existed won't have it; read those as "unknown", never as
+    // any specific tier. Not the same as hotels.enrichmentConfidence (which
+    // is a property-level enrichment flag — see that column's own comment
+    // above). See confidence.ts for the full rationale on why this is a
+    // separate axis from the 0-100 score.
+    confidence: text("confidence"),
+    rateSnapshotJson: text("rate_snapshot_json"),
     generatedAt: timestamp("generated_at", { mode: "date" }).notNull().default(sql`now()`),
   },
   (t) => [

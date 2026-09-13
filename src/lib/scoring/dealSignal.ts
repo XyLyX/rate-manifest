@@ -1,3 +1,5 @@
+import type { ConfidenceTier } from "@/lib/scoring/confidence";
+
 // The "Rate Signal" — turns the numeric score into a plain-language tier so
 // a reveal decision doesn't require reading a number. Four bands per the
 // brand spec (see DECISIONS.md "Brand system v2"): 90+ is Strong, 75-89 is
@@ -34,6 +36,12 @@ export interface DealSignal {
   colorVar: string; // CSS custom property name carrying this tier's color
   verdict: string; // one-line plain-language recommendation
   action: VerdictAction; // Page 2/Page 4's fixed decision vocabulary — see VerdictAction above
+  // OQ5 (2026-09-12): optional — callers that already have a ScoredOffer
+  // can attach its confidence to the signal for the Verdict panel to use
+  // without a second getVerdictConfidence() call. getDealSignal() itself
+  // never computes confidence (it only has the score); the field is set by
+  // callers that carry both.
+  confidence?: ConfidenceTier;
 }
 
 export function getDealSignal(score: number): DealSignal {
@@ -45,7 +53,7 @@ export function getDealSignal(score: number): DealSignal {
       tier: "good",
       label: "Good",
       colorVar: "--signal-good",
-      verdict: "A solid offer — book with confidence.",
+      verdict: "A reasonable offer, but the evidence is limited.",
       action: "BOOK NOW",
     };
   }

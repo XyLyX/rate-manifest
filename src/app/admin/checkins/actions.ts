@@ -15,6 +15,17 @@ import { BOOKING_OUTCOME_STATUSES, type BookingOutcomeStatus } from "@/lib/const
  * not this form).
  */
 export async function updateOutcomeStatus(formData: FormData) {
+  // PHASE 0.1 FIX (2026-09-12): the page this action is called from is now
+  // gated by ADMIN_SECRET (see page.tsx) - but a Server Action is its own
+  // POST endpoint, reachable directly by anyone who already has the
+  // rendered form's action id, independent of whether they could load the
+  // page itself. Checked again here, same secret, so a mutation can't
+  // happen without it either.
+  const adminSecret = String(formData.get("adminSecret") ?? "");
+  if (!process.env.ADMIN_SECRET || adminSecret !== process.env.ADMIN_SECRET) {
+    throw new Error("Forbidden.");
+  }
+
   const outcomeId = String(formData.get("outcomeId") ?? "");
   const status = String(formData.get("status") ?? "");
   const issueNote = String(formData.get("issueNote") ?? "").trim();

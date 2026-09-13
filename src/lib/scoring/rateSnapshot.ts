@@ -52,7 +52,7 @@ export function buildRateSnapshot({
   }`;
 
   return [
-    { label: "Room", status: "confirmed", value: roomTypeLabel },
+    { label: "Room", status: "unknown", value: `${roomTypeLabel} — not confirmed per offer by this source` },
     {
       label: "Stay dates",
       status: "confirmed",
@@ -93,7 +93,7 @@ export function buildRateSnapshot({
       status: offer.taxesConfirmed ? "confirmed" : "unknown",
       value: offer.taxesConfirmed
         ? `${offer.currency} ${Math.round(offer.taxesFeesPerNight).toLocaleString("en-AE")}/night, included in total`
-        : "Bundled into the total — not itemized by this source",
+        : "Tax treatment not confirmed — verify total at checkout",
     },
   ];
 }

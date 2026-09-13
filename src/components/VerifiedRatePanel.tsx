@@ -51,6 +51,9 @@ interface VerifiedRatePanelProps {
   // actually priced in (2026-09-06 fix - was hardcoded "AED"). Only
   // meaningful (and only passed) alongside cheapestTotal, same as nights.
   currency: string;
+  // When set (not-checked state only), renders a "Try again →" link so the
+  // visitor can retry the live check without hunting for a way back.
+  retryUrl?: string;
 }
 
 // Same "compute after mount" pattern as ResultsList's FreshnessBadge, and
@@ -68,7 +71,7 @@ function formatAge(checkedAtIso: string): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTotal, nights, currency }: VerifiedRatePanelProps) {
+export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTotal, nights, currency, retryUrl }: VerifiedRatePanelProps) {
   const [age, setAge] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,9 +92,9 @@ export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTo
                 {currency} {Math.round(cheapestTotal).toLocaleString("en-AE")} for {nights} night{nights === 1 ? "" : "s"}
               </span>
             )}
-            <span className="verified-rate-stat">Availability confirmed</span>
+            <span className="verified-rate-stat">Rate found</span>
             <span className="verified-rate-stat">
-              {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"} compared
+              {sourcesChecked} source{sourcesChecked === 1 ? "" : "s"}{sourcesChecked >= 2 ? " compared" : ""}
             </span>
             <span className="verified-rate-stat">{age ? `Checked ${age}` : "Checked"}</span>
           </div>
@@ -107,10 +110,11 @@ export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTo
           i
         </span>
         <div>
-          <div className="verified-rate-title">Checked, nothing available</div>
+          <div className="verified-rate-title">No rates returned</div>
           <div className="verified-rate-sub">
-            {age ? `Checked ${age}` : "Checked"} — no availability came back across the sources we compared for
-            these exact dates.
+            {age ? `Checked ${age}` : "Checked"} — the rate check ran but returned no comparable offers for
+            these exact dates. This does not mean the property is unavailable — check directly with the hotel
+            or try again shortly.
           </div>
         </div>
       </div>
@@ -128,6 +132,9 @@ export function VerifiedRatePanel({ state, sourcesChecked, checkedAt, cheapestTo
           We couldn&apos;t run a real-time check for these exact dates just now. This isn&apos;t about this
           property — try again in a moment, or try different dates.
         </div>
+        {retryUrl && (
+          <a href={retryUrl} className="verified-rate-retry">Try again →</a>
+        )}
       </div>
     </div>
   );

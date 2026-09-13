@@ -128,8 +128,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 ✓
               </span>
               <div>
-                <div className="rate-verified-badge-title">Rate Verified</div>
-                <div className="rate-verified-badge-sub">Real-time prices. Actual availability.</div>
+                <div className="rate-verified-badge-title">Shortlist, Then Verify</div>
+                <div className="rate-verified-badge-sub">Real-time rates are checked once you pick a hotel.</div>
               </div>
             </div>
           </div>
@@ -161,18 +161,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <div className="home-trust-strip">
         <div className="trust-item">
           <IconBolt className="trust-icon" />
-          <div className="trust-item-title">Real-Time Rates</div>
-          <div className="trust-item-sub">Live prices from the sources we check</div>
+          <div className="trust-item-title">Real-Time Rates, On Request</div>
+          <div className="trust-item-sub">Live pricing checked once you pick a hotel to compare</div>
         </div>
         <div className="trust-item">
           <IconShieldCheck className="trust-icon" />
-          <div className="trust-item-title">Verified Availability</div>
-          <div className="trust-item-sub">No stale prices shown as current</div>
+          <div className="trust-item-title">Nothing Invented</div>
+          <div className="trust-item-sub">Details we can&apos;t verify are marked unavailable, never guessed</div>
         </div>
         <div className="trust-item">
           <IconStar className="trust-icon" />
-          <div className="trust-item-title">Smart Insights</div>
-          <div className="trust-item-sub">Know if it&apos;s a good deal, not just a low one</div>
+          <div className="trust-item-title">Trip-Matched Shortlist</div>
+          <div className="trust-item-sub">Filtered to your destination, dates, and travel style</div>
         </div>
         <div className="trust-item">
           <IconScales className="trust-icon" />
@@ -200,7 +200,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="home-section-heading">
               <div>
                 <h2>Top Hotels</h2>
-                <p>Real properties in {selectedCity}. Pick one and run Check IQ to see its rates.</p>
+                <p>Real properties in {selectedCity}. Select up to 5 to compare side by side.</p>
               </div>
             </div>
 
