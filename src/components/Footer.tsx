@@ -5,6 +5,8 @@ import { Logo } from "./Logo";
 // added Travel Intelligence and Legal (Privacy/Terms) to footer columns,
 // removed "Terms and privacy policy: coming before public launch." placeholder
 // now that /privacy and /terms routes exist.
+//
+// 2026-09-15 positioning pass: added Contact link to Explore column.
 export function Footer() {
   return (
     <footer className="site-footer">
@@ -18,6 +20,7 @@ export function Footer() {
           <Link href="/">Search</Link>
           <Link href="/#travel-intelligence">Travel Intelligence</Link>
           <Link href="/#how-it-works">How it works</Link>
+          <Link href="/contact">Contact</Link>
         </div>
         <div>
           <div className="site-footer-heading">Business</div>

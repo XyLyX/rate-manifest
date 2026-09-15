@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
@@ -73,8 +74,14 @@ function defaultCheckOut(): string {
 // (.home-intel) after the trust strip, before how-it-works. Three
 // static editorial pieces — no database, no CMS, no API. CSS added to
 // globals.css. No other architecture changes.
+//
+// 2026-09-15 positioning pass: hero subhead broadened to name flights
+// coming; mode selector added to search card (Hotels/Flights/Hotels+Flights);
+// Flights and combined show a coming-soon panel, not a fake search.
+// `mode` param read from URL — default "hotels". topHotels section gated
+// on hotels mode so switching to Flights hides hotel results correctly.
 interface HomePageProps {
-  searchParams: Promise<{ trip?: string }>;
+  searchParams: Promise<{ trip?: string; mode?: string }>;
 }
 
 // 2026-09-05, second correction (Navin, pasting the Page 1 spec back
@@ -105,6 +112,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const params = await searchParams;
   const trip = params.trip ? await getTrip(params.trip) : null;
+  const mode = params.mode ?? "hotels";
 
   const selectedCity = trip ? trip.destination : defaultCity;
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
@@ -114,12 +122,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // DiscoverySource (today: curatedCatalogSource, a plain catalog read, no
   // supplier adapters - see check-iq/page.tsx's ensureLiveCheckTriggered(),
   // the only place a live, credit-spending check ever happens) - but still
-  // computed at all only when a trip exists, so there's nothing to render
-  // before a real search happened. No `limit` passed - the frozen Section 2
-  // decision is broad exploration on Page 1, capped only by the 5-hotel
-  // *selection* limit HotelSelectionGrid enforces, not by how many cards
-  // are shown (the pre-2026-09-12 slice(0, 4) cap is gone with it).
-  const topHotels = trip
+  // computed at all only when a trip exists AND the visitor is in Hotels mode,
+  // so there's nothing to render before a real search happened or in the
+  // Flights/combined coming-soon states. No `limit` passed - the frozen
+  // Section 2 decision is broad exploration on Page 1, capped only by the
+  // 5-hotel *selection* limit HotelSelectionGrid enforces, not by how many
+  // cards are shown (the pre-2026-09-12 slice(0, 4) cap is gone with it).
+  const topHotels = trip && mode === "hotels"
     ? await activeDiscoverySource.search({
         destination: selectedCity,
         checkIn,
@@ -139,8 +148,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               YOUR NEXT HOLIDAY SHOULDN&apos;T BE A GUESS.
             </h1>
             <p>
-              Make better travel decisions with clearer market context,
-              smarter comparisons and rate intelligence before you book.
+              Make better travel decisions across hotels, flights and the
+              journey around them — with clearer market context, smarter
+              comparisons and rate intelligence before you book.
             </p>
           </div>
 
@@ -173,25 +183,80 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             (createTrip(), src/app/actions/trip.ts) and redirects back here
             with ?trip= set, which then drives the shortlist below. See the
             HomePage doc comment above for how this differs from the
-            superseded 2026-09-05 "Sprint 3" single-page reshuffle. */}
+            superseded 2026-09-05 "Sprint 3" single-page reshuffle.
+            Mode selector (2026-09-15): Hotels is active; Flights and
+            Hotels+Flights show coming-soon panels instead of the search form.
+            No fake search, no fake prices — just honest "not yet." */}
         <div className="home-search-card">
-          <div className="home-search-card-heading">
-            <div className="home-search-card-eyebrow">
-              Where do you want to go?
-            </div>
-
-            <p className="home-search-card-sub">
-              Tell us where and when — we&apos;ll shortlist real hotels and run
-              rate intelligence on whichever one you choose.
-            </p>
+          {/* Mode selector tabs */}
+          <div className="mode-selector">
+            <Link
+              href="/"
+              className={`mode-selector-tab${mode === "hotels" ? " active" : ""}`}
+            >
+              Hotels
+            </Link>
+            <Link
+              href="/?mode=flights"
+              className={`mode-selector-tab${mode === "flights" ? " active" : " soon"}`}
+            >
+              Flights{" "}
+              {mode !== "flights" && (
+                <span className="mode-selector-soon-badge">Soon</span>
+              )}
+            </Link>
+            <Link
+              href="/?mode=combined"
+              className={`mode-selector-tab${mode === "combined" ? " active" : " soon"}`}
+            >
+              Hotels + Flights{" "}
+              {mode !== "combined" && (
+                <span className="mode-selector-soon-badge">Soon</span>
+              )}
+            </Link>
           </div>
 
-          <DiscoverForm
-            cities={cities}
-            defaultDestination={trip?.destination ?? ""}
-            defaultCheckIn={checkIn}
-            defaultCheckOut={checkOut}
-          />
+          {mode === "flights" ? (
+            <div className="mode-coming-soon">
+              <p className="mode-coming-soon-title">Flight search coming soon</p>
+              <p className="mode-coming-soon-body">
+                We&apos;re building flight intelligence into Rate Manifest — real
+                fare comparisons and decision context, not just a booking link.
+                Hotels are live now. Flights follow next.
+              </p>
+            </div>
+          ) : mode === "combined" ? (
+            <div className="mode-coming-soon">
+              <p className="mode-coming-soon-title">
+                Hotels + Flights bundles coming soon
+              </p>
+              <p className="mode-coming-soon-body">
+                Combined trip intelligence — hotel rates and flights in one
+                decision view — is on the roadmap. Start with a hotel search
+                while we build it out.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="home-search-card-heading">
+                <div className="home-search-card-eyebrow">
+                  Where do you want to go?
+                </div>
+
+                <p className="home-search-card-sub">
+                  Tell us where and when — we&apos;ll shortlist real hotels and run
+                  rate intelligence on whichever one you choose.
+                </p>
+              </div>
+
+              <DiscoverForm
+                cities={cities}
+                defaultDestination={trip?.destination ?? ""}
+                defaultCheckIn={checkIn}
+                defaultCheckOut={checkOut}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -222,15 +287,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       <div className="home-content">
-        {/* Nothing here at all until a real search has happened - see the
-            HomePage doc comment above. No "View all hotels" link (that was
-            a side door into a full-city browse with no search behind it -
-            removed entirely, /browse itself now just redirects to "/", see
-            its own file), and no city-switch tabs (switching city without
-            resubmitting the form is exactly the same "results without a
-            search" problem - the Destination dropdown in the form above is
-            the one way to change it now). */}
-        {trip && (
+        {/* Nothing here at all until a real search has happened in hotels mode
+            - see the HomePage doc comment above. No "View all hotels" link
+            (that was a side door into a full-city browse with no search behind
+            it - removed entirely, /browse itself now just redirects to "/"),
+            and no city-switch tabs (switching city without resubmitting the
+            form is exactly the same "results without a search" problem - the
+            Destination dropdown in the form above is the one way to change
+            it now). Hotel results are also suppressed in Flights/combined
+            modes (mode-gated topHotels above). */}
+        {trip && mode === "hotels" && (
           <section className="home-top-hotels">
             <div className="home-section-heading">
               <div>
