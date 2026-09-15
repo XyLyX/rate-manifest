@@ -565,3 +565,20 @@ export const tripExperiences = pgTable(
     uniqueIndex("trip_experiences_trip_product_idx").on(t.tripId, t.supplierProductId),
   ]
 );
+
+// W3 (2026-09-14): destination interest capture. Records which unsupported
+// destinations visitors searched for, so Rate Manifest knows where to
+// expand next and can reach out when a destination goes live. Deliberately
+// minimal: no deduplication constraint (multiple people can legitimately
+// submit the same destination), no newsletter opt-in, no account link.
+// source is always "destination_search" for this form; kept as a plain text
+// column so future intake channels (e.g. a blog CTA) get a different value
+// without a schema change.
+export const destinationInterest = pgTable("destination_interest", {
+  id: text("id").primaryKey(),
+  destination: text("destination").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  source: text("source").notNull().default("destination_search"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+});

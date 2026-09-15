@@ -6,5 +6,11 @@
   command = "npm run build"
   publish = ".next"
 
+[dev]
+  command = "npx next dev"
+  targetPort = 3000
+  port = 8888
+  framework = "#custom"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

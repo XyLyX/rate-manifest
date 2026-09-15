@@ -164,7 +164,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
               </div>
 
               <Link
-                href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`}
+                href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}&authorized=1`}
                 className="btn btn-block compare-cta"
               >
                 Analyse with RateManifest IQ →

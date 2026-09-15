@@ -7,7 +7,7 @@ import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
 import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { HeroArt } from "@/components/HeroArt";
-import { IconBolt, IconShieldCheck, IconStar, IconScales, IconLink } from "@/components/TrustIcons";
+import { IconBolt, IconShieldCheck, IconLink } from "@/components/TrustIcons";
 
 // Forces this page to render per-request instead of at build time. Without
 // this, Next tries to prerender it during `next build`, which means the
@@ -63,6 +63,16 @@ function defaultCheckOut(): string {
 // the pasted mockup," for why those three departures from the original
 // mockup exist. Nothing about that visual layer changes here; only the
 // search card and the hotel cards' own CTA do.
+//
+// W1A (2026-09-14): copy-only pass — hero headline, eyebrow, subhead,
+// search-card heading, trust strip (5→3 items), how-it-works labels.
+// No structural, CSS, schema, or routing changes. See DECISIONS.md,
+// "W1A — Homepage Copy & Metadata."
+//
+// W1B (2026-09-14): added static Travel Intelligence editorial section
+// (.home-intel) after the trust strip, before how-it-works. Three
+// static editorial pieces — no database, no CMS, no API. CSS added to
+// globals.css. No other architecture changes.
 interface HomePageProps {
   searchParams: Promise<{ trip?: string }>;
 }
@@ -81,9 +91,17 @@ interface HomePageProps {
 // i.e. DiscoverForm was actually submitted (createTrip(), src/app/actions/
 // trip.ts). Before that, Page 1 is nothing but the search form itself.
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const hotels = await db.query.hotels.findMany({ orderBy: asc(schema.hotels.name) });
-  const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) => a.localeCompare(b));
-  const defaultCity = cities.includes("Dubai") ? "Dubai" : (cities[0] ?? "Dubai");
+  const hotels = await db.query.hotels.findMany({
+    orderBy: asc(schema.hotels.name),
+  });
+
+  const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  const defaultCity = cities.includes("Dubai")
+    ? "Dubai"
+    : (cities[0] ?? "Dubai");
 
   const params = await searchParams;
   const trip = params.trip ? await getTrip(params.trip) : null;
@@ -101,35 +119,50 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // decision is broad exploration on Page 1, capped only by the 5-hotel
   // *selection* limit HotelSelectionGrid enforces, not by how many cards
   // are shown (the pre-2026-09-12 slice(0, 4) cap is gone with it).
-  const topHotels = trip ? await activeDiscoverySource.search({ destination: selectedCity, checkIn, checkOut }) : [];
+  const topHotels = trip
+    ? await activeDiscoverySource.search({
+        destination: selectedCity,
+        checkIn,
+        checkOut,
+      })
+    : [];
 
   return (
     <div className="home-page">
       <div className="home-hero-band">
-        <NavBar variant="home" />
+         <NavBar variant="home" />
 
         <div className="home-hero-inner">
           <div className="home-hero-copy">
-            <div className="hero-eyebrow">Smarter travel. Better decisions.</div>
+            <div className="hero-eyebrow">Travel Decision Intelligence</div>
             <h1>
-              Every rate.
-              <br />
-              One clear decision.
+              YOUR NEXT HOLIDAY SHOULDN&apos;T BE A GUESS.
             </h1>
             <p>
-              Compare available hotel offers, normalize the differences, and see which deal actually makes
-              sense — before you book.
+              Make better travel decisions with clearer market context,
+              smarter comparisons and rate intelligence before you book.
             </p>
           </div>
+
           <div className="home-hero-art-wrap">
             <HeroArt />
+
             <div className="rate-verified-badge">
-              <span className="rate-verified-badge-icon" aria-hidden="true">
+              <span
+                className="rate-verified-badge-icon"
+                aria-hidden="true"
+              >
                 ✓
               </span>
+
               <div>
-                <div className="rate-verified-badge-title">Shortlist, Then Verify</div>
-                <div className="rate-verified-badge-sub">Real-time rates are checked once you pick a hotel.</div>
+                <div className="rate-verified-badge-title">
+                  Shortlist, Then Verify
+                </div>
+
+                <div className="rate-verified-badge-sub">
+                  Rates are checked live once you choose a hotel to analyse.
+                </div>
               </div>
             </div>
           </div>
@@ -143,15 +176,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             superseded 2026-09-05 "Sprint 3" single-page reshuffle. */}
         <div className="home-search-card">
           <div className="home-search-card-heading">
-            <div className="home-search-card-eyebrow">Start here</div>
+            <div className="home-search-card-eyebrow">
+              Where do you want to go?
+            </div>
+
             <p className="home-search-card-sub">
-              Tell us where and when — we&apos;ll shortlist real properties, then run RateManifest&apos;s full
-              rate intelligence on whichever one you want to check.
+              Tell us where and when — we&apos;ll shortlist real hotels and run
+              rate intelligence on whichever one you choose.
             </p>
           </div>
+
           <DiscoverForm
             cities={cities}
-            defaultCity={selectedCity}
+            defaultDestination={trip?.destination ?? ""}
             defaultCheckIn={checkIn}
             defaultCheckOut={checkOut}
           />
@@ -160,29 +197,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <div className="home-trust-strip">
         <div className="trust-item">
-          <IconBolt className="trust-icon" />
-          <div className="trust-item-title">Real-Time Rates, On Request</div>
-          <div className="trust-item-sub">Live pricing checked once you pick a hotel to compare</div>
-        </div>
-        <div className="trust-item">
           <IconShieldCheck className="trust-icon" />
           <div className="trust-item-title">Nothing Invented</div>
-          <div className="trust-item-sub">Details we can&apos;t verify are marked unavailable, never guessed</div>
+          <div className="trust-item-sub">
+            Rates and details come from named sources.
+          </div>
         </div>
-        <div className="trust-item">
-          <IconStar className="trust-icon" />
-          <div className="trust-item-title">Trip-Matched Shortlist</div>
-          <div className="trust-item-sub">Filtered to your destination, dates, and travel style</div>
-        </div>
-        <div className="trust-item">
-          <IconScales className="trust-icon" />
-          <div className="trust-item-title">Compare &amp; Save</div>
-          <div className="trust-item-sub">Every source checked, side by side</div>
-        </div>
+
         <div className="trust-item">
           <IconLink className="trust-icon" />
           <div className="trust-item-title">Named Sources</div>
-          <div className="trust-item-sub">Every offer links back to where it came from</div>
+          <div className="trust-item-sub">
+            Know where the information comes from.
+          </div>
+        </div>
+
+        <div className="trust-item">
+          <IconBolt className="trust-icon" />
+          <div className="trust-item-title">Rate Intelligence</div>
+          <div className="trust-item-sub">
+            Live rate checks when you need to verify.
+          </div>
         </div>
       </div>
 
@@ -200,12 +235,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="home-section-heading">
               <div>
                 <h2>Top Hotels</h2>
-                <p>Real properties in {selectedCity}. Select up to 5 to compare side by side.</p>
+                <p>
+                  Real properties in {selectedCity}. Select up to 5 to compare
+                  side by side.
+                </p>
               </div>
             </div>
 
             {topHotels.length === 0 ? (
-              <p className="empty-state">No properties in this catalog yet.</p>
+              <p className="empty-state">
+                No properties in this catalog yet.
+              </p>
             ) : (
               // Deliberately no price, "% below average," free-cancellation badge,
               // or checked/not-checked note anywhere in this grid - all of that is
@@ -213,7 +253,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               // cache at all (the frozen "never render price on Page 1" rule).
               // Check IQ (now Page 3) is still where a visitor first sees any rate
               // data - reached only after Page 2 (Compare & Choose) below.
-              <HotelSelectionGrid hotels={topHotels} checkIn={checkIn} checkOut={checkOut} tripId={trip.id} />
+              <HotelSelectionGrid
+                hotels={topHotels}
+                checkIn={checkIn}
+                checkOut={checkOut}
+                tripId={trip.id}
+              />
             )}
           </section>
         )}
@@ -229,27 +274,113 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             picked, worked against the guided step-by-step journey rather
             than for it. */}
 
+        {/* W1B: Travel Intelligence editorial section — static, no CMS/DB.
+            Always visible (not gated on a trip existing). Three short editorial
+            pieces that establish Rate Manifest as a genuine travel decision-
+            intelligence product. CSS in globals.css (.home-intel, .intel-card). */}
+        <section id="travel-intelligence" className="home-intel">
+          <div className="home-intel-header">
+            <h2>Travel Intelligence</h2>
+            <p>Useful context for better travel decisions.</p>
+          </div>
+
+          <div className="home-intel-grid">
+            <article className="intel-card">
+              <div className="intel-card-label">Pricing</div>
+
+              <h3 className="intel-card-title">
+                Why Dubai hotel rates can move so quickly
+              </h3>
+
+              <p className="intel-card-body">
+                Dubai hotel pricing responds to a tighter set of variables
+                than most booking platforms surface. Major events compress
+                inventory across entire districts simultaneously — properties
+                that don&apos;t host those events still reprice. Seasonal
+                patterns are real but not universal. Room inventory is finite,
+                and as a property approaches capacity, remaining rooms
+                typically reprice — the rate available today may not exist
+                tomorrow.
+              </p>
+            </article>
+
+            <article className="intel-card">
+              <div className="intel-card-label">Decisions</div>
+
+              <h3 className="intel-card-title">
+                What a hotel rate comparison can miss
+              </h3>
+
+              <p className="intel-card-body">
+                The lowest displayed number in a rate comparison is rarely the
+                complete picture. Taxes, resort fees, and service charges
+                appear in different places depending on the source — a higher
+                headline rate from one channel can cost less in practice.
+                Cancellation terms vary significantly, and some displayed
+                rates are for room configurations that don&apos;t precisely
+                match your search. Checking actual booking terms before
+                deciding is more useful than optimising for the headline
+                number.
+              </p>
+            </article>
+
+            <article className="intel-card">
+              <div className="intel-card-label">Location</div>
+
+              <h3 className="intel-card-title">
+                DIFC vs Downtown Dubai: which location makes more sense?
+              </h3>
+
+              <p className="intel-card-body">
+                Both are premium, well-connected Dubai districts — but they
+                suit different kinds of trips. DIFC is a purpose-built
+                professional district: its Gate District dining and proximity
+                to financial institutions make it the natural choice for
+                business-focused stays. Downtown Dubai — anchored by the Burj
+                Khalifa and Dubai Mall — is the city&apos;s primary leisure hub,
+                with a wider spread of hotels and immediate access to retail
+                and the waterfront. The choice is usually clear: DIFC for
+                work-first stays, Downtown for leisure, mixed itineraries, or
+                first-time visits.
+              </p>
+            </article>
+          </div>
+        </section>
+
         <section id="how-it-works" className="how-it-works">
           <h2>What makes Rate Manifest different?</h2>
+
           <div className="how-it-works-grid">
             <div className="how-card">
+              <div className="how-card-label">Shortlist</div>
+              <p>
+                Start with a real shortlist of properties in your destination.
+                Select up to five to carry forward.
+              </p>
+            </div>
+
+            <div className="how-card">
               <div className="how-card-label">Compare</div>
-              <p>Multiple rate sources, checked in one search.</p>
+              <p>
+                Same room. Same dates. Real terms. Compare your shortlist side
+                by side, then choose one.
+              </p>
             </div>
+
             <div className="how-card">
-              <div className="how-card-label">Normalize</div>
-              <p>Same room. Same dates. Real terms — not a side-by-side of apples and oranges.</p>
-            </div>
-            <div className="how-card">
-              <div className="how-card-label">Decide</div>
-              <p>We tell you which deal is actually worth taking, and why.</p>
+              <div className="how-card-label">Verify</div>
+              <p>
+                Run rate intelligence on the hotel you choose and understand
+                exactly what the numbers mean.
+              </p>
             </div>
           </div>
         </section>
 
         <p className="footnote">
-          Rate Manifest checks every source it has access to and shows its own computed summary first —
-          the named supplier and link only appear once you choose to reveal one.
+          Rate Manifest checks every source it has access to and shows its own
+          computed summary first — the named supplier and link only appear
+          once you choose to reveal one.
         </p>
 
         <Footer />

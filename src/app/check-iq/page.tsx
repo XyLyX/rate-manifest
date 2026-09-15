@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { runSearch } from "@/lib/search";
@@ -23,7 +24,7 @@ import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
 interface CheckIqPageProps {
-  searchParams: Promise<{ hotel?: string; checkin?: string; checkout?: string; trip?: string }>;
+  searchParams: Promise<{ hotel?: string; checkin?: string; checkout?: string; trip?: string; authorized?: string }>;
 }
 
 // Check IQ, "the heart of RateManifest" per claude/travel-decision-
@@ -77,6 +78,7 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   const checkIn = params.checkin;
   const checkOut = params.checkout;
   const tripId = params.trip ?? "";
+  const authorized = params.authorized;
 
   if (!hotelId || !checkIn || !checkOut) {
     return (
@@ -86,6 +88,26 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
         </p>
       </div>
     );
+  }
+
+  // Authorization gate (2026-09-14, Track F / Phase 2) — prevents a direct
+  // URL or browser-back from spending a StayingAPI credit without the visitor
+  // having explicitly chosen this hotel from the Compare page.
+  //
+  // authorized=1 is appended by Compare's CTA (src/app/compare/page.tsx).
+  // Any entry point that does NOT go through Compare (a bookmark, a
+  // hand-crafted URL, a browser-back from Complete Your Trip) arrives without
+  // it and is bounced back to Compare so the visitor can make a deliberate
+  // choice before the credit runs.
+  //
+  // CREDIT RULE: ensureLiveCheckTriggered() — and therefore any StayingAPI
+  // spend — must NEVER be reached without authorized=1. This gate is the
+  // sole enforcement point. Do not move or remove it.
+  if (authorized !== "1") {
+    const compareUrl =
+      `/compare?hotels=${hotelId}&checkin=${checkIn}&checkout=${checkOut}` +
+      (tripId ? `&trip=${tripId}` : "");
+    redirect(compareUrl);
   }
 
   const trip = tripId ? await getTrip(tripId) : null;

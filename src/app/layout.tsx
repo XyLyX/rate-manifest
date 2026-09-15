@@ -27,7 +27,7 @@ import "./track-f.css";
 
 export const metadata: Metadata = {
   title: "Rate Manifest",
-  description: "UAE/GCC hotel rate intelligence — find the best bookable rate, and know who to trust.",
+  description: "Travel decision intelligence for smarter hotel choices — compare, understand and verify rates before you book.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

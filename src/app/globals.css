@@ -2141,9 +2141,9 @@ input:focus {
 
 .home-trust-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
-  max-width: 1160px;
+  max-width: 860px;
   margin: 0 auto;
   padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
 }
@@ -2173,9 +2173,9 @@ input:focus {
   line-height: 1.4;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .home-trust-strip {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2946,4 +2946,348 @@ input:focus {
   margin-top: auto;
   padding-top: 0.9rem;
   text-align: center;
+}
+
+/* --- Travel Intelligence editorial section (W1B, 2026-09-14) ---
+   Three static editorial pieces shown on the homepage below the trust
+   strip and above How it works. Editorial style rather than feature cards:
+   left-aligned text, top accent border, distinct from .how-card which is
+   centred with a neutral border. No database, no CMS, no API. */
+
+.home-intel {
+  margin-top: 3rem;
+  margin-bottom: 2.5rem;
+}
+
+.home-intel-header {
+  margin-bottom: 1.75rem;
+}
+
+.home-intel-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: var(--text-primary);
+}
+
+.home-intel-header p {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.home-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 720px) {
+  .home-intel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.intel-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--primary);
+  border-radius: 8px;
+  padding: 1.4rem;
+}
+
+.intel-card-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  margin: 0 0 0.6rem;
+}
+
+.intel-card-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
+  line-height: 1.35;
+}
+
+.intel-card-body {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Trust strip: updated to 3-column layout to match W1A's three items.
+   The original five-item layout was correct for the previous five items;
+   after W1A reduced the strip to three, the CSS column count follows. */
+
+/* ==========================================================================
+   W2 — Open Destination Search (2026-09-14).
+   Combobox input, suggestion overlay, and unsupported-destination inline
+   state for the revised DiscoverForm destination field.
+   ========================================================================== */
+
+.discover-dest-wrap {
+  position: relative;
+}
+
+.discover-dest-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.discover-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.09);
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.discover-suggestion-item {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.discover-suggestion-item:hover {
+  background: var(--surface-alt, #f6f8fb);
+  color: var(--primary, #635bff);
+}
+
+/* Unsupported-destination container */
+.unsupported-destination {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.55rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-alt, #f6f8fb);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left: 3px solid var(--primary, #635bff);
+  border-radius: 6px;
+  font-size: 0.83rem;
+}
+
+.unsupported-destination-headline {
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  font-family: var(--font-display, sans-serif);
+}
+
+.unsupported-destination-sub {
+  color: var(--text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   W3 — Destination Interest Capture (2026-09-14).
+   Inline name/email form inside the unsupported-destination state;
+   success confirmation when the record is saved.
+   ========================================================================== */
+
+/* Interest form — nested inside .unsupported-destination */
+.interest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.interest-form-hook {
+  font-weight: 600;
+  color: var(--primary, #635bff);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.interest-form-dest {
+  font-size: 1rem;
+  color: var(--text-primary, #111827);
+  font-family: var(--font-display, sans-serif);
+  margin: 0 0 0.1rem;
+}
+
+.interest-form-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+@media (max-width: 540px) {
+  .interest-form-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Label + input pairs within the interest form */
+.interest-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.interest-form-field label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  font-family: var(--font-display, sans-serif);
+}
+
+.interest-form-field input {
+  font-size: 0.88rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 5px;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #111827);
+  transition: border-color 0.15s;
+}
+
+.interest-form-field input:focus {
+  outline: none;
+  border-color: var(--primary, #635bff);
+}
+
+.interest-form-field input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.interest-form-error {
+  font-size: 0.8rem;
+  color: var(--error, #dc2626);
+  margin: 0;
+}
+
+.interest-form-submit {
+  align-self: flex-start;
+  font-size: 0.88rem;
+  padding: 0.5rem 1.1rem;
+}
+
+.interest-form-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Success state — replaces the interest form after a successful submission */
+.interest-success {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.interest-success-headline {
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  font-family: var(--font-display, sans-serif);
+  font-size: 0.92rem;
+}
+
+.interest-success-sub {
+  color: var(--text-secondary, #64748b);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   W4 (2026-09-14): Legal pages (/privacy, /terms)
+   ============================================================ */
+
+.legal-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface, #fff);
+}
+
+.legal-content {
+  flex: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.legal-content h1 {
+  font-family: var(--font-display, sans-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.35rem;
+  line-height: 1.2;
+}
+
+.legal-updated {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #64748b);
+  margin: 0 0 2.5rem;
+}
+
+.legal-content section {
+  margin-top: 2rem;
+}
+
+.legal-content section + section {
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  padding-top: 2rem;
+}
+
+.legal-content h2 {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.6rem;
+}
+
+.legal-content p {
+  font-size: 0.93rem;
+  line-height: 1.7;
+  color: var(--text-secondary, #64748b);
+  margin: 0 0 0.75rem;
+}
+
+.legal-content p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-content a {
+  color: var(--primary, #635bff);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .legal-content {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .legal-content h1 {
+    font-size: 1.5rem;
+  }
 }

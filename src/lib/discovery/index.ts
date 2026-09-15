@@ -1,8 +1,8 @@
-// The single switch point Page 1 calls through - claude/discovery-property-
-// graph-architecture.md ("FROZEN 2026-09-12"), Section 9: "Google can be
-// the initial discovery source without becoming a permanent architectural
-// dependency." Swapping in a real vendor (Track B) once one is chosen means
-// changing `activeDiscoverySource` here, not touching src/app/page.tsx or
-// any component that renders Page 1.
-export { curatedCatalogSource as activeDiscoverySource } from "./curatedCatalogSource";
+// Hotel/property catalog discovery runner. Resolves a destination to a
+// shortlist of hotel objects for Page 1 (Discover). No price data,
+// no StayingAPI contact of any kind.
+//
+// Separate from src/lib/price-discovery/ (market price ranges for the
+// Compare page) and src/lib/suppliers/ (StayingAPI / Check IQ).
 export type { DiscoveredHotel, DiscoverySearchParams, DiscoverySource } from "./types";
+export { curatedCatalogSource as activeDiscoverySource } from "./curatedCatalogSource";
