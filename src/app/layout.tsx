@@ -28,6 +28,10 @@ import "./track-f.css";
 export const metadata: Metadata = {
   title: "Rate Manifest",
   description: "Travel decision intelligence for smarter hotel choices — compare, understand and verify rates before you book.",
+  // Cuelinks domain verification for https://ratemanifest.com/ (added 2026-09-15)
+  other: {
+    "cuelinks-verification": "VERIFY-CL-KRDPU2SS",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
