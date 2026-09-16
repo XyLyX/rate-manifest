@@ -8,6 +8,7 @@ import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
 import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { HeroArt } from "@/components/HeroArt";
+import { getDestinationPillarsLive } from "@/lib/travel/destinationResearch";
 import { IconBolt, IconShieldCheck, IconLink } from "@/components/TrustIcons";
 
 // Forces this page to render per-request instead of at build time. Without
@@ -136,6 +137,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       })
     : [];
 
+  // Travel Intelligence: Gemini-powered destination context (72h cached).
+  // Unconditional — fires for every page load; falls back to seed data or
+  // honest "not yet researched" state on Gemini failure. No throw.
+  const intelResult = await getDestinationPillarsLive(trip?.destination ?? null);
+
   return (
     <div className="home-page">
       <div className="home-hero-band">
@@ -206,6 +212,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               )}
             </Link>
             <Link
+              href="/?mode=rail"
+              className={`mode-selector-tab${mode === "rail" ? " active" : " soon"}`}
+            >
+              Rail{" "}
+              {mode !== "rail" && (
+                <span className="mode-selector-soon-badge">Soon</span>
+              )}
+            </Link>
+            <Link
               href="/?mode=combined"
               className={`mode-selector-tab${mode === "combined" ? " active" : " soon"}`}
             >
@@ -223,6 +238,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 We&apos;re building flight intelligence into Rate Manifest — real
                 fare comparisons and decision context, not just a booking link.
                 Hotels are live now. Flights follow next.
+              </p>
+            </div>
+          ) : mode === "rail" ? (
+            <div className="mode-coming-soon">
+              <p className="mode-coming-soon-title">Rail options for your journey</p>
+              <p className="mode-coming-soon-body">
+                {trip?.destination
+                  ? `Rail intelligence for ${trip.destination} is on the roadmap — routes, pass options and station-proximity guidance for your hotels.`
+                  : "Rail intelligence is on the roadmap — routes, pass options and station-proximity guidance that helps you pick the right hotel for your journey."}
               </p>
             </div>
           ) : mode === "combined" ? (
@@ -340,76 +364,29 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             picked, worked against the guided step-by-step journey rather
             than for it. */}
 
-        {/* W1B: Travel Intelligence editorial section — static, no CMS/DB.
-            Always visible (not gated on a trip existing). Three short editorial
-            pieces that establish Rate Manifest as a genuine travel decision-
-            intelligence product. CSS in globals.css (.home-intel, .intel-card). */}
+        {/* Travel Intelligence: Gemini-powered destination context. Always
+            visible — not gated on a trip. Falls back to seed data (Dubai /
+            Abu Dhabi) or honest "not yet researched" state; never throws.
+            white-space: pre-line in globals.css renders the \n-separated
+            bullet format Gemini returns. */}
         <section id="travel-intelligence" className="home-intel">
           <div className="home-intel-header">
             <h2>Travel Intelligence</h2>
-            <p>Useful context for better travel decisions.</p>
+            <p>
+              {intelResult.destination
+                ? `Destination context for ${intelResult.destination}.`
+                : "Four dimensions of informed travel decision-making."}
+            </p>
           </div>
 
           <div className="home-intel-grid">
-            <article className="intel-card">
-              <div className="intel-card-label">Pricing</div>
-
-              <h3 className="intel-card-title">
-                Why Dubai hotel rates can move so quickly
-              </h3>
-
-              <p className="intel-card-body">
-                Dubai hotel pricing responds to a tighter set of variables
-                than most booking platforms surface. Major events compress
-                inventory across entire districts simultaneously — properties
-                that don&apos;t host those events still reprice. Seasonal
-                patterns are real but not universal. Room inventory is finite,
-                and as a property approaches capacity, remaining rooms
-                typically reprice — the rate available today may not exist
-                tomorrow.
-              </p>
-            </article>
-
-            <article className="intel-card">
-              <div className="intel-card-label">Decisions</div>
-
-              <h3 className="intel-card-title">
-                What a hotel rate comparison can miss
-              </h3>
-
-              <p className="intel-card-body">
-                The lowest displayed number in a rate comparison is rarely the
-                complete picture. Taxes, resort fees, and service charges
-                appear in different places depending on the source — a higher
-                headline rate from one channel can cost less in practice.
-                Cancellation terms vary significantly, and some displayed
-                rates are for room configurations that don&apos;t precisely
-                match your search. Checking actual booking terms before
-                deciding is more useful than optimising for the headline
-                number.
-              </p>
-            </article>
-
-            <article className="intel-card">
-              <div className="intel-card-label">Location</div>
-
-              <h3 className="intel-card-title">
-                DIFC vs Downtown Dubai: which location makes more sense?
-              </h3>
-
-              <p className="intel-card-body">
-                Both are premium, well-connected Dubai districts — but they
-                suit different kinds of trips. DIFC is a purpose-built
-                professional district: its Gate District dining and proximity
-                to financial institutions make it the natural choice for
-                business-focused stays. Downtown Dubai — anchored by the Burj
-                Khalifa and Dubai Mall — is the city&apos;s primary leisure hub,
-                with a wider spread of hotels and immediate access to retail
-                and the waterfront. The choice is usually clear: DIFC for
-                work-first stays, Downtown for leisure, mixed itineraries, or
-                first-time visits.
-              </p>
-            </article>
+            {intelResult.cards.map((c) => (
+              <article key={c.pillar} className="intel-card">
+                <div className="intel-card-label">{c.label}</div>
+                <h3 className="intel-card-title">{c.title}</h3>
+                <p className="intel-card-body">{c.body}</p>
+              </article>
+            ))}
           </div>
         </section>
 
