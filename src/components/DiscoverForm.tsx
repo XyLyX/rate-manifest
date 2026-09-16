@@ -61,7 +61,7 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
   // Destination combobox state
   const [destInput, setDestInput] = useState(defaultDestination);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [unsupported, setUnsupported] = useState(false);
+  const [unsupported, setUnsupported] = useState(Boolean(defaultDestination));
   const inputRef = useRef<HTMLInputElement>(null);
 
   // W3: destination interest form state
@@ -73,7 +73,7 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
 
   // The resolved city name to submit — set when the user picks a suggestion
   // or when their typed text exactly matches a city. Empty means unresolved.
-  const resolvedCity = cities.find((c) => normalise(c) === normalise(destInput)) ?? null;
+  const resolvedCity = cities.find((c) => normalise(c) === normalise(destInput)) ?? destInput.trim();
 
   const suggestions =
     destInput.trim().length > 0
@@ -105,21 +105,20 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
     }
   }
 
-  // Client-side submit gate: if the destination doesn't resolve to a
-  // supported city, block the server action and show the unsupported state.
+  // Phase A: destination entry is open. Hotel inventory support is independent
+  // from destination intelligence, so every non-empty destination may create a trip.
+  // After the redirect, defaultDestination is populated and the curating state is shown.
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    if (!resolvedCity) {
+    if (!destInput.trim()) {
       e.preventDefault();
-      setUnsupported(true);
-      setShowSuggestions(false);
       inputRef.current?.focus();
+      return;
     }
-    // else: let the form submit naturally — the hidden input carries resolvedCity
+    setShowSuggestions(false);
   }
 
   // W3: submit interest form via server action, stay on page, show result
-  function handleInterestSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleInterestSubmit() {
     setInterestError("");
     startTransition(async () => {
       const result = await recordDestinationInterest(destInput, interestName, interestEmail);
@@ -202,10 +201,8 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
                   </span>
                 </div>
               ) : (
-                <form
+                <div
                   className="interest-form"
-                  onSubmit={handleInterestSubmit}
-                  noValidate
                   aria-label={"Register interest for " + destInput}
                 >
                   <p className="interest-form-hook">Want to know when it&apos;s ready?</p>
@@ -249,13 +246,14 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
                   )}
 
                   <button
-                    type="submit"
+                    type="button"
                     className="btn interest-form-submit"
+                    onClick={handleInterestSubmit}
                     disabled={isPending}
                   >
                     {isPending ? "Sending…" : "Notify me"}
                   </button>
-                </form>
+                </div>
               )}
             </div>
           )}
@@ -328,7 +326,7 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
       </div>
 
       <button className="btn discover-form-submit" type="submit">
-        Find hotels for this trip &rarr;
+        Explore this destination &rarr;
       </button>
     </form>
   );

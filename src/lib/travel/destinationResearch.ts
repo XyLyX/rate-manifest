@@ -25,7 +25,7 @@
 //
 // Required environment variables:
 //   GEMINI_API_KEY     — Google AI Studio key (server-side only; no NEXT_PUBLIC_)
-//   GEMINI_MODEL       — (optional) model ID, default "gemini-1.5-flash"
+//   GEMINI_MODEL       — (optional) model ID, default "gemini-flash-latest"
 //   GEMINI_TIMEOUT_MS  — (optional) HTTP timeout ms, default 15000
 //
 // Failure contract:
@@ -46,7 +46,7 @@ import { defaultIntelStore } from "./intelStore";
 
 const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = "gemini-1.5-flash";
+const DEFAULT_MODEL = "gemini-flash-latest";
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 // Maps JSON response keys to IntelPillar values
@@ -146,13 +146,15 @@ async function callGeminiForDestination(
     : DEFAULT_TIMEOUT_MS;
 
   const prompt = buildSynthesisPrompt(destination);
-  const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE_URL}/${model}:generateContent`;
+
+  console.log(`[destinationResearch] Gemini request: "${destination}" using ${model}`);
 
   const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
       temperature: 0.15, // low temperature: factual, consistent
-      maxOutputTokens: 1024,
+      maxOutputTokens: 2048,
       responseMimeType: "application/json",
     },
   });
@@ -163,11 +165,14 @@ async function callGeminiForDestination(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: requestBody,
-      signal: controller.signal,
-    });
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-goog-api-key": apiKey,
+  },
+  body: requestBody,
+  signal: controller.signal,
+});
     clearTimeout(timer);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
@@ -288,6 +293,11 @@ async function callGeminiForDestination(
     return null;
   }
 
+  console.log(
+    `[destinationResearch] Gemini success: "${destination}" — ${Object.keys(result).length} pillars`
+  );
+    
+
   return result;
 }
 
@@ -303,7 +313,7 @@ async function callGeminiForDestination(
 
 const getCachedResearch = unstable_cache(
   callGeminiForDestination,
-  ["destination-intel-v2"],
+  ["destination-intel-v3"],
   { revalidate: 60 * 60 * 24 * 3 } // 72 hours
 );
 
@@ -328,6 +338,10 @@ export async function getDestinationPillarsLive(
     return getDestinationPillars(null);
   }
 
+  console.log(
+  `[destinationResearch] Live intelligence entry: "${destination}"`
+  );
+
   const PILLARS: IntelPillar[] = [
     "cost-reality",
     "smart-choices",
@@ -341,7 +355,16 @@ export async function getDestinationPillarsLive(
   const storedCards =
     await defaultIntelStore.allCardsForDestination(destination);
 
-  if (storedCards.size === PILLARS.length) {
+  console.log(
+  `[destinationResearch] Store check: "${destination}" — ${storedCards.size} cards`,
+  Array.from(storedCards.entries()).map(([pillar, card]) => ({
+    pillar,
+    researched: card.isResearched,
+    validUntil: card.validUntil,
+  }))
+ );
+
+ if (storedCards.size === PILLARS.length) {
     const now = Date.now();
     const allFresh = Array.from(storedCards.values()).every((card) => {
       if (!card.validUntil) return false;
@@ -354,7 +377,7 @@ export async function getDestinationPillarsLive(
 
   // ── 2. Gemini (via Next.js data cache) ─────────────────────────────────
   try {
-    const raw = await getCachedResearch(destination);
+    const raw = await callGeminiForDestination(destination);
     if (raw && Object.keys(raw).length > 0) {
       // Write to in-memory store and build the pillar map for getDestinationPillars
       const pillarMap = new Map<IntelPillar, StoredIntelCard>();

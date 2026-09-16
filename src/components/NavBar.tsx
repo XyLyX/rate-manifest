@@ -6,8 +6,9 @@ import { Logo } from "./Logo";
 // the full Travel Decision Intelligence platform scope:
 //
 //   Hotels               — live, links to /
-//   Flights              — coming soon, <span> not <Link> (goes nowhere yet)
-//   Hotels + Flights     — coming soon, hidden on small screens to prevent overflow
+//   Flights              — product mode link
+//   Hotels + Flights     — product mode link, hidden on small screens to prevent overflow
+//   Rail                 — product mode link
 //   Travel Intelligence  — anchor to the editorial section on the homepage
 //   How it works         — anchor to the how-it-works section, hidden on mobile
 //   Contact              — /contact
@@ -19,9 +20,6 @@ import { Logo } from "./Logo";
 // those pages' own <NavBar> calls — they just won't render a highlighted tab
 // for a tab that isn't shown.
 //
-// "Soon" items use <span> not <Link>: a tab that goes nowhere is worse than
-// one that signals intent without pretending to work. `aria-disabled="true"`
-// marks them for assistive technology.
 export function NavBar({
   ctaLabel = "Search",
   ctaHref = "/",
@@ -30,7 +28,7 @@ export function NavBar({
 }: {
   ctaLabel?: string;
   ctaHref?: string;
-  active?: "hotels" | "exceptional-stays" | "methodology" | "travel-intelligence" | "none";
+  active?: "hotels" | "flights" | "rail" | "exceptional-stays" | "methodology" | "travel-intelligence" | "none";
   // "home" drops the sticky/negative-margin/background treatment that makes
   // this bar read as the top edge of the .shell card everywhere else - the
   // homepage hero is no longer inside .shell (see DECISIONS.md, "Homepage
@@ -47,12 +45,15 @@ export function NavBar({
         <Link href="/" className={active === "hotels" ? "nav-tab active" : "nav-tab"}>
           Hotels
         </Link>
-        <span className="nav-tab nav-tab-soon" aria-disabled="true">
-          Flights <span className="nav-soon-badge">Soon</span>
-        </span>
-        <span className="nav-tab nav-tab-soon nav-tab-hide-mobile" aria-disabled="true">
-          Hotels + Flights <span className="nav-soon-badge">Soon</span>
-        </span>
+        <Link href="/?mode=flights" className={active === "flights" ? "nav-tab active" : "nav-tab"}>
+          Flights
+        </Link>
+        <Link href="/?mode=combined" className="nav-tab nav-tab-hide-mobile">
+          Hotels + Flights
+        </Link>
+        <Link href="/?mode=rail" className={active === "rail" ? "nav-tab active" : "nav-tab"}>
+          Rail
+        </Link>
         <Link
           href="/#travel-intelligence"
           className={active === "travel-intelligence" ? "nav-tab active" : "nav-tab"}

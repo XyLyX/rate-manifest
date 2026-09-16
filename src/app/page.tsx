@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { asc } from "drizzle-orm";
-import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
-import { activeDiscoverySource } from "@/lib/discovery";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
-import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
-import { HeroArt } from "@/components/HeroArt";
+import { AtmosphereHero } from "@/components/HeroArt";
+import { AtmosphereProvider } from "@/components/AtmosphereProvider";
 import { getDestinationPillarsLive } from "@/lib/travel/destinationResearch";
 import { IconBolt, IconShieldCheck, IconLink } from "@/components/TrustIcons";
 
@@ -36,106 +33,44 @@ function defaultCheckOut(): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Page 1 of the customer journey - Discover, see
-// claude/travel-decision-platform-assessment.md, "RateManifest — Final
-// Customer Journey": destination + dates + guests/rooms + trip intent up
-// top (DiscoverForm), a real shortlist of hotels below it. Replaces the
-// 2026-09-05 "Sprint 3" reposition (Klook consolidated into one section
-// further down the same single page) - that was a mis-scoped reading of
-// "reposition, not remove" from the old roadmap doc; the actual requirement
-// was this real multi-page journey, not a homepage reshuffle. See
-// claude/travel-decision-platform-assessment.md's "four-page spec" section
-// for the correction record.
+// Page 1 of the customer journey - Discover.
+// Visual system: Phase A atmosphere sets (AtmosphereProvider + AtmosphereHero).
+// One of five curated atmosphere sets is chosen per browser session
+// (sessionStorage, no DB, no Gemini). The set drives the cinematic hero image
+// and the four intelligence-pillar card images via CSS [data-atmosphere] rules.
+// AtmosphereProvider sets data-atmosphere on <html> after mount (client-only,
+// no hydration instability).
 //
-// RENUMBERED 2026-09-12 (claude/discovery-property-graph-architecture.md,
-// "FROZEN 2026-09-12"): each card used to link straight to Check IQ
-// (formerly "Page 2" of the four-page journey). That direct jump is gone -
-// the shortlist below is now a selection grid (HotelSelectionGrid), up to
-// 5 hotels, feeding the new /compare page. Check IQ is downstream of that
-// new page and is now "Page 3" under the frozen numbering; see that
-// document for the full Discover -> Compare -> Verify journey and why the
-// numbering changed. The hotel list itself is now sourced through
-// src/lib/discovery's DiscoverySource abstraction (today: the curated
-// catalog) rather than a direct `hotels` query, so a future real discovery
-// vendor (Track B) is a one-line swap, not a rewrite of this page.
-//
-// Homepage visual language (hero art, trust strip, no fabricated
-// review/trust data, no competitor logos) is carried over unchanged from
-// the 2026-09-03 redesign - see DECISIONS.md, "Homepage redesign: matching
-// the pasted mockup," for why those three departures from the original
-// mockup exist. Nothing about that visual layer changes here; only the
-// search card and the hotel cards' own CTA do.
+// Discover -> Compare -> Check IQ -> Complete Your Trip journey is unchanged.
+// See claude/discovery-property-graph-architecture.md "FROZEN 2026-09-12."
 //
 // W1A (2026-09-14): copy-only pass — hero headline, eyebrow, subhead,
 // search-card heading, trust strip (5→3 items), how-it-works labels.
-// No structural, CSS, schema, or routing changes. See DECISIONS.md,
-// "W1A — Homepage Copy & Metadata."
 //
-// W1B (2026-09-14): added static Travel Intelligence editorial section
-// (.home-intel) after the trust strip, before how-it-works. Three
-// static editorial pieces — no database, no CMS, no API. CSS added to
-// globals.css. No other architecture changes.
-//
-// 2026-09-15 positioning pass: hero subhead broadened to name flights
-// coming; mode selector added to search card (Hotels/Flights/Hotels+Flights);
-// Flights and combined show a coming-soon panel, not a fake search.
-// `mode` param read from URL — default "hotels". topHotels section gated
-// on hotels mode so switching to Flights hides hotel results correctly.
+// Phase A visual direction (2026-09-16): HeroArt dark-card removed; replaced
+// with AtmosphereHero (cinematic full-width image). Hero copy moved into hero
+// image overlay. Intel pillar cards become image-led editorial sections.
+// Navy + amber + off-white color system. See DECISIONS.md "Phase A Visual."
 interface HomePageProps {
   searchParams: Promise<{ trip?: string; mode?: string }>;
 }
 
-// 2026-09-05, second correction (Navin, pasting the Page 1 spec back
-// verbatim, 4th time, after the first correction still left a default
-// shortlist showing on a cold page load): "Results: the page returns a
-// shortlisted set of hotels relevant to the customer's SEARCH." A
-// shortlist shown before any search was ever submitted isn't a result of
-// a search - it's exactly the "how did you reach here and showing 4
-// properties" complaint. So this no longer has a default-city fallback or
-// a plain ?city= browse mode at all (both used to show a shortlist with
-// no search behind it, "for a visitor who lands here without searching" -
-// that convenience is what's being removed). The ENTIRE Top Hotels
-// section, city tabs included, is now gated on a real `trip` existing -
-// i.e. DiscoverForm was actually submitted (createTrip(), src/app/actions/
-// trip.ts). Before that, Page 1 is nothing but the search form itself.
+// 2026-09-05, second correction: Top Hotels section gated on a real `trip`
+// existing — i.e. DiscoverForm was actually submitted. Before that, Page 1
+// is nothing but the search form itself.
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const hotels = await db.query.hotels.findMany({
-    orderBy: asc(schema.hotels.name),
-  });
-
-  const cities = Array.from(new Set(hotels.map((h) => h.city))).sort((a, b) =>
-    a.localeCompare(b)
-  );
-
-  const defaultCity = cities.includes("Dubai")
-    ? "Dubai"
-    : (cities[0] ?? "Dubai");
+  // Phase A public shell: the internal curated hotel catalogue is test data,
+  // not a live public supplier. Keep destination entry open and do not expose
+  // those rows as current hotel inventory until a real Hotel Source is active.
+  const cities: string[] = [];
 
   const params = await searchParams;
   const trip = params.trip ? await getTrip(params.trip) : null;
   const mode = params.mode ?? "hotels";
 
-  const selectedCity = trip ? trip.destination : defaultCity;
+  const selectedCity = trip?.destination ?? null;
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
-
-  // Zero contact with StayingAPI or its cache either way - the active
-  // DiscoverySource (today: curatedCatalogSource, a plain catalog read, no
-  // supplier adapters - see check-iq/page.tsx's ensureLiveCheckTriggered(),
-  // the only place a live, credit-spending check ever happens) - but still
-  // computed at all only when a trip exists AND the visitor is in Hotels mode,
-  // so there's nothing to render before a real search happened or in the
-  // Flights/combined coming-soon states. No `limit` passed - the frozen
-  // Section 2 decision is broad exploration on Page 1, capped only by the
-  // 5-hotel *selection* limit HotelSelectionGrid enforces, not by how many
-  // cards are shown (the pre-2026-09-12 slice(0, 4) cap is gone with it).
-  const topHotels = trip && mode === "hotels"
-    ? await activeDiscoverySource.search({
-        destination: selectedCity,
-        checkIn,
-        checkOut,
-      })
-    : [];
 
   // Travel Intelligence: Gemini-powered destination context (72h cached).
   // Unconditional — fires for every page load; falls back to seed data or
@@ -144,11 +79,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <div className="home-page">
-      <div className="home-hero-band">
-         <NavBar variant="home" />
+      {/* AtmosphereProvider sets data-atmosphere on <html> after mount.
+          Client-only; no SSR; no hydration mismatch. */}
+      <AtmosphereProvider />
 
-        <div className="home-hero-inner">
-          <div className="home-hero-copy">
+      <div className="home-hero-band">
+        <NavBar variant="home" />
+
+        {/* Cinematic atmosphere hero — full-width image from CSS.
+            Copy + badge overlay sit on top of the image. */}
+        <div className="atm-hero-wrap">
+          <AtmosphereHero destination={selectedCity} />
+
+          <div className="atm-hero-content">
             <div className="hero-eyebrow">Travel Decision Intelligence</div>
             <h1>
               YOUR NEXT HOLIDAY SHOULDN&apos;T BE A GUESS.
@@ -158,24 +101,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               journey around them — with clearer market context, smarter
               comparisons and rate intelligence before you book.
             </p>
-          </div>
 
-          <div className="home-hero-art-wrap">
-            <HeroArt />
-
-            <div className="rate-verified-badge">
+            <div className="rate-verified-badge atm-hero-badge">
               <span
                 className="rate-verified-badge-icon"
                 aria-hidden="true"
               >
                 ✓
               </span>
-
               <div>
                 <div className="rate-verified-badge-title">
                   Shortlist, Then Verify
                 </div>
-
                 <div className="rate-verified-badge-sub">
                   Rates are checked live once you choose a hotel to analyse.
                 </div>
@@ -184,80 +121,46 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </div>
 
-        {/* Page 1 (Discover) search card - the real entry point to the
-            four-page journey. Submitting DiscoverForm creates a trip
-            (createTrip(), src/app/actions/trip.ts) and redirects back here
-            with ?trip= set, which then drives the shortlist below. See the
-            HomePage doc comment above for how this differs from the
-            superseded 2026-09-05 "Sprint 3" single-page reshuffle.
-            Mode selector (2026-09-15): Hotels is active; Flights and
+        {/* Page 1 (Discover) search card — the real entry point to the
+            four-page journey. Mode selector: Hotels is active; Flights and
             Hotels+Flights show coming-soon panels instead of the search form.
-            No fake search, no fake prices — just honest "not yet." */}
+            No fake search, no fake prices. */}
         <div className="home-search-card">
           {/* Mode selector tabs */}
           <div className="mode-selector">
-            <Link
-              href="/"
-              className={`mode-selector-tab${mode === "hotels" ? " active" : ""}`}
-            >
+            <Link href="/" className={`mode-selector-tab${mode === "hotels" ? " active" : ""}`}>
               Hotels
             </Link>
-            <Link
-              href="/?mode=flights"
-              className={`mode-selector-tab${mode === "flights" ? " active" : " soon"}`}
-            >
-              Flights{" "}
-              {mode !== "flights" && (
-                <span className="mode-selector-soon-badge">Soon</span>
-              )}
+            <Link href="/?mode=flights" className={`mode-selector-tab${mode === "flights" ? " active" : ""}`}>
+              Flights
             </Link>
-            <Link
-              href="/?mode=rail"
-              className={`mode-selector-tab${mode === "rail" ? " active" : " soon"}`}
-            >
-              Rail{" "}
-              {mode !== "rail" && (
-                <span className="mode-selector-soon-badge">Soon</span>
-              )}
+            <Link href="/?mode=combined" className={`mode-selector-tab${mode === "combined" ? " active" : ""}`}>
+              Hotels + Flights
             </Link>
-            <Link
-              href="/?mode=combined"
-              className={`mode-selector-tab${mode === "combined" ? " active" : " soon"}`}
-            >
-              Hotels + Flights{" "}
-              {mode !== "combined" && (
-                <span className="mode-selector-soon-badge">Soon</span>
-              )}
+            <Link href="/?mode=rail" className={`mode-selector-tab${mode === "rail" ? " active" : ""}`}>
+              Rail
             </Link>
           </div>
 
           {mode === "flights" ? (
             <div className="mode-coming-soon">
-              <p className="mode-coming-soon-title">Flight search coming soon</p>
+              <p className="mode-coming-soon-title">Flight options for your journey</p>
               <p className="mode-coming-soon-body">
-                We&apos;re building flight intelligence into Rate Manifest — real
-                fare comparisons and decision context, not just a booking link.
-                Hotels are live now. Flights follow next.
+                We&apos;re finalising the flight options for this journey and will update you as soon as they&apos;re ready.
               </p>
             </div>
           ) : mode === "rail" ? (
             <div className="mode-coming-soon">
               <p className="mode-coming-soon-title">Rail options for your journey</p>
               <p className="mode-coming-soon-body">
-                {trip?.destination
-                  ? `Rail intelligence for ${trip.destination} is on the roadmap — routes, pass options and station-proximity guidance for your hotels.`
-                  : "Rail intelligence is on the roadmap — routes, pass options and station-proximity guidance that helps you pick the right hotel for your journey."}
+                We&apos;re finalising the rail options for this journey and will update you as soon as they&apos;re ready.
               </p>
             </div>
           ) : mode === "combined" ? (
             <div className="mode-coming-soon">
-              <p className="mode-coming-soon-title">
-                Hotels + Flights bundles coming soon
-              </p>
+              <p className="mode-coming-soon-title">Flight + hotel options</p>
               <p className="mode-coming-soon-body">
-                Combined trip intelligence — hotel rates and flights in one
-                decision view — is on the roadmap. Start with a hotel search
-                while we build it out.
+                We&apos;re finalising the flight and hotel options for this journey and will update you as soon as they&apos;re ready.
               </p>
             </div>
           ) : (
@@ -268,8 +171,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
 
                 <p className="home-search-card-sub">
-                  Tell us where and when — we&apos;ll shortlist real hotels and run
-                  rate intelligence on whichever one you choose.
+                  Tell us where and when — we&apos;ll build destination intelligence while hotel availability is being curated.
                 </p>
               </div>
 
@@ -311,64 +213,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       <div className="home-content">
-        {/* Nothing here at all until a real search has happened in hotels mode
-            - see the HomePage doc comment above. No "View all hotels" link
-            (that was a side door into a full-city browse with no search behind
-            it - removed entirely, /browse itself now just redirects to "/"),
-            and no city-switch tabs (switching city without resubmitting the
-            form is exactly the same "results without a search" problem - the
-            Destination dropdown in the form above is the one way to change
-            it now). Hotel results are also suppressed in Flights/combined
-            modes (mode-gated topHotels above). */}
-        {trip && mode === "hotels" && (
-          <section className="home-top-hotels">
-            <div className="home-section-heading">
-              <div>
-                <h2>Top Hotels</h2>
-                <p>
-                  Real properties in {selectedCity}. Select up to 5 to compare
-                  side by side.
-                </p>
-              </div>
-            </div>
-
-            {topHotels.length === 0 ? (
-              <p className="empty-state">
-                No properties in this catalog yet.
-              </p>
-            ) : (
-              // Deliberately no price, "% below average," free-cancellation badge,
-              // or checked/not-checked note anywhere in this grid - all of that is
-              // derived from the StayingAPI cache, and Page 1 doesn't touch that
-              // cache at all (the frozen "never render price on Page 1" rule).
-              // Check IQ (now Page 3) is still where a visitor first sees any rate
-              // data - reached only after Page 2 (Compare & Choose) below.
-              <HotelSelectionGrid
-                hotels={topHotels}
-                checkIn={checkIn}
-                checkOut={checkOut}
-                tripId={trip.id}
-              />
-            )}
-          </section>
-        )}
-
-        {/* KlookTripSection ("Complete Your Dubai Trip") removed from the
-            homepage 2026-09-05 as part of the four-page journey correction
-            - see claude/travel-decision-platform-assessment.md. It briefly
-            lived here under the since-superseded "Sprint 3" reshuffle.
-            Klook/Viator's real home is now Page 3 (Complete Your Trip,
-            src/app/complete-your-trip/page.tsx), reached only AFTER a
-            visitor has chosen a hotel and a rate on Page 2 - showing a
-            "complete your trip" pitch here, before any hotel is even
-            picked, worked against the guided step-by-step journey rather
-            than for it. */}
+        {/* Phase A: no public hotel cards are rendered from the internal curated
+            catalogue. */}
 
         {/* Travel Intelligence: Gemini-powered destination context. Always
             visible — not gated on a trip. Falls back to seed data (Dubai /
             Abu Dhabi) or honest "not yet researched" state; never throws.
-            white-space: pre-line in globals.css renders the \n-separated
-            bullet format Gemini returns. */}
+            Phase A visual: each pillar card is image-led. The class
+            pillar-{c.pillar} activates the atmosphere background image for
+            that slot via CSS [data-atmosphere] rules. */}
         <section id="travel-intelligence" className="home-intel">
           <div className="home-intel-header">
             <h2>Travel Intelligence</h2>
@@ -381,10 +234,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
           <div className="home-intel-grid">
             {intelResult.cards.map((c) => (
-              <article key={c.pillar} className="intel-card">
-                <div className="intel-card-label">{c.label}</div>
-                <h3 className="intel-card-title">{c.title}</h3>
-                <p className="intel-card-body">{c.body}</p>
+              <article key={c.pillar} className={`intel-card pillar-${c.pillar}`}>
+                {/* Atmosphere image band — CSS sets background-image via
+                    [data-atmosphere] + pillar class. Fallback: navy. */}
+                <div className="intel-card-img-band" aria-hidden="true" />
+                <div className="intel-card-text">
+                  <div className="intel-card-label">{c.label}</div>
+                  <h3 className="intel-card-title">{c.title}</h3>
+                  <p className="intel-card-body">{c.body}</p>
+                </div>
               </article>
             ))}
           </div>

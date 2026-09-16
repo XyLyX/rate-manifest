@@ -35,17 +35,33 @@ export const curatedCatalogSource: DiscoverySource = {
     const sorted = rows.slice().sort((a, b) => b.starRating - a.starRating || a.name.localeCompare(b.name));
     const limited = typeof limit === "number" ? sorted.slice(0, limit) : sorted;
 
-    return limited.map((hotel) => ({
-      id: hotel.id,
-      name: hotel.name,
-      area: hotel.area,
-      city: hotel.city,
-      starRating: hotel.starRating,
-      imageUrl: null,
-      state: hotel.state as PropertyState,
-      sourceId: CURATED_CATALOG_SOURCE_ID,
-      sourcePropertyId: hotel.id,
-      isMockData: hotel.isMockData,
-    }));
+    return limited.map((hotel) => {
+      let imageUrl: string | null = null;
+
+      try {
+        const images = typeof hotel.images === "string"
+          ? JSON.parse(hotel.images)
+          : hotel.images;
+
+        if (Array.isArray(images) && typeof images[0] === "string" && images[0].trim()) {
+          imageUrl = images[0];
+        }
+      } catch {
+        // A missing or malformed image list must never break hotel discovery.
+      }
+
+      return {
+        id: hotel.id,
+        name: hotel.name,
+        area: hotel.area,
+        city: hotel.city,
+        starRating: hotel.starRating,
+        imageUrl,
+        state: hotel.state as PropertyState,
+        sourceId: CURATED_CATALOG_SOURCE_ID,
+        sourcePropertyId: hotel.id,
+        isMockData: hotel.isMockData,
+      };
+    });
   },
 };

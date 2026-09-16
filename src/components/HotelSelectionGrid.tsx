@@ -22,15 +22,11 @@ interface HotelSelectionGridProps {
 // toggles selection, up to five, and a single "Compare selected" action
 // carries the chosen properties into the new /compare page (Page 2).
 //
-// 2026-09-13 (user feedback): restructured so the primary action per card
-// is "Check IQ →" (a direct link to /check-iq with dates/trip already in
-// the URL) and "Shortlist" is the secondary toggle that feeds the compare
-// flow. Cards are now div-based (not button-based) to allow both a Link and
-// a toggle button as siblings without nesting interactive elements. CSS in
-// track-f.css makes every card the same height by pushing the action row to
-// the bottom. No new data fields added - only the four reliable fields
-// (name, area, star rating, image placeholder) are shown; UNAVAILABLE rows
-// are omitted entirely rather than surfaced as "Not available" clutter.
+// 2026-09-16 affiliate-readiness repair: Discover is shortlist-first again.
+// The whole card toggles selection and the direct per-card Check IQ shortcut is
+// removed so the journey remains Discover -> Shortlist -> Compare -> Verify.
+// Real property imagery is rendered from hotel.imageUrl when available; missing
+// imagery uses a neutral text fallback rather than an initial or fabricated image.
 export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelSelectionGridProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -64,14 +60,27 @@ export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelS
       <div className="hotel-grid home-hotel-grid">
         {hotels.map((hotel) => {
           const isSelected = selected.includes(hotel.id);
-          const checkIqHref = `/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`;
           return (
             <div
               key={hotel.id}
               className={isSelected ? "hotel-card home-hotel-card hotel-card-selected" : "hotel-card home-hotel-card"}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              onClick={() => toggle(hotel.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  toggle(hotel.id);
+                }
+              }}
             >
-              <div className="home-hotel-card-image" aria-hidden="true">
-                <span>{hotel.name.charAt(0)}</span>
+              <div className="home-hotel-card-image">
+                {hotel.imageUrl ? (
+                  <img className="home-hotel-card-img" src={hotel.imageUrl} alt={`${hotel.name} property`} />
+                ) : (
+                  <span className="home-hotel-card-image-unavailable">Property image unavailable</span>
+                )}
               </div>
               {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}
 
@@ -80,27 +89,8 @@ export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelS
                 {hotel.area} · {hotel.starRating}-star
               </div>
 
-              {/* Two actions; primary (Check IQ) and secondary (Shortlist).
-                  "Deliberately no price here" - same frozen Section 2/3 rule
-                  as before. Card is a div (not a button) so the Link and the
-                  toggle button can coexist without nesting interactive
-                  elements inside one another. */}
-              <div className="hotel-card-actions">
-                <Link href={checkIqHref} className="btn btn-block hotel-card-check-iq">
-                  Check IQ →
-                </Link>
-                <button
-                  type="button"
-                  className={
-                    isSelected
-                      ? "btn-ghost btn-sm hotel-card-shortlist hotel-card-shortlist-on"
-                      : "btn-ghost btn-sm hotel-card-shortlist"
-                  }
-                  onClick={() => toggle(hotel.id)}
-                  aria-pressed={isSelected}
-                >
-                  {isSelected ? "✓ Shortlisted" : "Shortlist"}
-                </button>
+              <div className="home-hotel-card-shortlist-hint">
+                {isSelected ? "✓ Shortlisted" : "Select to shortlist"}
               </div>
             </div>
           );

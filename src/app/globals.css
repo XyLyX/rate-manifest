@@ -1954,8 +1954,8 @@ input:focus {
 }
 
 .home-hero-band {
-  background: linear-gradient(180deg, #eef1ff 0%, var(--surface-alt) 100%);
-  padding-bottom: 3.5rem;
+  background: #0d1828;
+  padding-bottom: 3rem;
 }
 
 /* --- Nav, homepage variant: sits directly on the hero band instead of
@@ -1967,11 +1967,30 @@ input:focus {
   z-index: 20;
   margin: 0;
   padding: 1.25rem clamp(1.25rem, 4vw, 3rem);
-  background: rgba(238, 241, 255, 0.82);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid transparent;
+  background: rgba(10, 18, 34, 0.78);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Dark nav tab colours for the cinematic hero background */
+.nav-bar-home .nav-tab {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.nav-bar-home .nav-tab:hover {
+  color: #fff;
+}
+
+.nav-bar-home .nav-tab.active {
+  color: #fff;
+  border-bottom-color: var(--atm-accent, #d4a853);
+}
+
+.nav-bar-home .btn.nav-cta {
+  background: var(--atm-accent, #d4a853);
+  color: #0d1828;
 }
 
 .nav-tab {
@@ -1992,55 +2011,126 @@ input:focus {
   border-bottom-color: var(--primary);
 }
 
-/* --- Hero --- */
+/* --- Hero (Phase A atmosphere system) ---
+   The old .home-hero-inner 2-column grid is replaced by the full-width
+   .atm-hero-wrap + .atm-hero-content overlay layout.
+   .home-hero-copy and .home-hero-art-wrap are no longer rendered.
+   --- */
 
-.home-hero-inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
-  gap: 2.5rem;
-  align-items: center;
+/* Atmosphere CSS custom property defaults (set per-atmosphere below) */
+:root {
+  --atm-accent: #d4a853;
+  --atm-nav-bg: rgba(10, 18, 34, 0.78);
+}
+
+/* Per-atmosphere accent colour overrides (set on <html> by AtmosphereProvider) */
+[data-atmosphere="alpine"]  { --atm-accent: #6ab0f5; }
+[data-atmosphere="tropical"] { --atm-accent: #4caf7d; }
+[data-atmosphere="coastal"]  { --atm-accent: #29c7c7; }
+[data-atmosphere="golden"]   { --atm-accent: #d4a853; }
+[data-atmosphere="urban"]    { --atm-accent: #e8a847; }
+
+/* Hero wrapper — positions the image behind the content overlay */
+.atm-hero-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Cinematic hero image layer */
+.atm-hero {
+  position: relative;
+  width: 100%;
+  height: clamp(440px, 62vh, 700px);
+  overflow: hidden;
+}
+
+.atm-hero-img {
+  position: absolute;
+  inset: 0;
+  background-color: #0f1929;
+  background-size: cover;
+  background-position: center 38%;
+}
+
+.atm-hero-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    108deg,
+    rgba(8, 16, 32, 0.86) 0%,
+    rgba(8, 16, 32, 0.52) 55%,
+    rgba(8, 16, 32, 0.18) 100%
+  );
+}
+
+/* Hero copy overlay */
+.atm-hero-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(1.6rem, 4vw, 3rem) clamp(1.25rem, 5vw, 4rem);
   max-width: 1160px;
   margin: 0 auto;
-  padding: 1.5rem clamp(1.25rem, 4vw, 3rem) 0;
+  left: 0;
+  right: 0;
 }
 
-.home-hero-copy .hero-eyebrow {
-  color: var(--primary);
+.atm-hero-content .hero-eyebrow {
+  color: var(--atm-accent);
 }
 
-.home-hero-copy .hero-eyebrow::before {
-  background: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
+.atm-hero-content .hero-eyebrow::before {
+  background: var(--atm-accent);
+  box-shadow: 0 0 8px var(--atm-accent);
 }
 
-.home-hero-copy h1 {
+.atm-hero-content h1 {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4.2vw, 3rem);
+  font-size: clamp(2rem, 4.5vw, 3.4rem);
   font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.01em;
-  margin: 0 0 0.85rem;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  color: #fff;
   text-wrap: balance;
-  color: var(--text-primary);
+  margin: 0.5rem 0 0.8rem;
+  max-width: 34rem;
 }
 
-.home-hero-copy p {
-  color: var(--text-secondary);
+.atm-hero-content p {
+  color: rgba(255, 255, 255, 0.8);
   font-size: 1.05rem;
-  max-width: 30rem;
-  margin: 0;
+  max-width: 32rem;
+  margin: 0 0 1.4rem;
 }
 
-.home-hero-art-wrap {
-  position: relative;
+/* Badge repositioned into the hero overlay */
+.atm-hero-badge {
+  position: static !important;
+  display: inline-flex !important;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.11) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: none !important;
+  max-width: 20rem !important;
 }
 
-.hero-art {
-  width: 100%;
-  height: auto;
-  border-radius: 20px;
-  display: block;
+.atm-hero-badge .rate-verified-badge-title { color: #fff !important; }
+.atm-hero-badge .rate-verified-badge-sub   { color: rgba(255,255,255,0.7) !important; }
+.atm-hero-badge .rate-verified-badge-icon  {
+  background: var(--atm-accent) !important;
+  color: #0d1828 !important;
 }
+
+/* Atmosphere hero background images (1 per set) */
+[data-atmosphere="alpine"]   .atm-hero-img { background-image: url('/images/atmosphere/alpine/hero.jpg'); background-position: center 40%; }
+[data-atmosphere="tropical"] .atm-hero-img { background-image: url('/images/atmosphere/tropical/hero.jpg'); background-position: center 30%; }
+[data-atmosphere="coastal"]  .atm-hero-img { background-image: url('/images/atmosphere/coastal/hero.jpg'); background-position: center 45%; }
+[data-atmosphere="golden"]   .atm-hero-img { background-image: url('/images/atmosphere/golden/hero.jpg'); background-position: center 50%; }
+[data-atmosphere="urban"]    .atm-hero-img { background-image: url('/images/atmosphere/urban/hero.jpg'); background-position: center 35%; }
 
 .rate-verified-badge {
   position: absolute;
@@ -2105,11 +2195,13 @@ input:focus {
    that position). */
 .home-search-card {
   max-width: 1000px;
-  margin: 2rem auto 0;
+  margin: -2rem auto 0;
   padding: 1.4rem clamp(1.1rem, 3vw, 1.8rem);
   background: var(--surface);
   border-radius: 16px;
-  box-shadow: 0 24px 48px -20px rgba(17, 24, 39, 0.18);
+  box-shadow: 0 24px 64px -16px rgba(8, 16, 32, 0.55);
+  position: relative;
+  z-index: 4;
 }
 
 .home-search-card-heading {
@@ -2133,7 +2225,7 @@ input:focus {
 
 @media (max-width: 720px) {
   .home-search-card {
-    margin: 1.5rem 1rem 0;
+    margin: -1.5rem 1rem 0;
   }
 }
 
@@ -2145,7 +2237,20 @@ input:focus {
   gap: 1.5rem;
   max-width: 860px;
   margin: 0 auto;
-  padding: 2.5rem clamp(1.25rem, 4vw, 3rem);
+  padding: 3rem clamp(1.25rem, 4vw, 3rem) 2.5rem;
+  /* Sits below the search card on the dark navy band */
+}
+
+.home-trust-strip .trust-icon {
+  color: var(--atm-accent, #d4a853);
+}
+
+.home-trust-strip .trust-item-title {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.home-trust-strip .trust-item-sub {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .trust-item {
@@ -2176,6 +2281,7 @@ input:focus {
 @media (max-width: 640px) {
   .home-trust-strip {
     grid-template-columns: 1fr;
+    padding-top: 2rem;
   }
 }
 
@@ -2286,21 +2392,38 @@ input:focus {
 .home-hotel-card {
   padding: 0;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .home-hotel-card-image {
   height: 7rem;
-  background: linear-gradient(135deg, var(--primary) 0%, #8b85ff 100%);
+  background: var(--surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
-.home-hotel-card-image span {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.9);
+.home-hotel-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-hotel-card-image-unavailable {
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.home-hotel-card-shortlist-hint {
+  margin: 0.9rem 1.1rem 1.1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .home-hotel-card .hotel-card-demo {
@@ -2430,6 +2553,75 @@ input:focus {
 
 .discover-form-submit {
   align-self: flex-start;
+}
+
+.unsupported-destination {
+  margin-top: 1rem;
+  border: 1.5px solid var(--error);
+  background: rgba(239, 68, 68, 0.04);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+}
+
+.unsupported-destination-headline {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.unsupported-destination-sub {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+.interest-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.interest-form-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.interest-form-hook,
+.interest-form-dest {
+  margin: 0;
+}
+
+.interest-form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.interest-form-error {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.82rem;
+}
+
+.interest-form-submit {
+  justify-self: start;
+}
+
+.interest-success-headline {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.interest-success-sub {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 720px) {
+  .interest-form-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* --- Page 2 (Check IQ): "Select this deal" primary CTA, trip recap --- */
@@ -2979,7 +3171,7 @@ input:focus {
 
 .home-intel-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1.25rem;
 }
 
@@ -3205,4 +3397,107 @@ input:focus {
   .nav-tab-hide-mobile {
     display: none;
   }
+}
+
+
+/* Phase A correction pass — intelligence-led hierarchy, 2026-09-16. */
+.home-page {
+  background: #f4f6fb;
+}
+.home-hero-band {
+  background: #eef2f8;
+  border-bottom: 1px solid #dde3ee;
+}
+.nav-bar-home {
+  background: rgba(248, 250, 253, 0.92);
+  border-bottom-color: rgba(148, 163, 184, 0.18);
+}
+.home-search-card {
+  border: 1px solid #dfe5ef;
+  box-shadow: 0 24px 55px -28px rgba(15, 23, 42, 0.34);
+}
+.home-trust-strip {
+  max-width: 1040px;
+}
+.trust-item {
+  background: rgba(255,255,255,0.68);
+  border: 1px solid rgba(203,213,225,0.7);
+  border-radius: 14px;
+  padding: 1.15rem;
+}
+.home-intel {
+  padding: 2rem;
+  border-radius: 20px;
+  background: #eaf0f8;
+  border: 1px solid #d9e2ef;
+}
+.home-intel-header h2 {
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+}
+/* Intel cards — Phase A image-led editorial style.
+   Each card has an .intel-card-img-band at the top (atmosphere background)
+   and .intel-card-text below. The pillar-{key} class triggers the matching
+   atmosphere image via [data-atmosphere] CSS rules below. */
+.intel-card {
+  border: 1px solid #d7dfeb;
+  border-radius: 14px;
+  padding: 0;
+  box-shadow: 0 14px 34px -28px rgba(15,23,42,0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.intel-card-img-band {
+  height: 160px;
+  flex-shrink: 0;
+  background-color: #1a2540;
+  background-size: cover;
+  background-position: center;
+}
+
+.intel-card-text {
+  padding: 1.2rem 1.4rem 1.5rem;
+  flex: 1;
+}
+
+.intel-card-label { font-size: 0.72rem; }
+.intel-card-title { font-size: 1.05rem; }
+.intel-card-body  { font-size: 0.9rem; line-height: 1.7; }
+
+/* Pillar image backgrounds: 5 atmospheres × 4 pillars = 20 rules */
+[data-atmosphere="alpine"]   .pillar-cost-reality   .intel-card-img-band { background-image: url('/images/atmosphere/alpine/cost-reality.jpg'); }
+[data-atmosphere="alpine"]   .pillar-smart-choices  .intel-card-img-band { background-image: url('/images/atmosphere/alpine/smart-choices.jpg'); }
+[data-atmosphere="alpine"]   .pillar-getting-around .intel-card-img-band { background-image: url('/images/atmosphere/alpine/getting-around.jpg'); }
+[data-atmosphere="alpine"]   .pillar-local-pulse    .intel-card-img-band { background-image: url('/images/atmosphere/alpine/local-pulse.jpg'); }
+
+[data-atmosphere="tropical"] .pillar-cost-reality   .intel-card-img-band { background-image: url('/images/atmosphere/tropical/cost-reality.jpg'); }
+[data-atmosphere="tropical"] .pillar-smart-choices  .intel-card-img-band { background-image: url('/images/atmosphere/tropical/smart-choices.jpg'); }
+[data-atmosphere="tropical"] .pillar-getting-around .intel-card-img-band { background-image: url('/images/atmosphere/tropical/getting-around.jpg'); }
+[data-atmosphere="tropical"] .pillar-local-pulse    .intel-card-img-band { background-image: url('/images/atmosphere/tropical/local-pulse.jpg'); }
+
+[data-atmosphere="coastal"]  .pillar-cost-reality   .intel-card-img-band { background-image: url('/images/atmosphere/coastal/cost-reality.jpg'); }
+[data-atmosphere="coastal"]  .pillar-smart-choices  .intel-card-img-band { background-image: url('/images/atmosphere/coastal/smart-choices.jpg'); }
+[data-atmosphere="coastal"]  .pillar-getting-around .intel-card-img-band { background-image: url('/images/atmosphere/coastal/getting-around.jpg'); }
+[data-atmosphere="coastal"]  .pillar-local-pulse    .intel-card-img-band { background-image: url('/images/atmosphere/coastal/local-pulse.jpg'); }
+
+[data-atmosphere="golden"]   .pillar-cost-reality   .intel-card-img-band { background-image: url('/images/atmosphere/golden/cost-reality.jpg'); }
+[data-atmosphere="golden"]   .pillar-smart-choices  .intel-card-img-band { background-image: url('/images/atmosphere/golden/smart-choices.jpg'); }
+[data-atmosphere="golden"]   .pillar-getting-around .intel-card-img-band { background-image: url('/images/atmosphere/golden/getting-around.jpg'); }
+[data-atmosphere="golden"]   .pillar-local-pulse    .intel-card-img-band { background-image: url('/images/atmosphere/golden/local-pulse.jpg'); }
+
+[data-atmosphere="urban"]    .pillar-cost-reality   .intel-card-img-band { background-image: url('/images/atmosphere/urban/cost-reality.jpg'); }
+[data-atmosphere="urban"]    .pillar-smart-choices  .intel-card-img-band { background-image: url('/images/atmosphere/urban/smart-choices.jpg'); }
+[data-atmosphere="urban"]    .pillar-getting-around .intel-card-img-band { background-image: url('/images/atmosphere/urban/getting-around.jpg'); }
+[data-atmosphere="urban"]    .pillar-local-pulse    .intel-card-img-band { background-image: url('/images/atmosphere/urban/local-pulse.jpg'); }
+/* .hero-intelligence-visual removed — Phase A (2026-09-16).
+   The dark-card HeroArt concept is replaced by AtmosphereHero (cinematic
+   full-width photography). See src/components/HeroArt.tsx. */
+
+@media (max-width: 720px) {
+  .home-intel { padding: 1.2rem; }
+  .atm-hero { height: clamp(360px, 78vw, 500px); }
+  .atm-hero-content h1 { font-size: clamp(1.75rem, 6.5vw, 2.4rem); }
+  .atm-hero-content p  { font-size: 0.93rem; }
+  .intel-card-img-band { height: 120px; }
 }
