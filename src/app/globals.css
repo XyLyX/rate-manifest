@@ -1996,6 +1996,10 @@ input:focus {
   color: #0d1828;
 }
 
+.nav-bar-home .wordmark {
+  color: #ffffff;
+}
+
 .nav-tab {
   text-decoration: none;
   color: var(--text-dim);
@@ -3405,7 +3409,7 @@ input:focus {
 
 /* Phase A correction pass — intelligence-led hierarchy, 2026-09-16. */
 .home-page {
-  background: #f4f6fb;
+  background: #010d1e; /* dark navy — prevents light gap between search card and trust strip */
 }
 .home-hero-band {
   background: #eef2f8;
@@ -3520,7 +3524,7 @@ input:focus {
    partially reverted the visual to a light theme. The globe rebuild is
    deliberately cinematic / dark, so we assert the correct values here. */
 .home-page {
-  background: #f0f2f7;
+  background: #010d1e; /* dark navy — cinematic, matches globe/hero zone */
   min-height: 100vh;
   max-width: 1600px;
   margin-left: auto;
@@ -3539,8 +3543,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   min-height: clamp(680px, 100vh, 1080px);
-  /* Extra bottom zone lets the trust content visually merge with the hero photo */
-  padding-bottom: 5rem;
+  padding-bottom: 0;
 }
 
 /* Nav sits inside the band — dark treatment overrides the light correction-pass */
@@ -3677,65 +3680,152 @@ input:focus {
   line-height: 1.5;
 }
 
-/* ─── SEARCH CARD (globe-band context) ─────────────────────────────────── */
-/* White card sits at bottom of hero — matches reference design. */
-
-.globe-band .home-search-card {
+/* ─── SEARCH CARD: dark glass overlap ──────────────────────────────────── */
+/* Card sits immediately after globe-band in the DOM; negative margin pulls it
+   upward so it crosses the hero's bottom boundary.
+   Visual treatment: deep navy translucent glass floating in the cinematic hero. */
+.home-page > .home-search-card {
+  margin-top: -9.5rem; /* float panel fully over hero — panel height ~9rem, card sits within the photograph */
   position: relative;
   z-index: 10;
-  width: 100%;
-  max-width: none;
-  margin: auto 0 0;
-  border-radius: 0;
-  border: none;
-  border-top: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: 0 -4px 40px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.18);
-  padding: 1rem max(6vw, calc((100% - 1280px) / 2));
+  /* Width: wide horizontal console */
+  max-width: 1400px;
+  width: calc(100% - 4rem); /* 2rem gutters each side */
+  box-sizing: border-box;
+  /* Dark glass */
+  background: rgba(4, 14, 33, 0.52);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(232, 184, 92, 0.28);
+  border-radius: 20px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.55), 0 2px 0 rgba(232,184,92,0.12) inset;
+  /* Compact padding */
+  padding: 1.1rem clamp(1.2rem, 3vw, 2rem) 1.3rem;
 }
-/* Hide redundant heading — hero copy already sets context */
-.globe-band .home-search-card-heading { display: none; }
 
-/* Mode tabs on white card */
-.globe-band .mode-selector-tab {
-  color: #374151;
-  border-color: #d1d5db;
+/* Mode tabs — dark glass treatment */
+.home-page > .home-search-card .mode-selector {
+  margin-bottom: 1rem;
 }
-.globe-band .mode-selector-tab.active {
-  color: #d4a853;
+.home-page > .home-search-card .mode-selector-tab {
+  color: rgba(200, 210, 230, 0.75);
+  border-color: rgba(200, 210, 230, 0.18);
+  background: transparent;
+}
+.home-page > .home-search-card .mode-selector-tab:hover {
+  color: #e8b85c;
+  border-color: rgba(232, 184, 92, 0.4);
+}
+.home-page > .home-search-card .mode-selector-tab.active {
+  color: #e8b85c;
+  border-color: #e8b85c;
+  background: rgba(232, 184, 92, 0.10);
+  font-weight: 600;
+}
+
+/* Labels — muted blue-grey */
+.home-page > .home-search-card label,
+.home-page > .home-search-card .discover-form-intent-label {
+  color: rgba(180, 195, 218, 0.80) !important;
+}
+
+/* Input fields — dark translucent */
+.home-page > .home-search-card input:not([type="hidden"]):not([type="number"]),
+.home-page > .home-search-card input[type="date"],
+.home-page > .home-search-card input[type="number"],
+.home-page > .home-search-card select {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(200, 215, 240, 0.18) !important;
+  color: #f0f4ff !important;
+  border-radius: 8px;
+}
+.home-page > .home-search-card input::placeholder {
+  color: rgba(160, 180, 210, 0.55) !important;
+}
+/* Date inputs: light calendar icon on dark bg */
+.home-page > .home-search-card input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.5);
+}
+
+/* Trip intent chips — dark glass */
+.home-page > .home-search-card .trip-intent-chip {
+  background: rgba(255,255,255,0.05);
+  color: rgba(200, 215, 240, 0.80);
+  border-color: rgba(200, 215, 240, 0.18);
+}
+.home-page > .home-search-card .trip-intent-chip:hover {
+  border-color: rgba(232, 184, 92, 0.45);
+  color: #e8b85c;
+}
+.home-page > .home-search-card .trip-intent-chip.active {
+  background: rgba(232, 184, 92, 0.15);
+  color: #e8b85c;
+  border-color: #e8b85c;
+}
+
+/* Intent label */
+.home-page > .home-search-card .discover-form-intent-label {
+  color: rgba(180, 195, 218, 0.70) !important;
+}
+
+/* CTA — gold with dark navy text */
+.home-page > .home-search-card .discover-form-submit {
+  background: #e8b85c;
+  color: #0a1628;
+  border-color: #e8b85c;
+  font-weight: 700;
+}
+.home-page > .home-search-card .discover-form-submit:hover {
+  background: #d4a853;
   border-color: #d4a853;
-  background: rgba(212,168,83,0.08);
+  color: #0a1628;
 }
 
-/* Eyebrow / sub on white card */
-.globe-band .home-search-card-eyebrow { color: #6b7280; }
-.globe-band .home-search-card-sub     { color: #6b7280; }
+/* Coming-soon panels */
+.home-page > .home-search-card .mode-coming-soon {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(200,215,240,0.14);
+}
+.home-page > .home-search-card .mode-coming-soon-title { color: rgba(240,244,255,0.90); }
+.home-page > .home-search-card .mode-coming-soon-body  { color: rgba(180,200,230,0.70); }
 
-/* Input fields — light styling on white card */
-.globe-band .home-search-card input,
-.globe-band .home-search-card select,
-.globe-band .home-search-card .field,
-.globe-band .home-search-card .search-field,
-.globe-band .home-search-card [class*="field"],
-.globe-band .home-search-card [class*="input"] {
-  background: #f9fafb !important;
-  border-color: #e5e7eb !important;
-  color: #111827 !important;
-}
-.globe-band .home-search-card input::placeholder,
-.globe-band .home-search-card [placeholder] {
-  color: #9ca3af !important;
-}
+/* Heading — visible on dark card */
+.home-page > .home-search-card .home-search-card-eyebrow { color: rgba(180,200,230,0.65); }
+.home-page > .home-search-card .home-search-card-sub     { color: rgba(200,215,240,0.70); }
 
-/* Coming-soon panels on white card */
-.globe-band .mode-coming-soon {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
+/* ─── SEARCH CONSOLE: 6-column horizontal grid (desktop) ────────────────
+   Row 1: Destination (3fr) | Check-in (1.7fr) | Check-out (1.7fr) | Adults (1fr) | Children (1fr) | Rooms (1fr)
+   Row 2: Trip-purpose chips (cols 1–5) | Explore CTA (col 6)
+   display:contents on the two field-group rows makes their children
+   direct grid items of .discover-form without adding DOM wrappers. */
+.home-page > .home-search-card .discover-form {
+  display: grid;
+  grid-template-columns: 3fr 1.7fr 1.7fr 1fr 1fr 1fr;
+  column-gap: 0.7rem;
+  row-gap: 0.7rem;
+  align-items: end;
 }
-.globe-band .mode-coming-soon-title { color: #374151; }
-.globe-band .mode-coming-soon-body  { color: #6b7280; }
+/* Flatten field-group wrappers into the grid */
+.home-page > .home-search-card .discover-form-row,
+.home-page > .home-search-card .discover-form-row-guests {
+  display: contents;
+}
+/* Intent chips occupy first 5 columns of row 2 */
+.home-page > .home-search-card .discover-form-intent {
+  grid-column: 1 / 6;
+  grid-row: 2;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+/* CTA button in column 6, row 2 — right-side partner to chips */
+.home-page > .home-search-card .discover-form-submit {
+  grid-column: 6;
+  grid-row: 2;
+  width: 100%;
+  align-self: end;
+}
 
 /* ─── TRUST STRIP ────────────────────────────────────────────────────────── */
 /* Clean 3-column strip on light background — trust transition, not hero. */
@@ -3746,10 +3836,10 @@ input:focus {
   gap: 0;
   width: 100%;
   max-width: none;
-  /* Pull strip up into the globe-band's padding-bottom zone — floats over hero */
-  margin-top: -4rem;
+  /* Trust strip flows below the bridging search card (card bottom: H+3rem, trust margin-top: 3rem) */
+  margin-top: 3rem;
   padding: 0.9rem max(6vw, calc((100% - 1280px) / 2)) 1.25rem;
-  background: transparent;
+  background: #010d1e;
   border: none;
   box-sizing: border-box;
   position: relative;
@@ -3852,12 +3942,9 @@ input:focus {
   transition: opacity 0.4s;
 }
 
-/* Cost Reality — master-reference height: 70vh full-width editorial.
-   Override only; other three rows keep the shared .intel-row height. */
-.pillar-cost-reality {
-  height: auto;
-  min-height: 70vh;
-}
+/* Cost Reality — matches shared .intel-row height (clamp(380px, 70vh, 700px)).
+   Former 70vh-uncapped override removed — it caused Cost Reality to render
+   taller than Smart Choices on viewports where 70vh > 700px. */
 
 /* Hardwired rambo pillar images — no data-atmosphere dependency.
    These fire immediately regardless of JS load state. */
@@ -4049,18 +4136,24 @@ input:focus {
   background: #0c1527;
   width: 100%;
   margin: 0;
-  padding: 1.75rem clamp(1.5rem, 5vw, 4rem) 1.5rem;
+  padding: 0.9rem clamp(1.5rem, 5vw, 4rem) 0.9rem;
   border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Neutralise global .how-it-works { margin-top: 3rem } inside the dark HIW band —
+   wrapper already has padding-top: 3rem; combined 6rem gap is too much */
+.home-hiw-wrap .how-it-works {
+  margin-top: 0;
 }
 
 /* Section heading — small label style, not a landmark h2 */
 .home-hiw-wrap .how-it-works h2 {
-  font-size: 0.68rem;
+  font-size: 0.81rem; /* ~13px */
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(255,255,255,0.38);
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.55rem;
 }
 
 /* 3-column compact grid */
@@ -4095,33 +4188,38 @@ input:focus {
   line-height: 1;
   user-select: none;
 }
+/* Larger step number inside the homepage HIW band */
+.home-hiw-wrap .how-card-num {
+  font-size: 0.81rem; /* ~13px */
+  margin-bottom: 0.3rem;
+}
 
 /* Step label */
 .home-hiw-wrap .how-card-label {
-  font-size: 0.78rem;
+  font-size: 1.125rem; /* ~18px */
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #ffffff;
   margin-top: 0;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
 }
 
 /* Step body */
 .home-hiw-wrap .how-card p {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: rgba(255,255,255,0.48);
-  line-height: 1.55;
+  line-height: 1.65;
   margin: 0;
 }
 
 /* Disclosure footnote */
 .home-hiw-wrap .footnote {
-  font-size: 0.7rem;
+  font-size: 0.75rem; /* 12px */
   color: rgba(255,255,255,0.28);
   line-height: 1.55;
-  margin-top: 1.25rem;
-  padding-top: 0.9rem;
+  margin-top: 0.6rem;
+  padding-top: 0.4rem;
   border-top: 1px solid rgba(255,255,255,0.05);
   padding-left: 0;
   padding-right: 0;
@@ -4140,7 +4238,7 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  margin-top: 0;
+  margin-top: -2px; /* eliminate sub-pixel gap between HIW dark band and hero photo */
 }
 
 .closing-hero-img {
@@ -4186,6 +4284,12 @@ input:focus {
   background: linear-gradient(to bottom, #0c1527 0%, transparent 100%);
   z-index: 2;
   pointer-events: none;
+}
+
+/* closing-hero::after — no gradient overlay.
+   Contrast is handled by the frosted band on .home-footer-wrap .site-footer directly. */
+.closing-hero::after {
+  display: none;
 }
 
 .closing-hero-content {
@@ -4257,39 +4361,49 @@ input:focus {
   z-index: 10;
   /* Pull footer up so it sits inside the closing-hero photograph */
   margin-top: -120px;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 /* Homepage footer — single compact horizontal strip.
-   Full-width background; inner content aligned to 1280px gutter. */
+   Full-width background; inner content aligned to 1280px gutter.
+   Transparent over closing-hero photo; dark gradient ::after on the
+   closing-hero provides readable contrast behind the text. */
 .home-footer-wrap .site-footer {
   max-width: none;
-  margin: 0;
+  margin: 0; /* neutralise global margin-top: 3rem */
   padding: 0.85rem max(6vw, calc((100% - 1280px) / 2));
-  border-top: 1px solid rgba(255,255,255,0.12);
+  border-top: 1px solid rgba(12,21,39,0.15);
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  /* Float over closing hero — transparent, text readable via text-shadow */
-  background: transparent;
+  gap: 1.25rem;
+  /* Frosted translucent band — keeps photograph subtly visible behind footer */
+  background: rgba(238, 243, 247, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-/* Override any light-theme text colours inside the footer on homepage */
+/* Dark navy text over closing-hero photograph.
+   Light frosted ::after gradient on .closing-hero provides subtle contrast. */
 .home-footer-wrap .site-footer,
 .home-footer-wrap .site-footer a,
 .home-footer-wrap .site-footer p,
 .home-footer-wrap .site-footer span {
-  color: rgba(255,255,255,0.65);
-  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  color: #0c1527;
+  text-shadow: none;
 }
 .home-footer-wrap .site-footer a:hover {
-  color: rgba(255,255,255,0.75);
+  color: #0c1527;
+  opacity: 1;
+  text-shadow: none;
 }
 .home-footer-wrap .site-footer-brand .wordmark {
-  color: #ffffff;
-  font-size: 0.9rem;
+  color: #0c1527;
+  font-size: 1.3rem; /* noticeably larger — anchors the left zone */
+  font-weight: 700;
 }
 .home-footer-wrap .site-footer-brand .tagline {
   display: none; /* hide tagline — too tall for single strip */
@@ -4325,22 +4439,26 @@ input:focus {
 
 /* Style the inline links */
 .home-footer-wrap .site-footer-cols a {
-  font-size: 0.78rem;
+  font-size: 0.8rem; /* ~12.8px */
   white-space: nowrap;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 .home-footer-wrap .site-footer-cols a:hover { opacity: 1; }
 
-/* Copyright — right, inline */
+/* Affiliate disclosure — right-aligned, sensible line length, wraps on
+   narrower viewports. white-space: nowrap only on very wide screens. */
 .home-footer-wrap .site-footer-disclosure {
-  flex: 0 0 auto;
-  width: auto;
+  flex: 0 1 auto;
+  max-width: 52ch;
+  min-width: 0;
   padding-top: 0;
   border-top: none;
   margin-top: 0;
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.35);
-  white-space: nowrap;
+  font-size: 0.78rem; /* ~12.5px — comfortable small print */
+  color: rgba(12,21,39,0.55);
+  white-space: normal;
+  line-height: 1.5;
+  text-align: right;
 }
 
 /* ─── MOBILE ─────────────────────────────────────────────────────────────── */
@@ -4363,11 +4481,61 @@ input:focus {
 }
 
 @media (max-width: 768px) {
+  /* ── Hero image — mobile composition ──────────────────────────────────────
+     Desktop: background-position center 30% — anchors at upper/space region.
+     Mobile portrait: cover fills width, making the image tall; center 30%
+     shows too much empty galaxy above the headline while the Earth
+     horizon/sunrise is pushed toward the bottom-right and out of view.
+     Fix: shift anchor to 68% horizontal (right, toward the sunrise) and 62%
+     vertical (lower, pulling the Earth horizon up into the viewport). */
+  .globe-master-img {
+    background-position: 68% 62%;
+  }
+  /* Reduce band height for a more compact first-screen on mobile.
+     Desktop min-height: clamp(680px, 100vh, 1080px).
+     Mobile: 85vh cap avoids a vast empty sky crown above the headline. */
+  .globe-band {
+    min-height: clamp(520px, 85vh, 720px);
+  }
   /* Intel rows: reduce from 70vh to 50vh on tablet */
   .intel-row { min-height: clamp(280px, 50vh, 500px); }
-  /* Trust strip — collapse to single column; restore flow (no negative-margin overlap on mobile) */
+  /* Search card: tighter mobile overlap, slightly smaller radius */
+  .home-page > .home-search-card {
+    margin-top: -1.5rem;
+    border-radius: 14px;
+    padding: 1rem 1rem 1.2rem;
+    width: calc(100% - 2rem);
+    max-width: none;
+  }
+  /* Revert 6-column grid to vertical stack on mobile */
+  .home-page > .home-search-card .discover-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .home-page > .home-search-card .discover-form-row,
+  .home-page > .home-search-card .discover-form-row-guests {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+  .home-page > .home-search-card .discover-form-row-guests {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .home-page > .home-search-card .discover-form-intent {
+    grid-column: unset;
+    grid-row: unset;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .home-page > .home-search-card .discover-form-submit {
+    grid-column: unset;
+    grid-row: unset;
+    width: 100%;
+  }
+  /* Trust strip — collapse to single column */
   .home-trust-strip {
-    margin-top: 0;
+    margin-top: 1.5rem;
     grid-template-columns: 1fr;
     background: rgba(1,10,26,0.62);
     border-top: 1px solid rgba(255,255,255,0.08);
@@ -4392,8 +4560,142 @@ input:focus {
   .home-trust-strip .trust-item { padding: 1rem 1rem; }
   .closing-hero { min-height: clamp(420px, 60vh, 580px); }
   .closing-tagline { font-size: clamp(1.9rem, 8vw, 2.8rem); }
-  .home-hiw-wrap { padding: 1.25rem 1.25rem 1rem; }
-  .home-footer-wrap .site-footer { flex-wrap: wrap; gap: 0.6rem; }
+  .home-hiw-wrap { padding: 1rem 1.25rem 1rem; }
+  .home-footer-wrap .site-footer {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
   .home-footer-wrap .site-footer-cols { justify-content: flex-start; }
-  .home-footer-wrap .site-footer-disclosure { flex: 0 0 100%; white-space: normal; }
+  .home-footer-wrap .site-footer-disclosure {
+    flex: 0 0 100%;
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+/* ─── MOBILE HAMBURGER NAVIGATION ──────────────────────────────────────────
+   Breakpoint: 768px. Desktop nav-links hidden; hamburger shown; dropdown
+   menu provides all 8 primary destinations. Dark navy/gold to match the
+   homepage hero header. Also applied to non-home pages for consistency. */
+
+/* Hamburger button — hidden on desktop */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.nav-hamburger-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+/* Animate to X when open */
+.nav-hamburger--open .nav-hamburger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.nav-hamburger--open .nav-hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+.nav-hamburger--open .nav-hamburger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile menu dropdown — full-width, below the nav bar */
+.nav-mobile-menu {
+  display: none;
+}
+
+/* ── Mobile breakpoint ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Hide the horizontal desktop nav */
+  .nav-links { display: none; }
+
+  /* Show hamburger */
+  .nav-hamburger { display: flex; }
+
+  /* Homepage dark hero nav — hamburger inherits white */
+  .nav-bar-home .nav-hamburger { color: #ffffff; }
+  /* Default (light) nav — hamburger inherits dark text */
+  .nav-bar:not(.nav-bar-home) .nav-hamburger { color: var(--text); }
+
+  /* Nav bar: keep logo + hamburger on one row */
+  .nav-bar {
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  /* Mobile dropdown — full-width card below the nav bar row */
+  .nav-mobile-menu {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0.5rem 0 1rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    gap: 0;
+  }
+  .nav-mobile-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.82);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .nav-mobile-link:hover,
+  .nav-mobile-link:focus {
+    background: rgba(255,255,255,0.06);
+    color: #ffffff;
+  }
+  .nav-mobile-link.active {
+    color: #d4a853;
+  }
+  .nav-mobile-cta {
+    display: block;
+    margin: 0.75rem 1rem 0;
+    padding: 0.65rem 1.25rem;
+    background: #d4a853;
+    color: #0d1117;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+  .nav-mobile-cta:hover { background: #c49840; }
+
+  /* Non-home pages: use dark text instead of white for the mobile menu */
+  .nav-bar:not(.nav-bar-home) .nav-mobile-menu {
+    border-top-color: var(--border);
+  }
+  .nav-bar:not(.nav-bar-home) .nav-mobile-link {
+    color: var(--text-dim);
+  }
+  .nav-bar:not(.nav-bar-home) .nav-mobile-link:hover {
+    background: var(--surface-alt, rgba(0,0,0,0.04));
+    color: var(--text);
+  }
+  .nav-bar:not(.nav-bar-home) .nav-mobile-link.active {
+    color: var(--brand, #635bff);
+  }
+
+  /* Search card: no negative overlap on mobile */
+  .home-search-card { margin-top: 0; }
 }

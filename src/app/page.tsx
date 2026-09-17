@@ -95,74 +95,76 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <p className="globe-sub">Real insights. Smarter choices. Better journeys.</p>
         </div>
 
-        {/* ── 2. SEARCH ────────────────────────────────────────────────────── */}
-        {/* Preserved exactly. Floating white card overlapping the globe base. */}
-        <div className="home-search-card">
-          <div className="mode-selector">
-            <Link
-              href="/"
-              className={`mode-selector-tab${mode === "hotels" ? " active" : ""}`}
-            >
-              Hotels
-            </Link>
-            <Link
-              href="/?mode=flights"
-              className={`mode-selector-tab${mode === "flights" ? " active" : ""}`}
-            >
-              Flights
-            </Link>
-            <Link
-              href="/?mode=combined"
-              className={`mode-selector-tab${mode === "combined" ? " active" : ""}`}
-            >
-              Hotels + Flights
-            </Link>
-            <Link
-              href="/?mode=rail"
-              className={`mode-selector-tab${mode === "rail" ? " active" : ""}`}
-            >
-              Rail
-            </Link>
-          </div>
+      </div>
 
-          {mode === "flights" ? (
-            <div className="mode-coming-soon">
-              <p className="mode-coming-soon-title">Flight options for your journey</p>
-              <p className="mode-coming-soon-body">
-                We&apos;re finalising the flight options for this journey and will update you as soon as they&apos;re ready.
-              </p>
-            </div>
-          ) : mode === "rail" ? (
-            <div className="mode-coming-soon">
-              <p className="mode-coming-soon-title">Rail options for your journey</p>
-              <p className="mode-coming-soon-body">
-                We&apos;re finalising the rail options for this journey and will update you as soon as they&apos;re ready.
-              </p>
-            </div>
-          ) : mode === "combined" ? (
-            <div className="mode-coming-soon">
-              <p className="mode-coming-soon-title">Flight + hotel options</p>
-              <p className="mode-coming-soon-body">
-                We&apos;re finalising the flight and hotel options for this journey and will update you as soon as they&apos;re ready.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="home-search-card-heading">
-                <div className="home-search-card-eyebrow">Where do you want to go?</div>
-                <p className="home-search-card-sub">
-                  Tell us where and when — we&apos;ll build destination intelligence while hotel availability is being curated.
-                </p>
-              </div>
-              <DiscoverForm
-                cities={cities}
-                defaultDestination={trip?.destination ?? ""}
-                defaultCheckIn={checkIn}
-                defaultCheckOut={checkOut}
-              />
-            </>
-          )}
+      {/* ── 2. SEARCH ────────────────────────────────────────────────────── */}
+      {/* Card sits immediately after globe-band; negative margin-top pulls it
+          upward across the hero's bottom boundary (conventional overlap). */}
+      <div className="home-search-card">
+        <div className="mode-selector">
+          <Link
+            href="/"
+            className={`mode-selector-tab${mode === "hotels" ? " active" : ""}`}
+          >
+            Hotels
+          </Link>
+          <Link
+            href="/?mode=flights"
+            className={`mode-selector-tab${mode === "flights" ? " active" : ""}`}
+          >
+            Flights
+          </Link>
+          <Link
+            href="/?mode=combined"
+            className={`mode-selector-tab${mode === "combined" ? " active" : ""}`}
+          >
+            Hotels + Flights
+          </Link>
+          <Link
+            href="/?mode=rail"
+            className={`mode-selector-tab${mode === "rail" ? " active" : ""}`}
+          >
+            Rail
+          </Link>
         </div>
+
+        {mode === "flights" ? (
+          <div className="mode-coming-soon">
+            <p className="mode-coming-soon-title">Flight options for your journey</p>
+            <p className="mode-coming-soon-body">
+              We&apos;re finalising the flight options for this journey and will update you as soon as they&apos;re ready.
+            </p>
+          </div>
+        ) : mode === "rail" ? (
+          <div className="mode-coming-soon">
+            <p className="mode-coming-soon-title">Rail options for your journey</p>
+            <p className="mode-coming-soon-body">
+              We&apos;re finalising the rail options for this journey and will update you as soon as they&apos;re ready.
+            </p>
+          </div>
+        ) : mode === "combined" ? (
+          <div className="mode-coming-soon">
+            <p className="mode-coming-soon-title">Flight + hotel options</p>
+            <p className="mode-coming-soon-body">
+              We&apos;re finalising the flight and hotel options for this journey and will update you as soon as they&apos;re ready.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="home-search-card-heading">
+              <div className="home-search-card-eyebrow">Where do you want to go?</div>
+              <p className="home-search-card-sub">
+                Tell us where and when — we&apos;ll build destination intelligence while hotel availability is being curated.
+              </p>
+            </div>
+            <DiscoverForm
+              cities={cities}
+              defaultDestination={trip?.destination ?? ""}
+              defaultCheckIn={checkIn}
+              defaultCheckOut={checkOut}
+            />
+          </>
+        )}
       </div>
 
       {/* ── 3. TRUST STRIP ────────────────────────────────────────────────── */}
@@ -170,17 +172,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="trust-item">
           <IconShieldCheck className="trust-icon" />
           <div className="trust-item-title">Nothing Invented</div>
-          <div className="trust-item-sub">Rates and details come from named sources.</div>
+          <div className="trust-item-sub">Real data. No guesswork.</div>
         </div>
         <div className="trust-item">
           <IconLink className="trust-icon" />
           <div className="trust-item-title">Named Sources</div>
-          <div className="trust-item-sub">Know where the information comes from.</div>
+          <div className="trust-item-sub">See where the rates come from.</div>
         </div>
         <div className="trust-item">
           <IconBolt className="trust-icon" />
           <div className="trust-item-title">Rate Intelligence</div>
-          <div className="trust-item-sub">Live rate checks when you need to verify.</div>
+          <div className="trust-item-sub">Compare. Verify. Book with confidence.</div>
         </div>
       </div>
 
