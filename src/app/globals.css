@@ -66,7 +66,7 @@
      face. Kept as three variables rather than collapsed to one so every
      existing font-family: var(--font-*) reference across this file still
      resolves without individual edits - only the value changed. */
-  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
   --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-mono: "Plus Jakarta Sans", system-ui, sans-serif;
 }
@@ -79,6 +79,8 @@ html,
 body {
   padding: 0;
   margin: 0;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -803,7 +805,7 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
 }
 
 .nav-links a:not(.nav-cta) {
@@ -1966,8 +1968,8 @@ input:focus {
   top: 0;
   z-index: 20;
   margin: 0;
-  padding: 1.25rem clamp(1.25rem, 4vw, 3rem);
-  background: rgba(10, 18, 34, 0.78);
+  padding: 0.85rem clamp(1.25rem, 4vw, 3rem);
+  background: rgba(8, 15, 30, 0.88);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0;
@@ -1976,7 +1978,8 @@ input:focus {
 
 /* Dark nav tab colours for the cinematic hero background */
 .nav-bar-home .nav-tab {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.92rem;
 }
 
 .nav-bar-home .nav-tab:hover {
@@ -2089,7 +2092,7 @@ input:focus {
 
 .atm-hero-content h1 {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
   font-weight: 700;
   line-height: 1.06;
   letter-spacing: -0.02em;
@@ -3500,4 +3503,897 @@ input:focus {
   .atm-hero-content h1 { font-size: clamp(1.75rem, 6.5vw, 2.4rem); }
   .atm-hero-content p  { font-size: 0.93rem; }
   .intel-card-img-band { height: 120px; }
+}
+
+
+/* ==========================================================================
+   PHASE A VISUAL REBUILD — 2026-09-16
+   Globe Hero + Editorial Rows + Closing Hero
+   Replaces: home-hero-band / atm-hero-wrap / home-intel-grid
+   Preserves: atmosphere system, search card, trust strip, how-it-works,
+              footnote, footer, all non-homepage styles.
+   ========================================================================== */
+
+/* ─── HOME PAGE RESET ──────────────────────────────────────────────────── */
+
+/* Override the Phase A correction-pass overrides at lines ~3403–3434 that
+   partially reverted the visual to a light theme. The globe rebuild is
+   deliberately cinematic / dark, so we assert the correct values here. */
+.home-page {
+  background: #f0f2f7;
+  min-height: 100vh;
+  max-width: 1600px;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-x: hidden;
+}
+
+/* ─── GLOBE BAND ────────────────────────────────────────────────────────── */
+/* Dark navy/space container — NOT atmosphere-dependent.
+   Rambo reference direction: illuminated globe, amber accents, editorial. */
+
+.globe-band {
+  position: relative;
+  background: #010d1e;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(680px, 100vh, 1080px);
+  /* Extra bottom zone lets the trust content visually merge with the hero photo */
+  padding-bottom: 5rem;
+}
+
+/* Nav sits inside the band — dark treatment overrides the light correction-pass */
+.globe-band .nav-bar-home {
+  background: rgba(1, 10, 26, 0.55);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ─── STARFIELD ─────────────────────────────────────────────────────────── */
+/* CSS dot pattern suppressed — master-hero.png contains the real sky.
+   Layer retained only for ::after text-legibility gradient. */
+.globe-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image: none;
+}
+
+/* Left-side reading gradient — darkens left portion for text legibility */
+.globe-stars::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(1, 10, 26, 0.72) 0%,
+    rgba(1, 10, 26, 0.42) 38%,
+    transparent 65%
+  );
+}
+
+/* ─── CSS GLOBE SPHERE ──────────────────────────────────────────────────── */
+/* Absolute, right-anchored, centered vertically. Pure CSS — no external img. */
+
+/* ─── MASTER HERO PHOTOGRAPH ───────────────────────────────────────────── */
+/* Permanent opening hero image. NOT in session atmosphere rotation.
+   Starfield and horizon overlays remain as photo enhancement layers. */
+
+.globe-master-img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/images/atmosphere/master-hero/master-hero.png');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+}
+
+/* Warm amber horizon wash — amber/gold at the base of the band */
+.globe-horizon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to top,
+    rgba(190, 130, 28, 0.13) 0%,
+    rgba(190, 130, 28, 0.04) 40%,
+    transparent 100%
+  );
+}
+
+/* ─── HERO COPY ─────────────────────────────────────────────────────────── */
+
+.globe-hero-copy {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* ~620px readable column; left edge aligns to 1280px-centred gutter.
+     padding-left % resolves against .globe-band (the containing block = 100vw). */
+  max-width: 620px;
+  padding-top: 2.5rem;
+  padding-bottom: 1.5rem;
+  padding-left: max(6vw, calc((100% - 1280px) / 2));
+  padding-right: 2rem;
+  box-sizing: border-box;
+}
+
+.globe-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #E8B85C;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.globe-eyebrow::before {
+  content: '';
+  display: block;
+  width: 22px;
+  height: 1px;
+  background: #d4a853;
+  box-shadow: 0 0 6px rgba(212, 168, 83, 0.6);
+  flex-shrink: 0;
+}
+
+.globe-h1 {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 7vw, 96px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.04em;
+}
+
+.globe-h1-line { display: block; }
+.globe-h1-line:nth-child(2) { color: rgba(255,255,255,0.90); }
+.globe-h1-line:nth-child(3) { color: #d4a853; }
+.globe-h1-line--gold        { color: #d4a853; }
+
+.globe-sub {
+  font-size: 18px;
+  color: #C8CCD8;
+  margin: 0;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+
+/* ─── SEARCH CARD (globe-band context) ─────────────────────────────────── */
+/* White card sits at bottom of hero — matches reference design. */
+
+.globe-band .home-search-card {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: none;
+  margin: auto 0 0;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.18);
+  padding: 1rem max(6vw, calc((100% - 1280px) / 2));
+}
+/* Hide redundant heading — hero copy already sets context */
+.globe-band .home-search-card-heading { display: none; }
+
+/* Mode tabs on white card */
+.globe-band .mode-selector-tab {
+  color: #374151;
+  border-color: #d1d5db;
+}
+.globe-band .mode-selector-tab.active {
+  color: #d4a853;
+  border-color: #d4a853;
+  background: rgba(212,168,83,0.08);
+}
+
+/* Eyebrow / sub on white card */
+.globe-band .home-search-card-eyebrow { color: #6b7280; }
+.globe-band .home-search-card-sub     { color: #6b7280; }
+
+/* Input fields — light styling on white card */
+.globe-band .home-search-card input,
+.globe-band .home-search-card select,
+.globe-band .home-search-card .field,
+.globe-band .home-search-card .search-field,
+.globe-band .home-search-card [class*="field"],
+.globe-band .home-search-card [class*="input"] {
+  background: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+}
+.globe-band .home-search-card input::placeholder,
+.globe-band .home-search-card [placeholder] {
+  color: #9ca3af !important;
+}
+
+/* Coming-soon panels on white card */
+.globe-band .mode-coming-soon {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+.globe-band .mode-coming-soon-title { color: #374151; }
+.globe-band .mode-coming-soon-body  { color: #6b7280; }
+
+/* ─── TRUST STRIP ────────────────────────────────────────────────────────── */
+/* Clean 3-column strip on light background — trust transition, not hero. */
+
+.home-trust-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  width: 100%;
+  max-width: none;
+  /* Pull strip up into the globe-band's padding-bottom zone — floats over hero */
+  margin-top: -4rem;
+  padding: 0.9rem max(6vw, calc((100% - 1280px) / 2)) 1.25rem;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 5;
+}
+
+.home-trust-strip .trust-item {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  padding: 0.9rem clamp(1rem, 2.5vw, 2rem);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.home-trust-strip .trust-item:last-child { border-right: none; }
+
+.home-trust-strip .trust-icon {
+  color: #d4a853;
+  width: 1.8rem;
+  height: 1.8rem;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.7));
+}
+
+.home-trust-strip .trust-item-title {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+  text-shadow: 0 1px 5px rgba(0,0,0,0.85);
+}
+
+.home-trust-strip .trust-item-sub {
+  color: #c8ccd8;
+  font-size: 13px;
+  margin-top: 0.2rem;
+  line-height: 1.45;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.75);
+}
+
+/* ─── FOUR EDITORIAL ROWS ───────────────────────────────────────────────── */
+/* Full-width cinematic strips. No container, no gap between rows.
+   Photography dominates (~380–430px). Text alternates left ↔ right. */
+
+.intel-rows {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 0;
+}
+
+.intel-row {
+  position: relative;
+  width: 100%;
+  min-height: clamp(380px, 70vh, 700px);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  margin: 0;
+  /* 1px border between rows */
+  border-bottom: 1px solid rgba(1,10,26,0.5);
+}
+
+/* Top fade: very thin hairline separator only */
+.intel-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, rgba(1,10,26,0.55) 0%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Bottom fade: very thin hairline separator only */
+.intel-row::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to top, rgba(1,10,26,0.55) 0%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Atmosphere background image layer */
+.intel-row-img {
+  position: absolute;
+  inset: 0;
+  background-color: #1a2540;   /* navy fallback before atmosphere loads */
+  background-size: cover;
+  background-position: center 35%;
+  transform: scale(1.02);      /* slight oversize prevents white flash on load */
+  transition: opacity 0.4s;
+}
+
+/* Cost Reality — master-reference height: 70vh full-width editorial.
+   Override only; other three rows keep the shared .intel-row height. */
+.pillar-cost-reality {
+  height: auto;
+  min-height: 70vh;
+}
+
+/* Hardwired rambo pillar images — no data-atmosphere dependency.
+   These fire immediately regardless of JS load state. */
+.pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/rambo/cost-reality.png');   background-position: center 30%; }
+.pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/rambo/smart-choices.png');  background-position: center 35%; }
+.pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/rambo/getting-around.png'); background-position: center 40%; }
+.pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/rambo/local-pulse.png');    background-position: center 38%; }
+
+/* Left-reading gradient — subtle enough for text legibility, image shows through */
+.intel-row-veil--left {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(6, 12, 28, 0.68) 0%,
+    rgba(6, 12, 28, 0.38) 30%,
+    rgba(6, 12, 28, 0.08) 55%,
+    transparent 70%
+  );
+}
+
+/* Right-reading — same subtle gradient */
+.intel-row-veil--right {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(6, 12, 28, 0.68) 0%,
+    rgba(6, 12, 28, 0.35) 30%,
+    rgba(6, 12, 28, 0.06) 55%,
+    transparent 70%
+  );
+}
+
+/* Text panel — full-width outer wrapper aligned to 1280px gutter.
+   max-width = column width (560px) + left gutter, keeping content readable.
+   % in padding and max-width both resolve against .intel-row (100vw). */
+.intel-row-text {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: calc(560px + max(6vw, calc((100% - 1280px) / 2)));
+  padding-top: 1.75rem;
+  padding-bottom: 2rem;
+  padding-left: max(6vw, calc((100% - 1280px) / 2));
+  padding-right: 1.5rem;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+/* All rows are full-width: text always left */
+.intel-row--right .intel-row-text {
+  margin-left: 0;
+  text-align: left;
+}
+
+/* Row label */
+.intel-row-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #E8B85C;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.intel-row--left  .intel-row-label::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: var(--atm-accent, #d4a853);
+  flex-shrink: 0;
+}
+
+.intel-row--right .intel-row-label {
+  flex-direction: row;
+}
+.intel-row--right .intel-row-label::after {
+  display: none;
+}
+.intel-row--right .intel-row-label::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: var(--atm-accent, #d4a853);
+  flex-shrink: 0;
+}
+
+/* Row heading */
+.intel-row-title {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: #fff;
+  margin: 0 0 0.75rem;
+  text-wrap: balance;
+}
+
+/* Row body */
+.intel-row-body {
+  font-size: 16px;
+  color: #C8CCD8;
+  margin: 0;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Row CTA link */
+.intel-row-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4a853;
+  text-decoration: none;
+  cursor: default;
+}
+.intel-row-cta::after {
+  content: '→';
+  font-size: 0.85rem;
+}
+
+/* ─── ATMOSPHERE IMAGE RULES — EDITORIAL ROWS ───────────────────────────── */
+/* 5 atmospheres × 4 pillars = 20 rules.
+   Responsive positioning: background-position tuned per slot to avoid
+   aggressive subject cropping at the 380–430px height. */
+
+/* Alpine */
+[data-atmosphere="alpine"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/alpine/cost-reality.jpg');   background-position: center 28%; }
+[data-atmosphere="alpine"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/alpine/smart-choices.jpg');   background-position: center 35%; }
+[data-atmosphere="alpine"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/alpine/getting-around.jpg');  background-position: center 30%; }
+[data-atmosphere="alpine"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/alpine/local-pulse.jpg');     background-position: center 40%; }
+
+/* Tropical */
+[data-atmosphere="tropical"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/tropical/cost-reality.jpg');   background-position: center 32%; }
+[data-atmosphere="tropical"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/tropical/smart-choices.jpg');  background-position: center 38%; }
+[data-atmosphere="tropical"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/tropical/getting-around.jpg'); background-position: center 30%; }
+[data-atmosphere="tropical"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/tropical/local-pulse.jpg');    background-position: center 42%; }
+
+/* Coastal */
+[data-atmosphere="coastal"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/coastal/cost-reality.jpg');   background-position: center 35%; }
+[data-atmosphere="coastal"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/coastal/smart-choices.jpg');  background-position: center 30%; }
+[data-atmosphere="coastal"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/coastal/getting-around.jpg'); background-position: center 40%; }
+[data-atmosphere="coastal"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/coastal/local-pulse.jpg');    background-position: center 35%; }
+
+/* Golden Savannah */
+[data-atmosphere="golden"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/golden/cost-reality.jpg');   background-position: center 38%; }
+[data-atmosphere="golden"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/golden/smart-choices.jpg');  background-position: center 30%; }
+[data-atmosphere="golden"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/golden/getting-around.jpg'); background-position: center 45%; }
+[data-atmosphere="golden"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/golden/local-pulse.jpg');    background-position: center 35%; }
+
+/* Urban Twilight */
+[data-atmosphere="urban"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/urban/cost-reality.jpg');   background-position: center 30%; }
+[data-atmosphere="urban"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/urban/smart-choices.jpg');  background-position: center 35%; }
+[data-atmosphere="urban"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/urban/getting-around.jpg'); background-position: center 40%; }
+[data-atmosphere="urban"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/urban/local-pulse.jpg');    background-position: center 28%; }
+
+/* Rambo — internal fallback visual config (maps to golden).
+   Activate by setting data-atmosphere="rambo" on <html> via devtools
+   or sessionStorage key rm-atm. Never exposed in the production UI.
+   Preserves the approved cinematic reference direction for QA/review. */
+[data-atmosphere="rambo"] .pillar-cost-reality   .intel-row-img { background-image: url('/images/atmosphere/rambo/cost-reality.png');   background-position: center 30%; }
+[data-atmosphere="rambo"] .pillar-smart-choices  .intel-row-img { background-image: url('/images/atmosphere/rambo/smart-choices.png');  background-position: center 35%; }
+[data-atmosphere="rambo"] .pillar-getting-around .intel-row-img { background-image: url('/images/atmosphere/rambo/getting-around.png'); background-position: center 40%; }
+[data-atmosphere="rambo"] .pillar-local-pulse    .intel-row-img { background-image: url('/images/atmosphere/rambo/local-pulse.png');    background-position: center 38%; }
+
+/* ─── HOW IT WORKS — COMPACT DARK STRIP ────────────────────────────────── */
+/* Ultra-compact editorial strip above closing hero.
+   Dark background continues the cinematic flow. ~1/5 the previous footprint. */
+
+.home-hiw-wrap {
+  background: #0c1527;
+  width: 100%;
+  margin: 0;
+  padding: 1.75rem clamp(1.5rem, 5vw, 4rem) 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Section heading — small label style, not a landmark h2 */
+.home-hiw-wrap .how-it-works h2 {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 1.1rem;
+}
+
+/* 3-column compact grid */
+.home-hiw-wrap .how-it-works-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+/* Step card — borderless, minimal padding */
+.home-hiw-wrap .how-card {
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0;
+  padding: 0 1.5rem 0 0;
+  margin-right: 1.5rem;
+}
+.home-hiw-wrap .how-card:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+}
+
+/* Step number — compact, gold */
+.how-card-num {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #d4a853;
+  margin-bottom: 0.4rem;
+  line-height: 1;
+  user-select: none;
+}
+
+/* Step label */
+.home-hiw-wrap .how-card-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin-top: 0;
+  margin-bottom: 0.4rem;
+}
+
+/* Step body */
+.home-hiw-wrap .how-card p {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.48);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Disclosure footnote */
+.home-hiw-wrap .footnote {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.28);
+  line-height: 1.55;
+  margin-top: 1.25rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* ─── CLOSING HERO ───────────────────────────────────────────────────────── */
+/* Atmosphere hero.jpg reused as the closing cinematic image.
+   CSS [data-atmosphere] rules supply background-image. */
+
+.closing-hero {
+  position: relative;
+  width: 100%;
+  /* Tall enough to hold closing copy + CTA + footer overlay */
+  min-height: clamp(680px, 88vh, 980px);
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 0;
+}
+
+.closing-hero-img {
+  position: absolute;
+  inset: 0;
+  background-color: #0d1828;
+  /* Hardwired: rambo is the locked atmosphere — image shows before JS fires */
+  background-image: url('/images/atmosphere/rambo/hero.png');
+  background-size: cover;
+  background-position: center 45%;
+  transform: scale(1.02);
+}
+
+/* Closing hero atmosphere images */
+[data-atmosphere="alpine"]   .closing-hero-img { background-image: url('/images/atmosphere/alpine/hero.jpg');   background-position: center 40%; }
+[data-atmosphere="tropical"] .closing-hero-img { background-image: url('/images/atmosphere/tropical/hero.jpg'); background-position: center 30%; }
+[data-atmosphere="coastal"]  .closing-hero-img { background-image: url('/images/atmosphere/coastal/hero.jpg');  background-position: center 45%; }
+[data-atmosphere="golden"]   .closing-hero-img { background-image: url('/images/atmosphere/golden/hero.jpg');   background-position: center 50%; }
+[data-atmosphere="urban"]    .closing-hero-img { background-image: url('/images/atmosphere/urban/hero.jpg');    background-position: center 35%; }
+/* Rambo: golden hero */
+[data-atmosphere="rambo"]    .closing-hero-img { background-image: url('/images/atmosphere/rambo/hero.png');   background-position: center 45%; }
+
+.closing-hero-veil {
+  position: absolute;
+  inset: 0;
+  /* Reduced left-to-right veil so the image is clearly visible */
+  background: linear-gradient(
+    90deg,
+    rgba(5, 12, 30, 0.55) 0%,
+    rgba(5, 12, 30, 0.22) 48%,
+    rgba(5, 12, 30, 0.05) 100%
+  );
+}
+
+/* Top fade so closing-hero dissolves out of the dark HIW strip above it */
+.closing-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(to bottom, #0c1527 0%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.closing-hero-content {
+  position: relative;
+  z-index: 3;
+  text-align: left;
+  color: #fff;
+  /* ~580px readable column; left edge aligns to 1280px-centred gutter. */
+  max-width: calc(580px + max(6vw, calc((100% - 1280px) / 2)));
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  padding-left: max(6vw, calc((100% - 1280px) / 2));
+  padding-right: 2rem;
+  box-sizing: border-box;
+}
+
+.closing-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #E8B85C;
+  margin: 0 0 1rem;
+}
+
+.closing-tagline {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+
+.closing-hero-cta {
+  display: inline-block;
+  margin-top: 1.75rem;
+  padding: 0.8rem 2rem;
+  background: #d4a853;
+  color: #0c1527;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s;
+}
+.closing-hero-cta:hover {
+  background: #e6bc6a;
+  transform: translateY(-1px);
+}
+
+.closing-sub {
+  font-size: 1rem;
+  color: rgba(255,255,255,0.65);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* ─── FOOTER WRAPPER — COMPACT DARK BAND ───────────────────────────────── */
+.home-footer-wrap {
+  /* No separate block — footer overlays the closing hero image */
+  background: transparent;
+  border-top: none;
+  position: relative;
+  z-index: 10;
+  /* Pull footer up so it sits inside the closing-hero photograph */
+  margin-top: -120px;
+}
+
+/* Homepage footer — single compact horizontal strip.
+   Full-width background; inner content aligned to 1280px gutter. */
+.home-footer-wrap .site-footer {
+  max-width: none;
+  margin: 0;
+  padding: 0.85rem max(6vw, calc((100% - 1280px) / 2));
+  border-top: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  /* Float over closing hero — transparent, text readable via text-shadow */
+  background: transparent;
+}
+
+/* Override any light-theme text colours inside the footer on homepage */
+.home-footer-wrap .site-footer,
+.home-footer-wrap .site-footer a,
+.home-footer-wrap .site-footer p,
+.home-footer-wrap .site-footer span {
+  color: rgba(255,255,255,0.65);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+.home-footer-wrap .site-footer a:hover {
+  color: rgba(255,255,255,0.75);
+}
+.home-footer-wrap .site-footer-brand .wordmark {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+.home-footer-wrap .site-footer-brand .tagline {
+  display: none; /* hide tagline — too tall for single strip */
+}
+
+/* Brand block — left */
+.home-footer-wrap .site-footer-brand {
+  flex: 0 0 auto;
+}
+
+/* Nav links — centre, all inline */
+.home-footer-wrap .site-footer-cols {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 1.25rem;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Collapse each column group into a flat list of links */
+.home-footer-wrap .site-footer-col {
+  display: contents;
+}
+
+/* Hide column headings (EXPLORE / BUSINESS / LEGAL labels) */
+.home-footer-wrap .site-footer-heading,
+.home-footer-wrap .site-footer-col-heading {
+  display: none;
+}
+
+/* Style the inline links */
+.home-footer-wrap .site-footer-cols a {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+.home-footer-wrap .site-footer-cols a:hover { opacity: 1; }
+
+/* Copyright — right, inline */
+.home-footer-wrap .site-footer-disclosure {
+  flex: 0 0 auto;
+  width: auto;
+  padding-top: 0;
+  border-top: none;
+  margin-top: 0;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+/* ─── MOBILE ─────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .globe-hero-copy {
+    padding: 4rem 1.5rem 2rem;
+    max-width: 100%;
+  }
+  .globe-h1 { font-size: clamp(2.6rem, 7vw, 3.8rem); }
+  /* HIW 3-col → 1-col on tablet */
+  .home-hiw-wrap .how-it-works-grid { grid-template-columns: 1fr; }
+  .home-hiw-wrap .how-card {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    padding: 0 0 1rem 0;
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+  .home-hiw-wrap .how-card:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+}
+
+@media (max-width: 768px) {
+  /* Intel rows: reduce from 70vh to 50vh on tablet */
+  .intel-row { min-height: clamp(280px, 50vh, 500px); }
+  /* Trust strip — collapse to single column; restore flow (no negative-margin overlap on mobile) */
+  .home-trust-strip {
+    margin-top: 0;
+    grid-template-columns: 1fr;
+    background: rgba(1,10,26,0.62);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .home-trust-strip .trust-item {
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .home-trust-strip .trust-item:last-child { border-bottom: none; }
+  /* Closing hero — still tall enough for message + footer */
+  .closing-hero { min-height: clamp(480px, 65vh, 700px); }
+  .closing-hero-content { padding: 2rem 1.5rem; }
+}
+
+@media (max-width: 600px) {
+  .globe-h1 { font-size: clamp(2.2rem, 9vw, 3rem); }
+  .globe-sub { font-size: 0.95rem; }
+  /* Remove globe-band padding-bottom overlap on mobile to prevent search collision */
+  .globe-band { padding-bottom: 0; }
+  .intel-row { min-height: clamp(260px, 46vh, 440px); }
+  .intel-row-text { padding: 1.5rem 1.25rem; }
+  .home-trust-strip .trust-item { padding: 1rem 1rem; }
+  .closing-hero { min-height: clamp(420px, 60vh, 580px); }
+  .closing-tagline { font-size: clamp(1.9rem, 8vw, 2.8rem); }
+  .home-hiw-wrap { padding: 1.25rem 1.25rem 1rem; }
+  .home-footer-wrap .site-footer { flex-wrap: wrap; gap: 0.6rem; }
+  .home-footer-wrap .site-footer-cols { justify-content: flex-start; }
+  .home-footer-wrap .site-footer-disclosure { flex: 0 0 100%; white-space: normal; }
 }

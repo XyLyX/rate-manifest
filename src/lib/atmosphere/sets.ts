@@ -113,9 +113,22 @@ export const ATMOSPHERE_SETS: AtmosphereSet[] = [
 
 export const ATMOSPHERE_IDS = ATMOSPHERE_SETS.map((s) => s.id);
 
-/** Deterministically pick an atmosphere set ID for a given session key. */
+/** Internal QA atmosphere IDs — not in public session rotation, never randomly picked. */
+const INTERNAL_ATMOSPHERE_IDS = ["rambo"];
+
+/**
+ * All valid atmosphere IDs including internal QA sets.
+ * Allows sessionStorage override: sessionStorage.setItem("rm-atm", "rambo")
+ * activates the Rambo QA visual config without entering the public pool.
+ */
+export const ALL_ATMOSPHERE_IDS = [...ATMOSPHERE_IDS, ...INTERNAL_ATMOSPHERE_IDS];
+
+/** Pick an atmosphere set ID for a given session key. */
 export function pickAtmosphereId(sessionKey?: string): string {
-  if (sessionKey && ATMOSPHERE_IDS.includes(sessionKey)) return sessionKey;
-  const idx = Math.floor(Math.random() * ATMOSPHERE_SETS.length);
-  return ATMOSPHERE_SETS[idx]?.id ?? "golden";
+  // PHASE A LOCK — rambo is the active atmosphere for all visitors.
+  // To restore random rotation: remove this line and uncomment below.
+  return "rambo";
+  // if (sessionKey && ALL_ATMOSPHERE_IDS.includes(sessionKey)) return sessionKey;
+  // const idx = Math.floor(Math.random() * ATMOSPHERE_SETS.length);
+  // return ATMOSPHERE_SETS[idx]?.id ?? "golden";
 }

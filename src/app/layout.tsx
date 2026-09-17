@@ -18,6 +18,13 @@ import "@fontsource/plus-jakarta-sans/400.css";
 import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
+// Playfair Display — display headings only (Phase A Visual Rebuild, 2026-09-17).
+// Weights 500 (h1/section titles), 600 (closing tagline), 800 (.globe-h1 specifies
+// font-weight: 800 — without this import the browser has no registered @font-face at
+// that exact weight, causing the match to fail and fall back to the body sans-serif).
+import "@fontsource/playfair-display/500.css";
+import "@fontsource/playfair-display/600.css";
+import "@fontsource/playfair-display/800.css";
 import "./globals.css";
 // Track F (2026-09-13): journey progress indicator + confirm route block
 // styles — kept in a separate file rather than appended to globals.css so

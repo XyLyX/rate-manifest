@@ -21,14 +21,15 @@
  */
 
 import { useEffect } from "react";
-import { ATMOSPHERE_IDS, pickAtmosphereId } from "@/lib/atmosphere/sets";
+import { ALL_ATMOSPHERE_IDS, pickAtmosphereId } from "@/lib/atmosphere/sets";
 
 const SESSION_KEY = "rm-atm";
 
-/** Apply an atmosphere ID immediately (idempotent, callable from anywhere). */
+/** Apply an atmosphere ID immediately (idempotent, callable from anywhere).
+ *  Accepts both public and internal QA atmosphere IDs (e.g. "rambo"). */
 export function setAtmosphereId(id: string): void {
   if (typeof document === "undefined") return;
-  if (!ATMOSPHERE_IDS.includes(id)) return;
+  if (!ALL_ATMOSPHERE_IDS.includes(id)) return;
   document.documentElement.dataset.atmosphere = id;
   try {
     sessionStorage.setItem(SESSION_KEY, id);

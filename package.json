@@ -15,6 +15,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@fontsource/playfair-display": "^5.3.0",
     "@fontsource/plus-jakarta-sans": "^5.3.0",
     "@netlify/database": "^2.0.0",
     "drizzle-orm": "^0.45.2",

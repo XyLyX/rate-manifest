@@ -11,9 +11,9 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@fontsource/playfair-display@^5.3.0",
         "npm:@fontsource/plus-jakarta-sans@^5.3.0",
         "npm:@netlify/database@2",
-        "npm:@netlify/plugin-nextjs@^5.15.13",
         "npm:@types/node@^26.4.0",
         "npm:@types/pg@^8.23.1",
         "npm:@types/react-dom@^19.2.5",
