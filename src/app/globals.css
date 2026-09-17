@@ -3542,7 +3542,7 @@ input:focus {
   overflow: visible;
   display: flex;
   flex-direction: column;
-  min-height: clamp(680px, 100vh, 1080px);
+  min-height: clamp(720px, 98vh, 1150px); /* card + trust strip inside band */
   padding-bottom: 0;
 }
 
@@ -3620,7 +3620,7 @@ input:focus {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* was: center — moves copy up from viewport-centre to upper portion */
   /* ~620px readable column; left edge aligns to 1280px-centred gutter.
      padding-left % resolves against .globe-band (the containing block = 100vw). */
   max-width: 620px;
@@ -3684,8 +3684,9 @@ input:focus {
 /* Card sits immediately after globe-band in the DOM; negative margin pulls it
    upward so it crosses the hero's bottom boundary.
    Visual treatment: deep navy translucent glass floating in the cinematic hero. */
-.home-page > .home-search-card {
-  margin-top: -9.5rem; /* float panel fully over hero — panel height ~9rem, card sits within the photograph */
+.globe-band > .home-search-card {
+  margin-top: 0; /* card is inside globe-band — no pull-up needed */
+  align-self: center; /* center in flex column */
   position: relative;
   z-index: 10;
   /* Width: wide horizontal console */
@@ -3693,9 +3694,9 @@ input:focus {
   width: calc(100% - 4rem); /* 2rem gutters each side */
   box-sizing: border-box;
   /* Dark glass */
-  background: rgba(4, 14, 33, 0.52);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  background: rgba(4, 14, 33, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(232, 184, 92, 0.28);
   border-radius: 20px;
   box-shadow: 0 8px 48px rgba(0,0,0,0.55), 0 2px 0 rgba(232,184,92,0.12) inset;
@@ -3704,19 +3705,19 @@ input:focus {
 }
 
 /* Mode tabs — dark glass treatment */
-.home-page > .home-search-card .mode-selector {
+.globe-band > .home-search-card .mode-selector {
   margin-bottom: 1rem;
 }
-.home-page > .home-search-card .mode-selector-tab {
+.globe-band > .home-search-card .mode-selector-tab {
   color: rgba(200, 210, 230, 0.75);
   border-color: rgba(200, 210, 230, 0.18);
   background: transparent;
 }
-.home-page > .home-search-card .mode-selector-tab:hover {
+.globe-band > .home-search-card .mode-selector-tab:hover {
   color: #e8b85c;
   border-color: rgba(232, 184, 92, 0.4);
 }
-.home-page > .home-search-card .mode-selector-tab.active {
+.globe-band > .home-search-card .mode-selector-tab.active {
   color: #e8b85c;
   border-color: #e8b85c;
   background: rgba(232, 184, 92, 0.10);
@@ -3724,81 +3725,81 @@ input:focus {
 }
 
 /* Labels — muted blue-grey */
-.home-page > .home-search-card label,
-.home-page > .home-search-card .discover-form-intent-label {
+.globe-band > .home-search-card label,
+.globe-band > .home-search-card .discover-form-intent-label {
   color: rgba(180, 195, 218, 0.80) !important;
 }
 
 /* Input fields — dark translucent */
-.home-page > .home-search-card input:not([type="hidden"]):not([type="number"]),
-.home-page > .home-search-card input[type="date"],
-.home-page > .home-search-card input[type="number"],
-.home-page > .home-search-card select {
+.globe-band > .home-search-card input:not([type="hidden"]):not([type="number"]),
+.globe-band > .home-search-card input[type="date"],
+.globe-band > .home-search-card input[type="number"],
+.globe-band > .home-search-card select {
   background: rgba(255, 255, 255, 0.06) !important;
   border-color: rgba(200, 215, 240, 0.18) !important;
   color: #f0f4ff !important;
   border-radius: 8px;
 }
-.home-page > .home-search-card input::placeholder {
+.globe-band > .home-search-card input::placeholder {
   color: rgba(160, 180, 210, 0.55) !important;
 }
 /* Date inputs: light calendar icon on dark bg */
-.home-page > .home-search-card input[type="date"]::-webkit-calendar-picker-indicator {
+.globe-band > .home-search-card input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.5);
 }
 
 /* Trip intent chips — dark glass */
-.home-page > .home-search-card .trip-intent-chip {
+.globe-band > .home-search-card .trip-intent-chip {
   background: rgba(255,255,255,0.05);
   color: rgba(200, 215, 240, 0.80);
   border-color: rgba(200, 215, 240, 0.18);
 }
-.home-page > .home-search-card .trip-intent-chip:hover {
+.globe-band > .home-search-card .trip-intent-chip:hover {
   border-color: rgba(232, 184, 92, 0.45);
   color: #e8b85c;
 }
-.home-page > .home-search-card .trip-intent-chip.active {
+.globe-band > .home-search-card .trip-intent-chip.active {
   background: rgba(232, 184, 92, 0.15);
   color: #e8b85c;
   border-color: #e8b85c;
 }
 
 /* Intent label */
-.home-page > .home-search-card .discover-form-intent-label {
+.globe-band > .home-search-card .discover-form-intent-label {
   color: rgba(180, 195, 218, 0.70) !important;
 }
 
 /* CTA — gold with dark navy text */
-.home-page > .home-search-card .discover-form-submit {
+.globe-band > .home-search-card .discover-form-submit {
   background: #e8b85c;
   color: #0a1628;
   border-color: #e8b85c;
   font-weight: 700;
 }
-.home-page > .home-search-card .discover-form-submit:hover {
+.globe-band > .home-search-card .discover-form-submit:hover {
   background: #d4a853;
   border-color: #d4a853;
   color: #0a1628;
 }
 
 /* Coming-soon panels */
-.home-page > .home-search-card .mode-coming-soon {
+.globe-band > .home-search-card .mode-coming-soon {
   background: rgba(255,255,255,0.04);
   border-color: rgba(200,215,240,0.14);
 }
-.home-page > .home-search-card .mode-coming-soon-title { color: rgba(240,244,255,0.90); }
-.home-page > .home-search-card .mode-coming-soon-body  { color: rgba(180,200,230,0.70); }
+.globe-band > .home-search-card .mode-coming-soon-title { color: rgba(240,244,255,0.90); }
+.globe-band > .home-search-card .mode-coming-soon-body  { color: rgba(180,200,230,0.70); }
 
 /* Heading — visible on dark card */
-.home-page > .home-search-card .home-search-card-eyebrow { color: rgba(180,200,230,0.65); }
-.home-page > .home-search-card .home-search-card-sub     { color: rgba(200,215,240,0.70); }
+.globe-band > .home-search-card .home-search-card-eyebrow { color: rgba(180,200,230,0.65); }
+.globe-band > .home-search-card .home-search-card-sub     { color: rgba(200,215,240,0.70); }
 
 /* ─── SEARCH CONSOLE: 6-column horizontal grid (desktop) ────────────────
    Row 1: Destination (3fr) | Check-in (1.7fr) | Check-out (1.7fr) | Adults (1fr) | Children (1fr) | Rooms (1fr)
    Row 2: Trip-purpose chips (cols 1–5) | Explore CTA (col 6)
    display:contents on the two field-group rows makes their children
    direct grid items of .discover-form without adding DOM wrappers. */
-.home-page > .home-search-card .discover-form {
+.globe-band > .home-search-card .discover-form {
   display: grid;
   grid-template-columns: 3fr 1.7fr 1.7fr 1fr 1fr 1fr;
   column-gap: 0.7rem;
@@ -3806,12 +3807,12 @@ input:focus {
   align-items: end;
 }
 /* Flatten field-group wrappers into the grid */
-.home-page > .home-search-card .discover-form-row,
-.home-page > .home-search-card .discover-form-row-guests {
+.globe-band > .home-search-card .discover-form-row,
+.globe-band > .home-search-card .discover-form-row-guests {
   display: contents;
 }
 /* Intent chips occupy first 5 columns of row 2 */
-.home-page > .home-search-card .discover-form-intent {
+.globe-band > .home-search-card .discover-form-intent {
   grid-column: 1 / 6;
   grid-row: 2;
   flex-direction: row;
@@ -3820,7 +3821,7 @@ input:focus {
   gap: 0.4rem;
 }
 /* CTA button in column 6, row 2 — right-side partner to chips */
-.home-page > .home-search-card .discover-form-submit {
+.globe-band > .home-search-card .discover-form-submit {
   grid-column: 6;
   grid-row: 2;
   width: 100%;
@@ -3836,10 +3837,10 @@ input:focus {
   gap: 0;
   width: 100%;
   max-width: none;
-  /* Trust strip flows below the bridging search card (card bottom: H+3rem, trust margin-top: 3rem) */
-  margin-top: 3rem;
+  /* Trust strip sits immediately below the search card — transparent so Earth image shows through */
+  margin-top: 0; /* was 3rem — closed gap to eliminate the dark block */
   padding: 0.9rem max(6vw, calc((100% - 1280px) / 2)) 1.25rem;
-  background: #010d1e;
+  background: transparent; /* was #010d1e — that flat block was the visible dark rectangle */
   border: none;
   box-sizing: border-box;
   position: relative;
@@ -4352,113 +4353,128 @@ input:focus {
   letter-spacing: 0.01em;
 }
 
-/* ─── FOOTER WRAPPER — COMPACT DARK BAND ───────────────────────────────── */
+/* ─── HOMEPAGE FOOTER — WHITE GRID PANEL ────────────────────────────────── */
+/* White independent panel below the closing hero.
+   White gradient on .closing-hero::after transitions into this panel.
+   grid: brand | explore | company | legal | disclosure (1.8fr 1fr 1fr 1fr 1.7fr) */
 .home-footer-wrap {
-  /* No separate block — footer overlays the closing hero image */
   background: transparent;
   border-top: none;
   position: relative;
   z-index: 10;
-  /* Pull footer up so it sits inside the closing-hero photograph */
-  margin-top: -120px;
+  margin-top: 0;
   margin-bottom: 0;
   padding-bottom: 0;
 }
 
-/* Homepage footer — single compact horizontal strip.
-   Full-width background; inner content aligned to 1280px gutter.
-   Transparent over closing-hero photo; dark gradient ::after on the
-   closing-hero provides readable contrast behind the text. */
 .home-footer-wrap .site-footer {
   max-width: none;
-  margin: 0; /* neutralise global margin-top: 3rem */
-  padding: 0.85rem max(6vw, calc((100% - 1280px) / 2));
-  border-top: 1px solid rgba(12,21,39,0.15);
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  /* Frosted translucent band — keeps photograph subtly visible behind footer */
-  background: rgba(238, 243, 247, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(12,21,39,0.10);
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: block;
+  gap: 0;
 }
 
-/* Dark navy text over closing-hero photograph.
-   Light frosted ::after gradient on .closing-hero provides subtle contrast. */
-.home-footer-wrap .site-footer,
-.home-footer-wrap .site-footer a,
-.home-footer-wrap .site-footer p,
-.home-footer-wrap .site-footer span {
-  color: #0c1527;
-  text-shadow: none;
+/* Main content grid */
+.home-footer-wrap .site-footer-main {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr 1fr 1.7fr;
+  gap: 0;
+  align-items: start;
+  padding: 2.5rem max(5vw, calc((100% - 1280px) / 2));
+  border-bottom: 1px solid rgba(12,21,39,0.08);
 }
-.home-footer-wrap .site-footer a:hover {
-  color: #0c1527;
-  opacity: 1;
-  text-shadow: none;
+
+/* Brand block — left column */
+.home-footer-wrap .site-footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 2rem;
+}
+.home-footer-wrap .site-footer-brand .logo-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 .home-footer-wrap .site-footer-brand .wordmark {
   color: #0c1527;
-  font-size: 1.3rem; /* noticeably larger — anchors the left zone */
+  font-size: 1.25rem;
   font-weight: 700;
 }
 .home-footer-wrap .site-footer-brand .tagline {
-  display: none; /* hide tagline — too tall for single strip */
+  display: block;
+  font-size: 0.72rem;
+  color: rgba(12,21,39,0.50);
+  line-height: 1.3;
 }
-
-/* Brand block — left */
-.home-footer-wrap .site-footer-brand {
-  flex: 0 0 auto;
-}
-
-/* Nav links — centre, all inline */
-.home-footer-wrap .site-footer-cols {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 0 1.25rem;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-}
-
-/* Collapse each column group into a flat list of links */
-.home-footer-wrap .site-footer-col {
-  display: contents;
-}
-
-/* Hide column headings (EXPLORE / BUSINESS / LEGAL labels) */
-.home-footer-wrap .site-footer-heading,
-.home-footer-wrap .site-footer-col-heading {
-  display: none;
-}
-
-/* Style the inline links */
-.home-footer-wrap .site-footer-cols a {
-  font-size: 0.8rem; /* ~12.8px */
-  white-space: nowrap;
-  opacity: 0.75;
-}
-.home-footer-wrap .site-footer-cols a:hover { opacity: 1; }
-
-/* Affiliate disclosure — right-aligned, sensible line length, wraps on
-   narrower viewports. white-space: nowrap only on very wide screens. */
-.home-footer-wrap .site-footer-disclosure {
-  flex: 0 1 auto;
-  max-width: 52ch;
-  min-width: 0;
-  padding-top: 0;
-  border-top: none;
-  margin-top: 0;
-  font-size: 0.78rem; /* ~12.5px — comfortable small print */
+.home-footer-wrap .footer-brand-copy {
+  font-size: 0.82rem;
   color: rgba(12,21,39,0.55);
-  white-space: normal;
   line-height: 1.5;
-  text-align: right;
+  margin: 0;
+}
+
+/* Nav columns */
+.home-footer-wrap .site-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-right: 1rem;
+}
+.home-footer-wrap .site-footer-col-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(12,21,39,0.40);
+  margin-bottom: 0.25rem;
+}
+.home-footer-wrap .site-footer-col a {
+  font-size: 0.85rem;
+  color: rgba(12,21,39,0.70);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.home-footer-wrap .site-footer-col a:hover {
+  color: #0c1527;
+  opacity: 1;
+}
+
+/* Disclosure column — rightmost */
+.home-footer-wrap .site-footer-disclosure-col {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+.home-footer-wrap .site-footer-disclosure {
+  font-size: 0.75rem;
+  color: rgba(12,21,39,0.45);
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* Bottom copyright row */
+.home-footer-wrap .site-footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem max(5vw, calc((100% - 1280px) / 2));
+  background: #ffffff;
+}
+.home-footer-wrap .site-footer-copy {
+  font-size: 0.78rem;
+  color: rgba(12,21,39,0.40);
+}
+.home-footer-wrap .site-footer-signoff {
+  font-size: 0.78rem;
+  color: rgba(12,21,39,0.30);
+  font-style: italic;
 }
 
 /* ─── MOBILE ─────────────────────────────────────────────────────────────── */
@@ -4500,35 +4516,35 @@ input:focus {
   /* Intel rows: reduce from 70vh to 50vh on tablet */
   .intel-row { min-height: clamp(280px, 50vh, 500px); }
   /* Search card: tighter mobile overlap, slightly smaller radius */
-  .home-page > .home-search-card {
-    margin-top: -1.5rem;
+  .globe-band > .home-search-card {
+    margin-top: 0;
     border-radius: 14px;
     padding: 1rem 1rem 1.2rem;
     width: calc(100% - 2rem);
     max-width: none;
   }
   /* Revert 6-column grid to vertical stack on mobile */
-  .home-page > .home-search-card .discover-form {
+  .globe-band > .home-search-card .discover-form {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
   }
-  .home-page > .home-search-card .discover-form-row,
-  .home-page > .home-search-card .discover-form-row-guests {
+  .globe-band > .home-search-card .discover-form-row,
+  .globe-band > .home-search-card .discover-form-row-guests {
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.65rem;
   }
-  .home-page > .home-search-card .discover-form-row-guests {
+  .globe-band > .home-search-card .discover-form-row-guests {
     grid-template-columns: repeat(3, 1fr);
   }
-  .home-page > .home-search-card .discover-form-intent {
+  .globe-band > .home-search-card .discover-form-intent {
     grid-column: unset;
     grid-row: unset;
     flex-direction: column;
     align-items: flex-start;
   }
-  .home-page > .home-search-card .discover-form-submit {
+  .globe-band > .home-search-card .discover-form-submit {
     grid-column: unset;
     grid-row: unset;
     width: 100%;
@@ -4561,18 +4577,21 @@ input:focus {
   .closing-hero { min-height: clamp(420px, 60vh, 580px); }
   .closing-tagline { font-size: clamp(1.9rem, 8vw, 2.8rem); }
   .home-hiw-wrap { padding: 1rem 1.25rem 1rem; }
-  .home-footer-wrap .site-footer {
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+  /* Footer grid — collapse to 2 cols then 1 col on small screens */
+  .home-footer-wrap .site-footer-main {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem 1rem;
+    padding: 2rem 1.5rem;
   }
-  .home-footer-wrap .site-footer-cols { justify-content: flex-start; }
-  .home-footer-wrap .site-footer-disclosure {
-    flex: 0 0 100%;
-    max-width: 100%;
-    white-space: normal;
-    text-align: left;
+  .home-footer-wrap .site-footer-brand {
+    grid-column: 1 / -1; /* full width at top */
+    padding-right: 0;
+  }
+  .home-footer-wrap .site-footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.85rem 1.5rem;
   }
 }
 

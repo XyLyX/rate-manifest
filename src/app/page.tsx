@@ -95,12 +95,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <p className="globe-sub">Real insights. Smarter choices. Better journeys.</p>
         </div>
 
-      </div>
-
-      {/* ── 2. SEARCH ────────────────────────────────────────────────────── */}
-      {/* Card sits immediately after globe-band; negative margin-top pulls it
-          upward across the hero's bottom boundary (conventional overlap). */}
-      <div className="home-search-card">
+        {/* ── 2. SEARCH ────────────────────────────────────────────────────── */}
+        {/* Moved INSIDE globe-band so .globe-master-img (position:absolute inset:0)
+            covers both the search card and trust strip with the Earth photograph. */}
+        <div className="home-search-card">
         <div className="mode-selector">
           <Link
             href="/"
@@ -165,10 +163,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             />
           </>
         )}
-      </div>
+        </div>
 
-      {/* ── 3. TRUST STRIP ────────────────────────────────────────────────── */}
-      <div className="home-trust-strip">
+        {/* ── 3. TRUST STRIP ────────────────────────────────────────────────── */}
+        <div className="home-trust-strip">
         <div className="trust-item">
           <IconShieldCheck className="trust-icon" />
           <div className="trust-item-title">Nothing Invented</div>
@@ -184,7 +182,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="trust-item-title">Rate Intelligence</div>
           <div className="trust-item-sub">Compare. Verify. Book with confidence.</div>
         </div>
-      </div>
+        </div>
+
+      </div>{/* ── end globe-band ── */}
 
       {/* ── 4. FOUR FULL-WIDTH EDITORIAL ROWS ────────────────────────────── */}
       {/* Atmosphere images: 5 sets × 4 pillars = 20 assets.
