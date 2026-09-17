@@ -2120,7 +2120,7 @@ input:focus {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.11) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  backdrop-filter: blur(8px);
+  backdrop-filter: none;
   box-shadow: none !important;
   max-width: 20rem !important;
 }
@@ -3694,9 +3694,9 @@ input:focus {
   width: calc(100% - 4rem); /* 2rem gutters each side */
   box-sizing: border-box;
   /* Dark glass */
-  background: rgba(4, 14, 33, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(4, 14, 33, 0.35);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(232, 184, 92, 0.28);
   border-radius: 20px;
   box-shadow: 0 8px 48px rgba(0,0,0,0.55), 0 2px 0 rgba(232,184,92,0.12) inset;
@@ -4551,9 +4551,9 @@ input:focus {
   }
   /* Trust strip — collapse to single column */
   .home-trust-strip {
-    margin-top: 1.5rem;
+    margin-top: 0;
     grid-template-columns: 1fr;
-    background: rgba(1,10,26,0.62);
+    background: transparent;
     border-top: 1px solid rgba(255,255,255,0.08);
   }
   .home-trust-strip .trust-item {
