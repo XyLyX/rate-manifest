@@ -1,5 +1,33 @@
+import type { Metadata } from "next";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Rail Intelligence | Rate Manifest",
+  description:
+    "Compare rail options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+  alternates: {
+    canonical: "https://ratemanifest.com/rail",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: "Rail Intelligence | Rate Manifest",
+    description:
+      "Compare rail options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+    url: "https://ratemanifest.com/rail",
+    type: "website",
+    siteName: "Rate Manifest",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rail Intelligence | Rate Manifest",
+    description:
+      "Compare rail options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+  },
+};
 
 // Rail page — Rate Manifest three-tower platform.
 //

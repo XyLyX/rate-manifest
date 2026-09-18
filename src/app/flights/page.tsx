@@ -1,5 +1,33 @@
+import type { Metadata } from "next";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "Flight Intelligence | Rate Manifest",
+  description:
+    "Compare flight options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+  alternates: {
+    canonical: "https://ratemanifest.com/flights",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: "Flight Intelligence | Rate Manifest",
+    description:
+      "Compare flight options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+    url: "https://ratemanifest.com/flights",
+    type: "website",
+    siteName: "Rate Manifest",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Flight Intelligence | Rate Manifest",
+    description:
+      "Compare flight options with clearer travel decision intelligence designed to help you make a better-informed journey decision.",
+  },
+};
 
 // Flights page — Rate Manifest three-tower platform.
 //
