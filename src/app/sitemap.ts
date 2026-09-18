@@ -8,6 +8,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/`,
     },
     {
+      url: `${baseUrl}/hotels`,
+    },
+    {
       url: `${baseUrl}/flights`,
     },
     {
