@@ -57,6 +57,10 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   return {
     title: `Rate Manifest IQ — ${hotel.name}`,
     description: `Rate Manifest's stored intelligence for ${hotel.name}, ${hotel.area}, ${hotel.city} — evidence, confidence, and what's still unknown.`,
+    robots: {
+      index: false,
+      follow: true,
+    },
   };
 }
 

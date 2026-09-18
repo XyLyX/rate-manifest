@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   title: "Exceptional Stays — Rate Manifest",
   description:
     "A curated collection of properties Rate Manifest has built, or is building, genuine intelligence on.",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default async function ExceptionalStaysPage() {
