@@ -11,6 +11,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/hotels`,
     },
     {
+      url: `${baseUrl}/hotels-flights`,
+    },
+    {
       url: `${baseUrl}/flights`,
     },
     {
