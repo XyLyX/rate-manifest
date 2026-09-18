@@ -33,8 +33,29 @@ import "./globals.css";
 import "./track-f.css";
 
 export const metadata: Metadata = {
-  title: "Rate Manifest",
-  description: "Travel decision intelligence for smarter hotel choices — compare, understand and verify rates before you book.",
+  metadataBase: new URL("https://ratemanifest.com"),
+  title: "Rate Manifest | Travel Decision Intelligence",
+  description:
+    "Real insights. Smarter choices. Better journeys. Rate Manifest helps travellers compare, verify and make better-informed travel decisions.",
+  alternates: {
+    canonical: "https://ratemanifest.com/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: "Rate Manifest | Travel Decision Intelligence",
+    description: "Real insights. Smarter choices. Better journeys.",
+    siteName: "Rate Manifest",
+    type: "website",
+    url: "https://ratemanifest.com/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rate Manifest | Travel Decision Intelligence",
+    description: "Real insights. Smarter choices. Better journeys.",
+  },
   // Cuelinks domain verification for https://ratemanifest.com/ (added 2026-09-15)
   other: {
     "cuelinks-verification": "VERIFY-CL-KRDPU2SS",
