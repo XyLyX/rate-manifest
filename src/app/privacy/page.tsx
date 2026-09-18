@@ -6,6 +6,9 @@ import { Footer } from "@/components/Footer";
 export const metadata: Metadata = {
   title: "Privacy — Rate Manifest",
   description: "How Rate Manifest collects and uses the information you share with us.",
+  alternates: {
+    canonical: "https://ratemanifest.com/privacy",
+  },
 };
 
 // W4 (2026-09-14): new /privacy route.

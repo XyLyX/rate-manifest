@@ -1,9 +1,13 @@
+import type { Metadata } from "next";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Contact — Rate Manifest",
   description: "Get in touch with the Rate Manifest team.",
+  alternates: {
+    canonical: "https://ratemanifest.com/contact",
+  },
 };
 
 // /contact — public positioning task (2026-09-15). Three email inboxes so

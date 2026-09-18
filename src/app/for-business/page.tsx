@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+
+export const metadata: Metadata = {
+  title: "For Business | Rate Manifest",
+  description:
+    "Rate Manifest travel decision intelligence for travel professionals and business partners.",
+  alternates: {
+    canonical: "https://ratemanifest.com/for-business",
+  },
+};
 
 // A landing page for a product that doesn't exist yet, by design (see
 // DECISIONS.md, "Brand system v2") — this plants the B2B seed without

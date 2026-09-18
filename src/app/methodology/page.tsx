@@ -14,10 +14,14 @@ import { Footer } from "@/components/Footer";
 // Anti-fabrication rule (brief Section 8) applies here too: this page only
 // describes attributes and behaviour the system actually has - no claims
 // about coverage, accuracy, or capabilities beyond what's implemented.
+
 export const metadata: Metadata = {
   title: "Methodology — Rate Manifest",
   description:
     "How Rate Manifest discovers, normalizes, verifies, and analyses hotel rates to reach a decision - and what it won't do when the evidence isn't there.",
+  alternates: {
+    canonical: "https://ratemanifest.com/methodology",
+  },
 };
 
 export default function MethodologyPage() {

@@ -6,6 +6,9 @@ import { Footer } from "@/components/Footer";
 export const metadata: Metadata = {
   title: "Terms — Rate Manifest",
   description: "Terms of use for Rate Manifest, the travel decision-intelligence platform.",
+  alternates: {
+    canonical: "https://ratemanifest.com/terms",
+  },
 };
 
 // W4 (2026-09-14): new /terms route.
