@@ -62,10 +62,42 @@ export const metadata: Metadata = {
   },
 };
 
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://ratemanifest.com/#organization",
+      name: "Rate Manifest",
+      url: "https://ratemanifest.com/",
+      description:
+        "Rate Manifest is a travel decision intelligence platform that helps travellers compare, verify and make better-informed travel decisions.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://ratemanifest.com/#website",
+      url: "https://ratemanifest.com/",
+      name: "Rate Manifest",
+      description: "Travel Decision Intelligence",
+      publisher: {
+        "@id": "https://ratemanifest.com/#organization",
+      },
+    },
+  ],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
