@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -72,6 +73,14 @@ interface CheckIqPageProps {
 // UX correction (2026-09-13): passes retryUrl to VerifiedRatePanel so the
 // "not-checked" state renders a direct "Try again →" link instead of
 // defensive copy about the check not being the property's fault.
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
+
 export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   const params = await searchParams;
   const hotelId = params.hotel;

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getTrip, getLatestTripSelection, getTripExperiences } from "@/lib/trip";
 import { searchThingsToDo } from "@/lib/viator/searchThingsToDo";
@@ -7,6 +8,13 @@ import { KlookTripSection } from "@/components/KlookTripSection";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { JourneyProgress } from "@/components/JourneyProgress";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export const dynamic = "force-dynamic";
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
@@ -5,6 +6,13 @@ import { buildCheckinLink, isWhatsAppConfigured } from "@/lib/whatsapp";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 interface StubBookingPageProps {
   searchParams: Promise<{ hotel?: string; supplier?: string; outcome?: string }>;

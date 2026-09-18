@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { inArray } from "drizzle-orm";
 
@@ -14,6 +15,13 @@ import { db, schema } from "@/db/client";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { JourneyProgress } from "@/components/JourneyProgress";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 export const dynamic = "force-dynamic";
 
