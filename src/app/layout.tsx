@@ -71,6 +71,7 @@ export const metadata: Metadata = {
   // Cuelinks domain verification for https://ratemanifest.com/ (added 2026-09-15)
   other: {
     "cuelinks-verification": "VERIFY-CL-KRDPU2SS",
+    "mitgo-verification": "714dedd1-7af0-4b0a-aad8-b075fd9b3927",
   },
 };
 
