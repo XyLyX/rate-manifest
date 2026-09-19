@@ -26,6 +26,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/for-business`,
     },
     {
+      url: `${baseUrl}/partners`,
+    },
+    {
       url: `${baseUrl}/contact`,
     },
     {

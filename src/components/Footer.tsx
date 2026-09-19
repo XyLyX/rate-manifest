@@ -36,6 +36,7 @@ export function Footer() {
         <div className="site-footer-col">
           <div className="site-footer-col-heading">Company</div>
           <Link href="/for-business">For Business</Link>
+          <Link href="/partners">Partners</Link>
           <Link href="/contact">Contact</Link>
         </div>
 
