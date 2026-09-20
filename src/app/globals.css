@@ -2573,12 +2573,12 @@ input:focus {
 .unsupported-destination-headline {
   margin: 0 0 0.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: rgba(180, 195, 218, 0.80);
 }
 
 .unsupported-destination-sub {
   margin: 0 0 1rem;
-  color: var(--text-secondary);
+  color: rgba(180, 195, 218, 0.80);
   font-size: 0.88rem;
 }
 
@@ -2595,6 +2595,7 @@ input:focus {
 .interest-form-hook,
 .interest-form-dest {
   margin: 0;
+  color: rgba(180, 195, 218, 0.80);
 }
 
 .interest-form-fields {
@@ -2616,12 +2617,12 @@ input:focus {
 .interest-success-headline {
   margin: 0 0 0.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: rgba(180, 195, 218, 0.80);
 }
 
 .interest-success-sub {
   margin: 0;
-  color: var(--text-secondary);
+  color: rgba(180, 195, 218, 0.80);
   font-size: 0.88rem;
 }
 
