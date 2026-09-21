@@ -26,7 +26,7 @@
 // allowed values are enforced in application code, same as before.
 
 import { sql } from "drizzle-orm";
-import { pgTable, text, integer, boolean, real, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, real, doublePrecision, timestamp, uniqueIndex, index, check } from "drizzle-orm/pg-core";
 
 export const hotels = pgTable("hotels", {
   id: text("id").primaryKey(),
@@ -582,3 +582,161 @@ export const destinationInterest = pgTable("destination_interest", {
   source: text("source").notNull().default("destination_search"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
 });
+
+// ---------------------------------------------------------------------------
+// Shared four-tower platform foundation (Phase 1A, 2026-09-21).
+// ADDITIVE ONLY: these tables coexist with the Hotel-specific tables above
+// (trip_selections, rates, suppliers, verdicts, staying_api_cache) and do not
+// reference or replace them. Nothing here is derived from StayingAPI.
+// See src/lib/platform/ for the contracts. Applied via the idempotent SQL in
+// src/app/api/admin/init-db/route.ts (mirror any change there).
+// ---------------------------------------------------------------------------
+
+// One row per part of a Trip: hotel | flight | rail | cruise | experience.
+// Tower-specific search/context lives in input_json, not in shared columns.
+// A Trip may hold any number of components; none overwrites another.
+export const tripComponents = pgTable(
+  "trip_components",
+  {
+    id: text("id").primaryKey(),
+    tripId: text("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    position: integer("position").notNull().default(0),
+    status: text("status").notNull().default("draft"),
+    inputJson: text("input_json").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [index("trip_components_trip_idx").on(t.tripId)]
+);
+
+// Travel merchant / source (e.g. Trip.com). Distinct from the legacy
+// `suppliers` table, which is Hotel/StayingAPI-seller shaped.
+export const merchants = pgTable("merchants", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+});
+
+// How RM reaches/monetises a merchant: an affiliate network or the merchant
+// itself. Never a merchant.
+export const accessRoutes = pgTable("access_routes", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  // "affiliate_network" | "direct"
+  kind: text("kind").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+});
+
+// A merchant may be reachable through several access routes. Status:
+// "unverified" | "approved" | "inactive".
+export const merchantAccessRoutes = pgTable(
+  "merchant_access_routes",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id")
+      .notNull()
+      .references(() => merchants.id, { onDelete: "cascade" }),
+    accessRouteId: text("access_route_id")
+      .notNull()
+      .references(() => accessRoutes.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("unverified"),
+  },
+  (t) => [uniqueIndex("merchant_access_routes_pair_idx").on(t.merchantId, t.accessRouteId)]
+);
+
+// Snapshot of an offer as it entered a component's decision. Shared fields
+// only; tower-specific detail is payload_json. provenance_json is DECISION
+// provenance (why/where it entered) - it says nothing about monetisation.
+export const offerSnapshots = pgTable(
+  "offer_snapshots",
+  {
+    id: text("id").primaryKey(),
+    componentId: text("component_id")
+      .notNull()
+      .references(() => tripComponents.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    merchantId: text("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    externalRef: text("external_ref"),
+    currency: text("currency").notNull(),
+    totalPrice: doublePrecision("total_price").notNull(),
+    sourceUrl: text("source_url"),
+    capturedAt: timestamp("captured_at", { mode: "date" }).notNull().default(sql`now()`),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    provenanceJson: text("provenance_json").notNull(),
+  },
+  (t) => [index("offer_snapshots_component_idx").on(t.componentId)]
+);
+
+// The chosen offer for one component. At most one per component.
+export const componentSelections = pgTable(
+  "component_selections",
+  {
+    id: text("id").primaryKey(),
+    componentId: text("component_id")
+      .notNull()
+      .references(() => tripComponents.id, { onDelete: "cascade" }),
+    offerId: text("offer_id")
+      .notNull()
+      .references(() => offerSnapshots.id, { onDelete: "cascade" }),
+    selectedAt: timestamp("selected_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [uniqueIndex("component_selections_component_idx").on(t.componentId)]
+);
+
+// Phase 2: a commercial-only handoff of a component to a merchant WITHOUT an
+// ingested offer - deliberately no price columns. context_json is a snapshot
+// of the component input at handoff time (used to detect staleness).
+export const commercialHandoffs = pgTable(
+  "commercial_handoffs",
+  {
+    id: text("id").primaryKey(),
+    componentId: text("component_id")
+      .notNull()
+      .references(() => tripComponents.id, { onDelete: "cascade" }),
+    merchantId: text("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    contextJson: text("context_json").notNull(),
+    landingUrl: text("landing_url"),
+    provenanceJson: text("provenance_json").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [index("commercial_handoffs_component_idx").on(t.componentId)]
+);
+
+// Resolved commercial route for a selection. attribution_json is COMMERCIAL
+// attribution (status + tracking evidence) - separate from offer provenance.
+export const commercialRoutes = pgTable(
+  "commercial_routes",
+  {
+    id: text("id").primaryKey(),
+    // Exactly one of selection_id (priced offer) or handoff_id (commercial-only).
+    selectionId: text("selection_id").references(() => componentSelections.id, { onDelete: "cascade" }),
+    handoffId: text("handoff_id").references(() => commercialHandoffs.id, { onDelete: "cascade" }),
+    componentId: text("component_id")
+      .notNull()
+      .references(() => tripComponents.id, { onDelete: "cascade" }),
+    merchantId: text("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    accessRouteId: text("access_route_id").references(() => accessRoutes.id),
+    routeType: text("route_type").notNull(),
+    eligibility: text("eligibility").notNull(),
+    destinationUrl: text("destination_url"),
+    attributionJson: text("attribution_json").notNull(),
+    reason: text("reason"),
+    resolvedAt: timestamp("resolved_at", { mode: "date" }).notNull().default(sql`now()`),
+  },
+  (t) => [
+    index("commercial_routes_selection_idx").on(t.selectionId),
+    index("commercial_routes_component_idx").on(t.componentId),
+    check("commercial_routes_subject_check", sql`(${t.selectionId} IS NULL) <> (${t.handoffId} IS NULL)`),
+  ]
+);

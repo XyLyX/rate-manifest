@@ -27,8 +27,8 @@ export default function PrivacyPage() {
         <section>
           <h2>What Rate Manifest is</h2>
           <p>
-            Rate Manifest is a travel decision-intelligence tool. It helps you shortlist hotels,
-            compare rates, and understand what the numbers mean before you book. It is an
+            Rate Manifest is a travel decision-intelligence tool. It helps you shortlist and
+            compare hotels and make better-informed travel decisions. It is an
             informational service — it does not process bookings, payments, or cancellations.
           </p>
         </section>

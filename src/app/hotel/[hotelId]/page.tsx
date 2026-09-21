@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -40,12 +40,14 @@ async function loadHotelIq(hotelId: string) {
   });
   if (!hotel) return null;
 
-  const verdict = await db.query.verdicts.findFirst({
-    where: eq(schema.verdicts.hotelId, hotelId),
-    orderBy: desc(schema.verdicts.generatedAt),
-  });
+  // StayingAPI QUARANTINE: stored verdict rows were produced by the
+  // StayingAPI-backed rate comparison (runSearch). They are no longer read or
+  // rendered here, so this page shows the property identity and an honest
+  // "not analysed" state. The rows themselves are left untouched in the
+  // database for a future independent verification source.
+  const verdict = null as typeof schema.verdicts.$inferSelect | null;
 
-  return { hotel, verdict: verdict ?? null };
+  return { hotel, verdict };
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
@@ -88,8 +90,8 @@ export default async function HotelIqPage({ params }: PageParams) {
         <div className="card">
           <h2 className="card-title">Rate Manifest has not analysed this property yet.</h2>
           <p style={{ color: "var(--text-dim)" }}>
-            No stored observations exist for this property yet. Verify a rate below and Rate
-            Manifest will start building intelligence on it from that check onward.
+            Rate verification is currently unavailable, so Rate Manifest is not showing rate
+            observations or a verdict for this property.
           </p>
         </div>
         <VerifyThisRate hotelId={hotel.id} />
@@ -261,12 +263,14 @@ export default async function HotelIqPage({ params }: PageParams) {
 function VerifyThisRate({ hotelId }: { hotelId: string }) {
   return (
     <div className="card" style={{ marginTop: "1.5rem" }}>
-      <h2 className="card-title">Verify this rate</h2>
+      <h2 className="card-title">Continue with this stay</h2>
       <p style={{ color: "var(--text-dim)", marginBottom: "1rem" }}>
-        Want to check a specific stay? Verify the current rate and availability live.
+        Review this property in Check IQ with your trip details. Rate verification is currently unavailable.
       </p>
       <form action="/check-iq" method="get">
         <input type="hidden" name="hotel" value={hotelId} />
+        {/* Same authorization signal Compare supplies; the Check IQ gate itself is unchanged. */}
+        <input type="hidden" name="authorized" value="1" />
         <div className="discover-form-row">
           <div className="field">
             <label htmlFor="verify-checkin">Check-in</label>
@@ -278,7 +282,7 @@ function VerifyThisRate({ hotelId }: { hotelId: string }) {
           </div>
         </div>
         <button type="submit" className="btn" style={{ marginTop: "1rem" }}>
-          Verify this rate →
+          Continue to Check IQ →
         </button>
       </form>
     </div>

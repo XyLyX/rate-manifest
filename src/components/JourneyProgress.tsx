@@ -15,7 +15,7 @@ export function JourneyProgress({ step }: { step: 2 | 3 | 4 | 5 }) {
     { n: 2, label: "Compare" },
     { n: 3, label: "Check IQ" },
     { n: 4, label: "Complete Trip" },
-    { n: 5, label: "Confirm & Book" },
+    { n: 5, label: "Confirm" },
   ];
 
   return (

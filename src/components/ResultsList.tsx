@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import type { DisplayOffer } from "@/lib/search";
 import { getDealSignal } from "@/lib/scoring/dealSignal";
 import { buildDealFactors } from "@/lib/scoring/factors";
-import { selectDeal } from "@/app/actions/trip";
+import { selectDeal } from "@/app/actions/legacyPricedSelection";
+import type { HotelCta } from "@/lib/hotel/commercial";
 import { TrackPrice } from "./TrackPrice";
 
 interface ResultsListProps {
@@ -29,6 +30,8 @@ interface ResultsListProps {
   // src/lib/verdict.ts. Recorded on trip_selections so Page 4 can trace a
   // booking back to the Verdict that was on screen when it was chosen.
   verdictId: string | null;
+  // Hotel V1 commercial-routing policy result per seller slug (same policy as Confirm).
+  ctas: Record<string, HotelCta>;
 }
 
 export default function ResultsList({
@@ -42,6 +45,7 @@ export default function ResultsList({
   cheapestTotal,
   tripId,
   verdictId,
+  ctas,
 }: ResultsListProps) {
   return (
     <div className="offer-list">
@@ -60,6 +64,7 @@ export default function ResultsList({
           sourceLabel={`Source ${String.fromCharCode(65 + idx)}`}
           tripId={tripId}
           verdictId={verdictId}
+          cta={ctas[offer.supplierSlug] ?? null}
         />
       ))}
     </div>
@@ -113,6 +118,7 @@ function OfferRow({
   sourceLabel,
   tripId,
   verdictId,
+  cta,
 }: {
   searchId: string;
   hotelId: string;
@@ -126,6 +132,7 @@ function OfferRow({
   sourceLabel: string;
   tripId: string;
   verdictId: string | null;
+  cta: HotelCta | null;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
@@ -211,16 +218,25 @@ function OfferRow({
               Reveal deal
             </button>
           )}
-          {revealed && (
+          {/* Commercial action follows the SAME routing policy as Confirm
+              (src/lib/hotel/commercial.ts). The rate source's own URL is
+              evidence, never a booking link: a CTA renders only for an
+              eligible, attributable route with a valid destination. */}
+          {revealed && cta?.enabled && cta.url && (
             <a
               className="btn btn-ghost reveal-btn"
-              href={offer.outboundUrl}
+              href={cta.url}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: "inline-block", textDecoration: "none" }}
             >
-              Book directly with {offer.supplierName} →
+              {cta.label} →
             </a>
+          )}
+          {revealed && !cta?.enabled && (
+            <p className="offer-route-note" style={{ margin: 0, fontSize: "0.85rem" }}>
+              {cta?.note ?? `No attributable booking route is available for ${offer.supplierName} yet — visit their website directly.`}
+            </p>
           )}
           {isBest && (
             <button className="btn btn-ghost reveal-btn" type="button" onClick={() => setShowWhy((v) => !v)}>

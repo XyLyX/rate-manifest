@@ -52,7 +52,7 @@ export function Footer() {
           <div className="site-footer-col-heading">Travel with Confidence</div>
           <p className="site-footer-disclosure">
             Rate Manifest may earn a referral fee when you book through a link on this site. This does not
-            affect the rates shown. Bookings happen on the underlying supplier&apos;s own site — Rate Manifest
+            influence which properties or information Rate Manifest shows you. Bookings happen on the underlying supplier&apos;s own site — Rate Manifest
             doesn&apos;t process payment, hold inventory, or handle cancellations. Not affiliated with or
             endorsed by Booking.com, Expedia, Agoda, Hotels.com, or Trip.com.
           </p>

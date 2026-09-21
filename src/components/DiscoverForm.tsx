@@ -8,6 +8,9 @@ import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
 interface DiscoverFormProps {
   cities: string[];
   defaultDestination?: string;
+  // True when defaultDestination has properties in the catalogue, so the
+  // "we're curating this destination" state must not be shown for it.
+  destinationSupported?: boolean;
   defaultCheckIn: string;
   defaultCheckOut: string;
 }
@@ -53,7 +56,7 @@ function normalise(s: string): string {
 // name/email form that submits to recordDestinationInterest() (a server
 // action that writes to destination_interest). The destination is captured
 // automatically from the visitor's search - they never re-enter it.
-export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
+export function DiscoverForm({ cities, defaultDestination = "", destinationSupported = false, defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
   const [checkIn, setCheckIn] = useState(defaultCheckIn);
   const [checkOut, setCheckOut] = useState(defaultCheckOut);
   const [purpose, setPurpose] = useState<TripPurpose>("UNSPECIFIED");
@@ -61,7 +64,7 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
   // Destination combobox state
   const [destInput, setDestInput] = useState(defaultDestination);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [unsupported, setUnsupported] = useState(Boolean(defaultDestination));
+  const [unsupported, setUnsupported] = useState(Boolean(defaultDestination) && !destinationSupported);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // W3: destination interest form state
@@ -196,7 +199,7 @@ export function DiscoverForm({ cities, defaultDestination = "", defaultCheckIn, 
                   <span className="interest-success-headline">You&apos;re on the list.</span>
                   <span className="interest-success-sub">
                     We&apos;ll let you know when Rate Manifest is live in{" "}
-                    <strong>{destInput}</strong> — with hotels, rates and travel intelligence
+                    <strong>{destInput}</strong> — with hotels and travel intelligence
                     worth knowing.
                   </span>
                 </div>

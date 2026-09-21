@@ -80,7 +80,7 @@ export function KlookTripSection() {
     <div className="klook-section">
       <div className="klook-eyebrow">Complete your Dubai trip</div>
       <p className="klook-body">
-        Rate Manifest only compares hotel rates - for everything else around the trip, Klook covers{" "}
+        For everything else around your trip, Klook covers{" "}
         {KLOOK_EXPERIENCE_CATEGORIES.join(", ").toLowerCase()}.
       </p>
       <div className="klook-widget-mount">
@@ -111,8 +111,8 @@ export function KlookTripSection() {
       {SHOW_KLOOK_HOTELS_NOTE && (
         <div className="klook-also-hotels">
           <p className="klook-also-hotels-intro">
-            Klook has also recently added hotels and accommodation. If none of the verified prices above work
-            for you, these are real Klook listings below - unlike the offers above, not independently checked by
+            Klook has also recently added hotels and accommodation. If none of the options above work
+            for your trip, these are real Klook listings below - unlike the offers above, not independently checked by
             Rate Manifest.
           </p>
           <div className="klook-hotels-widget-mount">

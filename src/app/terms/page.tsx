@@ -27,16 +27,16 @@ export default function TermsPage() {
           <h2>What Rate Manifest is</h2>
           <p>
             Rate Manifest is a travel decision-intelligence service. It provides informational
-            tools to help you shortlist hotels, compare rates, and understand rate data before
-            you decide where to book. Rate Manifest is not a booking platform.
+            tools to help you shortlist and compare hotels and make better-informed travel
+            decisions before you decide where to book. Rate Manifest is not a booking platform.
           </p>
         </section>
 
         <section>
           <h2>Rates may change</h2>
           <p>
-            All rate information shown on Rate Manifest is informational and is sourced from
-            third parties. Rates change frequently. A rate shown on Rate Manifest may no longer
+            Rate Manifest does not currently show hotel rates. Any rate information shown, now or
+            in future, is informational and is sourced from third parties. Rates change frequently. A rate shown on Rate Manifest may no longer
             be available by the time you visit a supplier&apos;s site. Rate Manifest does not
             guarantee that any rate will be available, or that the rate shown reflects the final
             price including all applicable taxes and fees.

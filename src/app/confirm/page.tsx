@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import { getTrip, getLatestTripSelection, getTripExperiences } from "@/lib/trip";
-import { getDealSignal } from "@/lib/scoring/dealSignal";
-import { resolveCommercialRoute } from "@/lib/commercial";
+import { getTrip, getTripExperiences } from "@/lib/trip";
+import { propertyChoiceForTrip, propertyCta } from "@/lib/hotel/journey";
+import { rateCheckReturnHref } from "@/lib/hotel/links";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { JourneyProgress } from "@/components/JourneyProgress";
@@ -27,29 +27,16 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   return diff > 0 ? diff : 1;
 }
 
-// Page 4 of the four-page customer journey - Confirm & Book, the final
-// summary screen. See claude/travel-decision-platform-assessment.md,
-// "RateManifest — Final Customer Journey": Hotel / Stay / Selected Rate /
-// RateManifest Verdict / Experiences / Estimated Trip Total, then a single
-// "CONFIRM & BOOK →" primary action that goes to the selected rate's own
-// deep link - "RateManifest does not process payment or become the
-// merchant of record for the hotel booking... this is fundamentally an
-// outbound affiliate/deep-link transaction," exactly as BeforeYouBookPanel
-// already states on Page 2. Nothing new is invented here: every field
-// below is read back from what Pages 1-3 already wrote (trips,
-// trip_selections, trip_experiences, and the verdicts row Page 2's
-// Decision Audit Trail produced) - this page is a summary, not a new
-// computation.
+// Confirm & Book — the final summary of what the traveller has chosen.
 //
-// Track F (2026-09-13): replaced the hard-coded `selection.deepLink` CTA
-// with a call to resolveCommercialRoute(tripId) from Track D's commercial
-// router (src/lib/commercial/index.ts). The router is the SOLE authority
-// on the booking URL and route type — this page never constructs a booking
-// URL or accesses selection.deepLink directly. Four route outcomes:
-//   affiliate_outbound / direct_outbound → CTA with route.bookingUrl
-//   inquiry_only                         → rate verified, no direct route
-//   unavailable (or router returns null) → explanation, return-to-check CTA
-// Also added JourneyProgress at step 5.
+// STAYINGAPI IS QUARANTINED: there is no selected rate, seller or hotel price.
+// This page summarises the traveller's HOTEL (property) choice, the trip's own
+// stay/traveller context and any added experiences. It never shows a hotel
+// price, a "selected rate", a verdict or a combined total, and it never uses a
+// rate-source URL. Its booking action comes from the Hotel V1 commercial
+// policy (src/lib/hotel/commercial.ts): a CTA exists only for an eligible,
+// attributable route, and none exists for a property with no independently
+// proven merchant/access-route evidence - which is honest, and expected today.
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const tripId = (await searchParams).trip;
 
@@ -64,82 +51,43 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   }
 
   const trip = await getTrip(tripId);
-  const selection = trip ? await getLatestTripSelection(tripId) : null;
+  const choice = trip ? await propertyChoiceForTrip(tripId) : null;
 
-  if (!trip || !selection) {
+  if (!trip || !choice) {
     return (
       <div className="shell">
         <p className="empty-state">
-          {trip
-            ? "You haven't selected a rate on this trip yet."
-            : "We couldn't find that trip."}{" "}
+          {trip ? "You haven't chosen a hotel on this trip yet." : "We couldn't find that trip."}{" "}
           <Link href="/">Start a new search</Link>.
         </p>
       </div>
     );
   }
 
-  const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, selection.hotelId) });
+  const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, choice.propertyId) });
   const experiences = await getTripExperiences(tripId);
   const nights = nightsBetween(trip.checkIn, trip.checkOut);
 
-  // The Decision Audit Trail row Page 2 wrote when this rate was on
-  // screen (src/lib/verdict.ts) - re-read here, never re-computed, so
-  // Page 4's "why we recommended this" matches exactly what the customer
-  // actually saw when they selected it. Absent only if recordVerdict()
-  // itself failed at the time (it never throws) or this trip predates the
-  // verdictId column being wired through - both handled by simply
-  // omitting the panel rather than guessing.
-  const verdict = selection.verdictId
-    ? await db.query.verdicts.findFirst({ where: eq(schema.verdicts.id, selection.verdictId) })
-    : null;
-  const signal = verdict ? getDealSignal(verdict.score) : null;
+  // Hotel V1 commercial policy: no merchant/route evidence exists for a bare
+  // property choice, so honestly no booking CTA (never enabled, no URL).
+  const cta = propertyCta(hotel?.name ?? "this hotel");
 
-  // Track D commercial router — the SOLE authority on booking URL and
-  // route type. Returns null only when no selection exists for the trip
-  // (already guarded above), so null here means the router itself hit an
-  // unrecoverable error (treated identically to routeType === "unavailable").
-  // resolveCommercialRoute reads the same trip_selections row via
-  // getLatestTripSelection internally — consistent with what we read above.
-  const route = await resolveCommercialRoute(tripId);
+  // A combined monetary total is NOT computed: there is no verified hotel
+  // price. Only an experiences subtotal is shown, and only when every priced
+  // experience shares one currency (never summing mixed currencies).
+  const priced = experiences.filter((e) => e.price != null);
+  const currencies = new Set(priced.map((e) => e.currency));
+  const experiencesSubtotal =
+    priced.length > 0 && currencies.size === 1
+      ? { currency: [...currencies][0] as string, total: priced.reduce((sum, e) => sum + (e.price ?? 0), 0) }
+      : null;
 
-  // Summed as one total on the assumption both are in the same currency -
-  // true today (the hotel rate is always AED-filtered, and Page 3 always
-  // requests Viator experiences in "AED" too, see complete-your-trip/
-  // page.tsx), but nothing here actually checks that assumption still
-  // holds if either source's currency choice ever changes independently.
-  const experiencesTotal = experiences.reduce((sum, e) => sum + (e.price ?? 0), 0);
-  const estimatedTotal = selection.totalPrice + experiencesTotal;
-
-  // Human-readable explanation for each unavailable reason, shown in the
-  // unavailable route block so the customer understands why they can't book
-  // directly from here rather than seeing a generic error.
-  function unavailableMessage(
-    reason?: "supplier_rates_only" | "no_booking_url" | "property_not_mappable" | "affiliate_unavailable" | "supplier_inactive"
-  ): string {
-    switch (reason) {
-      case "supplier_rates_only":
-        return "This supplier's rates are verified by RateManifest but booking must be completed directly on their site — visit the supplier's website to complete your booking.";
-      case "no_booking_url":
-        return "A direct booking link for this rate isn't available. Visit the supplier's website to book.";
-      case "property_not_mappable":
-        return "This property couldn't be matched to a direct booking destination. Search for it on the supplier's site to complete your booking.";
-      case "affiliate_unavailable":
-        return "The affiliate booking route for this supplier isn't active right now. Visit the supplier's site directly.";
-      case "supplier_inactive":
-        return "This supplier is no longer active on RateManifest. You may still book directly through their own website.";
-      default:
-        return "A verified booking route for this rate isn't available right now. You can search for the same property directly on the supplier's site.";
-    }
-  }
-
-  const isBookable =
-    route !== null &&
-    (route.routeType === "affiliate_outbound" || route.routeType === "direct_outbound") &&
-    route.bookingUrl !== null;
-
-  const isInquiryOnly = route !== null && route.routeType === "inquiry_only";
-  const isUnavailable = route === null || route.routeType === "unavailable";
+  // Eligibility is mandatory: cta.enabled is true only for an eligible
+  // bookable route with a valid URL, never merely because a URL exists.
+  const isBookable = cta.enabled && cta.url !== null;
+  const isInquiryOnly = !cta.enabled && cta.routeType === "inquiry_only";
+  const isUnavailable = !cta.enabled && cta.routeType !== "inquiry_only";
+  const returnHref = rateCheckReturnHref({ hotelId: choice.propertyId, checkIn: trip.checkIn, checkOut: trip.checkOut, tripId });
 
   return (
     <div className="shell">
@@ -147,7 +95,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
       <JourneyProgress step={5} />
 
       <div className="confirm-summary">
-        <div className="your-hotel-eyebrow">Confirm &amp; book</div>
+        <div className="your-hotel-eyebrow">Confirm</div>
 
         <div className="confirm-summary-block">
           <div className="confirm-summary-label">Hotel</div>
@@ -172,22 +120,10 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
         </div>
 
         <div className="confirm-summary-block">
-          <div className="confirm-summary-label">Selected rate</div>
-          <div className="confirm-summary-value">
-            {selection.supplierName} · {selection.currency} {Math.round(selection.totalPrice).toLocaleString("en-AE")}
-          </div>
+          <div className="confirm-summary-label">Hotel rate</div>
+          <div className="confirm-summary-value">Not verified</div>
+          <p className="your-hotel-meta">Rate verification is currently unavailable, so no hotel price is shown.</p>
         </div>
-
-        {verdict && signal && (
-          <div className="confirm-summary-block confirm-verdict-block">
-            <div className="confirm-summary-label">RateManifest Verdict</div>
-            <div className={`confirm-verdict-action confirm-verdict-${signal.tier}`}>{signal.action}</div>
-            <p className="confirm-verdict-note">
-              {signal.verdict} Based on {verdict.sourcesChecked} source{verdict.sourcesChecked === 1 ? "" : "s"}{" "}
-              checked at the time you selected this rate.
-            </p>
-          </div>
-        )}
 
         <div className="confirm-summary-block">
           <div className="confirm-summary-label">Experiences</div>
@@ -209,65 +145,47 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
           )}
         </div>
 
-        <div className="confirm-summary-block confirm-total-block">
-          <div className="confirm-summary-label">Estimated trip total</div>
-          <div className="confirm-summary-value confirm-summary-value-lg">
-            {selection.currency} {Math.round(estimatedTotal).toLocaleString("en-AE")}
-          </div>
-          <p className="your-hotel-meta">
-            The hotel rate above is what {selection.supplierName} verified; experience prices are what Viator
-            showed when added. This is an estimate, not a single combined charge — you complete each booking
-            separately on the source it comes from.
-          </p>
-        </div>
-
-        {/* ── Commercial route — Track D integration ────────────────────────
-            resolveCommercialRoute() is the sole authority on the booking
-            URL. Three outcome branches: bookable, inquiry-only, unavailable.
-            selection.deepLink is never used directly here. */}
-
-        {isBookable && route && route.bookingUrl && (
-          <>
-            <a
-              className="btn confirm-cta"
-              href={route.bookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {route.displayLabel} →
-            </a>
-            <p className="confirm-disclosure">
-              RateManifest doesn&apos;t process payment or hold your reservation — this takes you to{" "}
-              {route.supplierName} to complete the booking on their site.
-              {route.routeType === "direct_outbound" && " No affiliate link is involved."}
+        {experiencesSubtotal && (
+          <div className="confirm-summary-block confirm-total-block">
+            <div className="confirm-summary-label">Experiences subtotal (estimate)</div>
+            <div className="confirm-summary-value confirm-summary-value-lg">
+              {experiencesSubtotal.currency} {Math.round(experiencesSubtotal.total).toLocaleString("en-AE")}
+            </div>
+            <p className="your-hotel-meta">
+              Experience prices are what Viator showed when added. No combined trip total is shown because there is no
+              verified hotel rate; you complete each booking separately on the source it comes from.
             </p>
+          </div>
+        )}
+
+        {/* ── Commercial action — Hotel V1 policy ───────────────────────────
+            ctaFromRoute() (src/lib/hotel/commercial.ts) is the sole authority
+            on whether a booking CTA exists: eligible + valid destination. */}
+
+        {isBookable && cta.url && (
+          <>
+            <a className="btn confirm-cta" href={cta.url} target="_blank" rel="noopener noreferrer">
+              {cta.label} →
+            </a>
+            <p className="confirm-disclosure">{cta.note}</p>
           </>
         )}
 
-        {isInquiryOnly && route && (
+        {isInquiryOnly && (
           <div className="confirm-route-block confirm-route-inquiry">
             <div className="confirm-route-label">Booking</div>
-            <p className="confirm-route-note">
-              RateManifest verified the rate at {route.supplierName}, but a direct booking route
-              isn&apos;t available for this provider yet.
-            </p>
-            <p className="confirm-route-reason">
-              Visit {route.supplierName}&apos;s website directly to complete your booking using the rate
-              details shown above.
-            </p>
+            <p className="confirm-route-note">{cta.note}</p>
+            <Link href={returnHref} className="btn btn-ghost">
+              ← Return to rate check
+            </Link>
           </div>
         )}
 
         {isUnavailable && (
           <div className="confirm-route-block confirm-route-unavailable">
             <div className="confirm-route-label">Booking</div>
-            <p className="confirm-route-note">
-              {unavailableMessage(route?.unavailableReason)}
-            </p>
-            <Link
-              href={`/check-iq?hotel=${selection.hotelId}&checkin=${trip.checkIn}&checkout=${trip.checkOut}&trip=${tripId}`}
-              className="btn btn-ghost"
-            >
+            <p className="confirm-route-note">{cta.note}</p>
+            <Link href={returnHref} className="btn btn-ghost">
               ← Return to rate check
             </Link>
           </div>

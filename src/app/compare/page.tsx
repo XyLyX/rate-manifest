@@ -134,8 +134,8 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
           Comparing {selectedHotels.length} hotel{selectedHotels.length === 1 ? "" : "s"}
         </h1>
         <p>
-          Factual property information only — no prices or rate claims here. Choose one to run RateManifest
-          IQ&apos;s live verification.
+          Factual property information only — no prices, availability or rate claims here. Choose one to
+          continue.
         </p>
         <p className="compare-context-dates">{formatStayDates(checkIn, checkOut)}</p>
       </div>
@@ -168,14 +168,14 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
 
               <div className="compare-field compare-field-source">
                 <div className="compare-field-label">Source</div>
-                <div className="compare-field-value">RateManifest curated catalog</div>
+                <div className="compare-field-value">Rate Manifest property catalogue</div>
               </div>
 
               <Link
                 href={`/check-iq?hotel=${hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}&authorized=1`}
                 className="btn btn-block compare-cta"
               >
-                Analyse with RateManifest IQ →
+                Continue with this hotel →
               </Link>
             </div>
           ))}
@@ -183,8 +183,8 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
       </div>
 
       <p className="footnote">
-        RateManifest hasn&apos;t verified live rates for any property shown here yet — that happens only
-        after you choose one to analyse.
+        Rate Manifest isn&apos;t showing rates or availability for any property here. Rate verification is
+        currently unavailable.
       </p>
 
       <Footer />

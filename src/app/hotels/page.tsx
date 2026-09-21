@@ -6,7 +6,7 @@ import { Footer } from "@/components/Footer";
 export const metadata: Metadata = {
   title: "Hotel Intelligence | Rate Manifest",
   description:
-    "Compare hotels, understand rates and verify your options with travel decision intelligence designed to help you make a better-informed stay decision.",
+    "Shortlist and compare hotels with travel decision intelligence designed to help you make a better-informed stay decision.",
   alternates: {
     canonical: "https://ratemanifest.com/hotels",
   },
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Hotel Intelligence | Rate Manifest",
     description:
-      "Compare hotels, understand rates and verify your options with travel decision intelligence designed to help you make a better-informed stay decision.",
+      "Shortlist and compare hotels with travel decision intelligence designed to help you make a better-informed stay decision.",
     url: "https://ratemanifest.com/hotels",
     type: "website",
     siteName: "Rate Manifest",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Hotel Intelligence | Rate Manifest",
     description:
-      "Compare hotels, understand rates and verify your options with travel decision intelligence designed to help you make a better-informed stay decision.",
+      "Shortlist and compare hotels with travel decision intelligence designed to help you make a better-informed stay decision.",
   },
 };
 
@@ -46,7 +46,7 @@ export default function HotelsPage() {
 
         <p className="coming-soon-body">
           Find the right stay with clearer travel decision intelligence —
-          helping you shortlist, compare and verify before you book.
+          helping you shortlist and compare before you decide.
         </p>
 
         <div className="how-it-works-grid">
@@ -76,10 +76,9 @@ export default function HotelsPage() {
             <div className="how-card-num" aria-hidden="true">
               03
             </div>
-            <div className="how-card-label">Verify</div>
+            <div className="how-card-label">Choose</div>
             <p>
-              Use Rate Manifest intelligence to understand the rate and the
-              decision before you book.
+              Choose the hotel you want to continue with.
             </p>
           </div>
         </div>

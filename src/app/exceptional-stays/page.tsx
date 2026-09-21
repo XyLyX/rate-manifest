@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -34,10 +34,11 @@ export default async function ExceptionalStaysPage() {
 
   const cards = await Promise.all(
     hotels.map(async (hotel) => {
-      const verdict = await db.query.verdicts.findFirst({
-        where: eq(schema.verdicts.hotelId, hotel.id),
-        orderBy: desc(schema.verdicts.generatedAt),
-      });
+      // StayingAPI QUARANTINE: stored verdict rows came from the StayingAPI-
+      // backed comparison and are no longer read or rendered. Each card shows
+      // the property's identity and the honest "not analysed" state; the rows
+      // stay untouched in the database.
+      const verdict = null as typeof schema.verdicts.$inferSelect | null;
       return { hotel, verdict };
     })
   );

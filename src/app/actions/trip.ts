@@ -7,6 +7,8 @@ import { db, schema } from "@/db/client";
 import { newId } from "@/lib/id";
 import { getSessionId } from "@/lib/session";
 import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
+import { getTrip } from "@/lib/trip";
+import { recordPropertyChoicePersisted } from "@/lib/hotel/journey";
 
 // The three mutations behind the four-page journey (see
 // claude/travel-decision-platform-assessment.md, "RateManifest — Final
@@ -62,78 +64,54 @@ export async function createTrip(formData: FormData) {
     purpose: parsePurpose(formData.get("purpose")),
   });
 
-  redirect(`/?trip=${id}`);
+  redirect(`/?trip=${id}#shortlist`);
 }
 
 /**
- * Check IQ's "Select this deal" primary action (labeled "Page 2" below and
- * in most comments in this project predating 2026-09-12 - now Page 3 under
- * the frozen Discover -> Compare -> Verify numbering; see check-iq/page.tsx's
- * own updated header comment) - the moment a
- * browsing session becomes an actual choice. Persists exactly what was on
- * screen (hotel, the Verdict that was showing, the chosen supplier/price,
- * and a snapshot of the deep link) rather than something re-derivable
- * later, for the same reason tripSelections.deepLink's own schema comment
- * gives: scoring or supplier data can change between selection and
- * confirmation. Then moves the visitor on to Page 3.
- *
- * tripId can arrive empty - a visitor who reached Check IQ directly
- * (an old /hotel or /search bookmark, or simply never used Page 1's
- * Discover form) has no trip yet. Rather than dead-ending the guided
- * journey right at its most important moment (see the final spec's "THE
- * MOST IMPORTANT UX HIERARCHY" - Check IQ selection is the heart of this
- * app), this lazily creates one here with sensible defaults, using
- * whatever this exact search already had on hand (hotel, city, dates).
+ * Check IQ's primary action: the traveller explicitly chooses a HOTEL.
+ * A property decision only - no seller, rate, price, currency or deep link is
+ * required or recorded (rate verification is currently unavailable, and a
+ * priced seller selection is a different concept; see
+ * ./legacyPricedSelection.ts). Persists the trip's hotel component (chosen
+ * property + the trip's own stay/traveller context) on the shared platform,
+ * lazily creating a trip for a visitor who reached Check IQ without one.
  */
-export async function selectDeal(formData: FormData) {
+export async function selectProperty(formData: FormData) {
   let tripId = String(formData.get("tripId") ?? "");
   const hotelId = String(formData.get("hotelId") ?? "");
-  const supplierSlug = String(formData.get("supplierSlug") ?? "");
-  const supplierName = String(formData.get("supplierName") ?? "");
-  const totalPrice = Number(formData.get("totalPrice"));
-  const deepLink = String(formData.get("deepLink") ?? "");
-  if (!hotelId || !supplierSlug || !deepLink || !Number.isFinite(totalPrice)) {
-    throw new Error("Missing deal details.");
-  }
-  const verdictIdRaw = formData.get("verdictId");
-  const verdictId = verdictIdRaw ? String(verdictIdRaw) : null;
-  const currency = String(formData.get("currency") ?? "AED");
+  if (!hotelId) throw new Error("Missing hotel.");
+
+  const property = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
+  if (!property) throw new Error("Unknown hotel.");
 
   if (!tripId) {
-    const hotelCity = String(formData.get("hotelCity") ?? "");
     const checkIn = String(formData.get("checkIn") ?? "");
     const checkOut = String(formData.get("checkOut") ?? "");
-    if (!hotelCity || !checkIn || !checkOut) throw new Error("Missing trip context for a direct Check IQ visit.");
+    if (!checkIn || !checkOut) throw new Error("Missing trip context for a direct Check IQ visit.");
 
     const sessionId = await getSessionId();
     tripId = newId();
     await db.insert(schema.trips).values({
       id: tripId,
       sessionId,
-      destination: hotelCity,
+      destination: property.city,
       checkIn: new Date(checkIn),
       checkOut: new Date(checkOut),
-      // Adults/children/rooms/purpose default to the same values the
-      // schema itself defaults to (2/0/1/UNSPECIFIED) - this trip was
-      // never through Page 1's form, so there's no real guest count or
-      // trip-intent statement to record, only an honest "not stated."
     });
   }
 
-  await db.insert(schema.tripSelections).values({
-    id: newId(),
+  const trip = await getTrip(tripId);
+  if (!trip) throw new Error("Trip not found.");
+  await recordPropertyChoicePersisted({
     tripId,
-    hotelId,
-    verdictId,
-    supplierSlug,
-    supplierName,
-    totalPrice,
-    currency,
-    deepLink,
+    propertyId: property.id,
+    propertyName: property.name,
+    stay: { destination: trip.destination, checkIn: trip.checkIn, checkOut: trip.checkOut, rooms: trip.rooms, adults: trip.adults, children: trip.children },
   });
 
   redirect(`/complete-your-trip?trip=${tripId}`);
 }
+
 
 /**
  * Page 3 (Complete Your Trip)'s "Add to My Trip" - deliberately additive

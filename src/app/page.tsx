@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
+import { activeDiscoverySource } from "@/lib/discovery";
+import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
 import { DiscoverForm } from "@/components/DiscoverForm";
@@ -48,13 +51,20 @@ interface HomePageProps {
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
-  // Phase A public shell: the internal curated hotel catalogue is test data,
-  // not a live public supplier.
-  const cities: string[] = [];
-
   const params = await searchParams;
   const trip = params.trip ? await getTrip(params.trip) : null;
   const mode = params.mode ?? "hotels";
+
+  // PROPERTY DISCOVERY (not inventory): the destinations Rate Manifest has
+  // catalogued properties for, and - once a trip exists - that destination's
+  // factual property identities (name, area, city, stars, image). The
+  // catalogue says nothing about rooms, rates or availability, and this page
+  // never touches StayingAPI, supplier adapters or any price source.
+  const catalogueCities = await db.select({ city: schema.hotels.city }).from(schema.hotels);
+  const cities = Array.from(new Set(catalogueCities.map((r) => r.city))).sort((a, b) => a.localeCompare(b));
+  const normalise = (s: string) => s.trim().toLowerCase();
+  const tripCity = trip ? cities.find((c) => normalise(c) === normalise(trip.destination)) : undefined;
+  const shortlistHotels = trip && tripCity ? await activeDiscoverySource.search({ destination: tripCity }) : [];
 
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
@@ -158,6 +168,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <DiscoverForm
               cities={cities}
               defaultDestination={trip?.destination ?? ""}
+              destinationSupported={Boolean(tripCity)}
               defaultCheckIn={checkIn}
               defaultCheckOut={checkOut}
             />
@@ -175,16 +186,39 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="trust-item">
           <IconLink className="trust-icon" />
           <div className="trust-item-title">Named Sources</div>
-          <div className="trust-item-sub">See where the rates come from.</div>
+          <div className="trust-item-sub">See where our information comes from.</div>
         </div>
         <div className="trust-item">
           <IconBolt className="trust-icon" />
-          <div className="trust-item-title">Rate Intelligence</div>
-          <div className="trust-item-sub">Compare. Verify. Book with confidence.</div>
+          <div className="trust-item-title">Decision Intelligence</div>
+          <div className="trust-item-sub">Shortlist. Compare. Decide.</div>
         </div>
         </div>
 
       </div>{/* ── end globe-band ── */}
+
+      {/* ── PROPERTY SHORTLIST ─────────────────────────────────────────────
+          Shown once a trip exists for a catalogued destination. Factual
+          property identities only: no prices, availability, rates, sellers or
+          verdicts - the catalogue is not an inventory or supplier feed. Cards
+          toggle selection (up to 5) and carry the chosen ids, with the trip's
+          dates/party, into Compare. */}
+      {trip && tripCity && shortlistHotels.length > 0 && (
+        <div className="home-hiw-wrap" id="shortlist">
+          <section className="home-top-hotels">
+            <div className="home-section-heading">
+              <div>
+                <h2>Properties to consider in {tripCity}</h2>
+                <p>
+                  From Rate Manifest&apos;s property catalogue — factual property details only. Select up to 5 to
+                  compare side by side. Rates and availability aren&apos;t shown here.
+                </p>
+              </div>
+            </div>
+            <HotelSelectionGrid hotels={shortlistHotels} checkIn={checkIn} checkOut={checkOut} tripId={trip.id} />
+          </section>
+        </div>
+      )}
 
       {/* ── 4. FOUR FULL-WIDTH EDITORIAL ROWS ────────────────────────────── */}
       {/* Atmosphere images: 5 sets × 4 pillars = 20 assets.
@@ -239,25 +273,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <div className="how-card-num" aria-hidden="true">02</div>
               <div className="how-card-label">Compare</div>
               <p>
-                Same room. Same dates. Real terms. Compare your shortlist side
-                by side, then choose one.
+                Compare your shortlist side by side on factual property
+                details, then choose one.
               </p>
             </div>
             <div className="how-card">
               <div className="how-card-num" aria-hidden="true">03</div>
-              <div className="how-card-label">Verify</div>
+              <div className="how-card-label">Choose</div>
               <p>
-                Run rate intelligence on the hotel you choose and understand
-                exactly what the numbers mean.
+                Pick the hotel you want to continue with. Rate verification is
+                currently unavailable.
               </p>
             </div>
           </div>
         </section>
 
         <p className="footnote">
-          Rate Manifest checks every source it has access to and shows its own
-          computed summary first — the named supplier and link only appear once
-          you choose to reveal one.
+          Rate Manifest does not currently show hotel rates or availability.
         </p>
       </div>
 

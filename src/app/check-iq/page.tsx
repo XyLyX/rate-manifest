@@ -3,76 +3,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import { runSearch } from "@/lib/search";
 import { logEvent } from "@/lib/events";
 import { getSessionId } from "@/lib/session";
 import { getTrip } from "@/lib/trip";
-import { ensureLiveCheckTriggered } from "@/lib/suppliers/stayingApiRefresh";
-import { humanizeRoomType } from "@/lib/roomType";
-import { buildRateSnapshot, buildVerifyBeforeBooking } from "@/lib/scoring/rateSnapshot";
-import { getVerdictConfidence } from "@/lib/scoring/confidence";
-import { updateVerdictSnapshot } from "@/lib/verdict";
-import ResultsList from "@/components/ResultsList";
-import { LiveCheckStatus } from "@/components/LiveCheckStatus";
-import { YourHotelSummary } from "@/components/YourHotelSummary";
-import { VerifiedRatePanel, type VerifiedRateState } from "@/components/VerifiedRatePanel";
-import { PriceInsightPanel } from "@/components/PriceInsightPanel";
-import { RateSnapshotPanel } from "@/components/RateSnapshotPanel";
-import { WhyThisDealPanel } from "@/components/WhyThisDealPanel";
-import { RateManifestVerdict } from "@/components/RateManifestVerdict";
-import { BeforeYouBookPanel } from "@/components/BeforeYouBookPanel";
+import { selectProperty } from "@/app/actions/trip";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { JourneyProgress } from "@/components/JourneyProgress";
 
 interface CheckIqPageProps {
   searchParams: Promise<{ hotel?: string; checkin?: string; checkout?: string; trip?: string; authorized?: string }>;
 }
 
-// Check IQ, "the heart of RateManifest" per claude/travel-decision-
-// platform-assessment.md's "THE MOST IMPORTANT UX HIERARCHY": "Everything
-// before it gets the customer there. Everything after it builds on the
-// decision already made."
-//
-// RENUMBERED 2026-09-12 (claude/discovery-property-graph-architecture.md,
-// "FROZEN 2026-09-12"): this file and every comment/status entry predating
-// that freeze calls this page "Page 2" of a four-page Discover -> Check IQ
-// -> Complete Your Trip -> Confirm journey. Under the frozen numbering this
-// is now Page 3 (Live Rate Verification & IQ) - a new Page 2 (Compare &
-// Choose, src/app/compare/page.tsx) was inserted between Discover and this
-// page. Nothing about this page's own behavior changed (the frozen doc's
-// own words: "unchanged - matches the existing live behaviour"); only what
-// number precedes it and what now links into it (Page 1's shortlist used to
-// link straight here - it now goes through /compare first). Left as "Page
-// 2" in older comments/DECISIONS.md/status.md entries rather than rewritten
-// - those are dated historical record, not live documentation. Merges
-// what used to be two separate pages/steps:
-//
-//   - /hotel's free "Analyse This Hotel" preview gate (a deliberate pause
-//     before spending a StayingAPI credit - see DECISIONS.md, "The
-//     Analyse This Hotel gate (2026-09-03)")
-//   - /search's actual rate intelligence (the credit-spending comparison)
-//
-// into one page, per the final spec's own resolution of the open question
-// this raised while planning Pages 1-2 (see the technical blueprint,
-// Section 10, "open decisions"): "fold the credit-safety trigger into
-// Check IQ itself" - clicking "Check IQ →" on Page 1's shortlist already
-// IS the deliberate, once-per-hotel-per-dates moment a real comparison
-// runs; a second confirmation click in between would just repeat the same
-// decision the visitor already made by choosing to check this property.
-// ensureLiveCheckTriggered()'s own claim-then-check concurrency guard
-// still means a second visitor hitting this same hotel/date pair costs
-// nothing extra.
-//
-// Deliberately does NOT render Things To Do (Viator) or Klook here - both
-// used to live at the bottom of the old /search page, but under the
-// four-page journey that content is Page 3's job (Complete Your Trip,
-// reached only after a hotel/rate is actually selected below). Showing it
-// here, before a decision is made, worked against the guided step-by-step
-// design the final spec calls for.
-//
-// UX correction (2026-09-13): passes retryUrl to VerifiedRatePanel so the
-// "not-checked" state renders a direct "Try again →" link instead of
-// defensive copy about the check not being the property's fault.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   robots: {
@@ -81,6 +24,24 @@ export const metadata: Metadata = {
   },
 };
 
+function nightsBetween(checkIn: string, checkOut: string): number {
+  const diff = Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
+  return diff > 0 ? diff : 1;
+}
+
+// Check IQ — the traveller's explicit, authorised decision point for ONE hotel.
+//
+// STAYINGAPI IS QUARANTINED. This page makes ZERO StayingAPI calls and reads
+// no StayingAPI cache: it shows the selected hotel's identity, the trip's stay
+// context and an honest "rate verification is currently unavailable" state,
+// and lets the traveller choose the HOTEL (a property decision - no seller,
+// no rate, no price). The previous rate-comparison implementation is
+// preserved, dormant, under src/lib/suppliers/ and the quarantined
+// components; see src/lib/hotel/stayingApiQuarantine.test.ts.
+//
+// The authorization gate is unchanged: a fresh entry without authorized=1
+// (only Compare's CTA and Confirm's "Return to rate check" supply it) is
+// redirected to Compare.
 export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   const params = await searchParams;
   const hotelId = params.hotel;
@@ -99,19 +60,6 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
     );
   }
 
-  // Authorization gate (2026-09-14, Track F / Phase 2) — prevents a direct
-  // URL or browser-back from spending a StayingAPI credit without the visitor
-  // having explicitly chosen this hotel from the Compare page.
-  //
-  // authorized=1 is appended by Compare's CTA (src/app/compare/page.tsx).
-  // Any entry point that does NOT go through Compare (a bookmark, a
-  // hand-crafted URL, a browser-back from Complete Your Trip) arrives without
-  // it and is bounced back to Compare so the visitor can make a deliberate
-  // choice before the credit runs.
-  //
-  // CREDIT RULE: ensureLiveCheckTriggered() — and therefore any StayingAPI
-  // spend — must NEVER be reached without authorized=1. This gate is the
-  // sole enforcement point. Do not move or remove it.
   if (authorized !== "1") {
     const compareUrl =
       `/compare?hotels=${hotelId}&checkin=${checkIn}&checkout=${checkOut}` +
@@ -120,34 +68,12 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
   }
 
   const trip = tripId ? await getTrip(tripId) : null;
-
-  // Occupancy resolved here (2026-09-13) — authoritative source is the trip
-  // record when one exists. Without a trip (visitor reached Check IQ directly
-  // via a hand-crafted URL, or the trip lookup failed) the application's own
-  // defaults are used: adults=2 (matches trips.adults default and rooms
-  // .occupancy default), children=0 (matches trips.children default). These
-  // same values are used as the cache key, so the write path
-  // (ensureLiveCheckTriggered) and the read path (runSearch → adapter)
-  // always agree. childAges[] is not sent — Rate Manifest does not currently
-  // collect individual child ages (diagnostic 2026-09-13).
   const adults = trip?.adults ?? 2;
   const children = trip?.children ?? 0;
+  const rooms = trip?.rooms ?? 1;
 
-  const sessionId = await getSessionId();
-  await logEvent({ type: "search", sessionId, hotelId, metadata: { checkIn, checkOut, tripId: tripId || null } });
-
-  // The credit-safety trigger, folded in here per the final spec (see the
-  // module comment above) - see DECISIONS.md, "Live on-demand check on
-  // /search," for why this is safe to call on every page load
-  // (claim-then-check via a unique index) and why it runs BEFORE
-  // runSearch() (a StayingAPI cache row landed here resolves immediately,
-  // no extra round trip). Mock hotels and already-checked dates fall
-  // straight through untouched.
-  const liveCheck = await ensureLiveCheckTriggered(hotelId, checkIn, checkOut, adults, children);
-
-  const result = await runSearch(hotelId, checkIn, checkOut, adults, children);
-
-  if (!result) {
+  const hotel = await db.query.hotels.findFirst({ where: eq(schema.hotels.id, hotelId) });
+  if (!hotel) {
     return (
       <div className="shell">
         <p className="empty-state">
@@ -157,204 +83,76 @@ export default async function CheckIqPage({ searchParams }: CheckIqPageProps) {
     );
   }
 
-  await logEvent({
-    type: "results_viewed",
-    sessionId,
-    hotelId,
-    metadata: { searchId: result.searchId, sourcesChecked: result.sourcesChecked },
-  });
+  const sessionId = await getSessionId();
+  await logEvent({ type: "search", sessionId, hotelId, metadata: { checkIn, checkOut, tripId: tripId || null } });
 
-  const room = await db.query.rooms.findFirst({ where: eq(schema.rooms.hotelId, result.hotel.id) });
-  const roomTypeLabel = room ? humanizeRoomType(room.normalizedType) : "Standard room";
-  const occupancy = room?.occupancy ?? 2;
-
-  const available = result.offers.filter((o) => !o.soldOut);
-  const soldOut = result.offers.filter((o) => o.soldOut);
-
-  const showComparison = liveCheck.kind !== "checking" && liveCheck.kind !== "error" && available.length > 0;
-
-  // 2026-09-07: now computed once inside runSearch() (bestDealScore.ts's
-  // MARKET component needs the same read to score the offers - see
-  // search.ts) and handed back on the result instead of a second
-  // price_history query here. Still only shown to the visitor when
-  // showComparison is true, same gating as before - just no longer a
-  // separate fetch to gate.
-  const priceInsight = result.priceInsight;
-  const belowHistoricalAverage =
-    priceInsight.hasEnoughData === true && priceInsight.percentVsAverage != null && priceInsight.percentVsAverage > 0;
-
-  const verifiedState: VerifiedRateState =
-    liveCheck.kind === "ready" ? (available.length > 0 ? "verified" : "no-availability") : "not-checked";
-
-  const tripQuery = tripId ? `&trip=${tripId}` : "";
-  const currentUrl = `/check-iq?hotel=${result.hotel.id}&checkin=${checkIn}&checkout=${checkOut}${tripQuery}`;
-
-  // Section 4 of the "Handling Missing Rate Conditions" spec - built once
-  // here (rather than inside RateSnapshotPanel) so both the panel and the
-  // RateManifest Verdict's uncertainty caveat below read off the exact same
-  // list of unknowns, not two independently-computed ones. Guests come from
-  // the trip record when Page 1 was actually used (real adults/children
-  // split); a visitor who reached Check IQ directly (see ResultsList's
-  // hotelCity comment on that fallback) has no trip yet, so this falls back
-  // to the room's own default occupancy as a single adult count - still
-  // honest, since there's no children figure to invent in that case.
-  const rateSnapshotFields = showComparison
-    ? buildRateSnapshot({
-        roomTypeLabel,
-        checkIn,
-        checkOut,
-        nights: result.nights,
-        adults: trip ? trip.adults : occupancy,
-        children: trip ? trip.children : 0,
-        offer: available[0]!,
-      })
-    : [];
-
-  // 2026-09-13: overwrite the proxy-based confidence stored by
-  // recordVerdict() (which uses cancellationKnown ? 0 : 1 as its
-  // uncertainty proxy) with the full-snapshot-based confidence computed
-  // here using the same three inputs that RateManifestVerdict.tsx uses.
-  // This keeps verdict.confidence and the displayed Verdict panel in sync,
-  // so Confirm's applyConfidenceGate() sees the same tier the visitor saw
-  // on Check IQ. Fire-and-forget: a failed write must never block the page.
-  if (result.verdictId && showComparison) {
-    const snapshotConfidence = getVerdictConfidence({
-      uncertainFieldCount: buildVerifyBeforeBooking(rateSnapshotFields).length,
-      hasReliabilityData: available[0]!.hasReliabilityData,
-      sourcesComparedCount: available.length,
-    }).tier;
-    void updateVerdictSnapshot(result.verdictId, rateSnapshotFields, snapshotConfidence);
-  }
+  const nights = nightsBetween(checkIn, checkOut);
+  const compareHref = `/compare?hotels=${hotelId}&checkin=${checkIn}&checkout=${checkOut}${tripId ? `&trip=${tripId}` : ""}`;
 
   return (
     <div className="shell">
       <NavBar ctaLabel="New search" ctaHref="/" />
+      <JourneyProgress step={3} />
 
-      {result.hotel.isMockData && (
-        <div className="demo-banner">
-          Demo mode — {result.hotel.name}&apos;s prices below are simulated for this prototype, not live
-          rates from these sources.
+      <div className="your-hotel-panel">
+        <div className="your-hotel-eyebrow">Your Hotel</div>
+        <div className="your-hotel-name">{hotel.name}</div>
+        <div className="your-hotel-meta">
+          {hotel.area}, {hotel.city} · {hotel.starRating}-star
         </div>
-      )}
-
-      {/* "No repeated info" (final spec, Important Implementation
-          Principles) - a visitor who already told Page 1 the dates/
-          guests/trip type for this trip shouldn't feel like Check IQ is
-          asking again from scratch. Read-only recap, nothing editable
-          here - changing any of it means a new Discover search. */}
-      {trip && (
-        <div className="trip-context-strip">
-          <span className="trip-context-item">
-            {trip.adults} adult{trip.adults === 1 ? "" : "s"}
-            {trip.children > 0 ? `, ${trip.children} child${trip.children === 1 ? "" : "ren"}` : ""}
-          </span>
-          <span className="trip-context-item">
-            {trip.rooms} room{trip.rooms === 1 ? "" : "s"}
-          </span>
-          {trip.purpose !== "UNSPECIFIED" && <span className="trip-context-item trip-context-purpose">{trip.purpose.replace("_", " ").toLowerCase()}</span>}
+        <div className="your-hotel-stats">
+          <div>
+            <span className="your-hotel-stat-label">Dates</span>
+            <span className="your-hotel-stat-value">
+              {checkIn} → {checkOut}
+            </span>
+          </div>
+          <div>
+            <span className="your-hotel-stat-label">Length of stay</span>
+            <span className="your-hotel-stat-value">
+              {nights} night{nights === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div>
+            <span className="your-hotel-stat-label">Guests</span>
+            <span className="your-hotel-stat-value">
+              {adults} adult{adults === 1 ? "" : "s"}
+              {children > 0 ? `, ${children} child${children === 1 ? "" : "ren"}` : ""}
+            </span>
+          </div>
+          <div>
+            <span className="your-hotel-stat-label">Rooms</span>
+            <span className="your-hotel-stat-value">
+              {rooms} room{rooms === 1 ? "" : "s"}
+            </span>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Step 1: Your Hotel - free, shown regardless of live-check state. */}
-      <YourHotelSummary
-        hotelName={result.hotel.name}
-        area={result.hotel.area}
-        city={result.hotel.city}
-        starRating={result.hotel.starRating}
-        checkIn={checkIn}
-        checkOut={checkOut}
-        nights={result.nights}
-        occupancy={occupancy}
-        roomTypeLabel={roomTypeLabel}
-      />
-
-      {/* Step 2: Rate Verified - real hotels only. See VerifiedRatePanel.tsx
-          for why mock hotels skip this entirely (the .demo-banner above
-          already says the prices are simulated). retryUrl passed only in
-          the not-checked state so the panel can offer "Try again →". */}
-      {!result.hotel.isMockData && liveCheck.kind !== "checking" && (
-        <VerifiedRatePanel
-          state={verifiedState}
-          sourcesChecked={result.sourcesChecked}
-          checkedAt={result.offers[0]?.checkedAt ?? null}
-          cheapestTotal={result.cheapestTotal}
-          nights={result.nights}
-          currency={available[0]?.currency ?? "AED"}
-          retryUrl={verifiedState === "not-checked" ? currentUrl : undefined}
-        />
-      )}
-
-      {liveCheck.kind === "checking" ? (
-        <LiveCheckStatus hotelId={result.hotel.id} checkIn={checkIn} checkOut={checkOut} adults={adults} children={children} />
-      ) : showComparison ? (
-        <>
-          {/* Non-null: showComparison already guarantees available.length > 0. */}
-          {priceInsight && <PriceInsightPanel insight={priceInsight} currency={available[0]?.currency ?? "AED"} />}
-
-          {/* "Handling Missing Rate Conditions" spec (2026-09-05), sections
-              4 + 6 - lays out every rate attribute a customer would want
-              before booking (confirmed or not) and the dynamically
-              generated "verify before booking" list built from whichever
-              of those actually came back unknown for this offer. */}
-          <RateSnapshotPanel
-            fields={rateSnapshotFields}
-            verifyItems={buildVerifyBeforeBooking(rateSnapshotFields)}
-          />
-
-          <WhyThisDealPanel offer={available[0]!} belowHistoricalAverage={belowHistoricalAverage} />
-
-          <div className="where-to-book-heading">Where to book</div>
-          <ResultsList
-            searchId={result.searchId}
-            hotelId={result.hotel.id}
-            hotelCity={result.hotel.city}
-            checkIn={checkIn}
-            checkOut={checkOut}
-            offers={available}
-            averageTotal={result.averageTotal}
-            cheapestTotal={result.cheapestTotal}
-            tripId={tripId}
-            verdictId={result.verdictId}
-          />
-
-          <RateManifestVerdict
-            offer={available[0]!}
-            offers={available}
-            hotelName={result.hotel.name}
-            sourcesChecked={result.sourcesChecked}
-            uncertainFields={buildVerifyBeforeBooking(rateSnapshotFields).map((f) => f.label)}
-          />
-          <BeforeYouBookPanel
-            hotelName={result.hotel.name}
-            checkIn={checkIn}
-            checkOut={checkOut}
-            occupancy={occupancy}
-            roomTypeLabel={roomTypeLabel}
-            offer={available[0]!}
-            checkedAt={result.offers[0]?.checkedAt ?? null}
-            currentUrl={currentUrl}
-          />
-        </>
-      ) : liveCheck.kind === "error" ? (
-        null
-      ) : (
-        result.hotel.isMockData && (
-          <p className="empty-state">No availability found across the sources we checked for these dates.</p>
-        )
-      )}
-
-      {liveCheck.kind !== "checking" && liveCheck.kind !== "error" && soldOut.length > 0 && (
-        <p className="footnote">
-          {soldOut.length} source{soldOut.length === 1 ? "" : "s"} checked had no availability for these
-          dates.
+      <div className="confirm-route-block confirm-route-inquiry">
+        <div className="confirm-route-label">Rate verification</div>
+        <p className="confirm-route-note">Rate verification is currently unavailable.</p>
+        <p className="confirm-route-reason">
+          RateManifest isn&apos;t showing rates, availability or price comparisons for this hotel right now, and won&apos;t
+          estimate them. You can still choose this hotel and continue planning your trip.
         </p>
-      )}
+      </div>
 
-      <p className="footnote">
-        Rate Manifest shows its own computed summary first; the named source and link for any offer only
-        appear once you reveal it. This keeps every source&apos;s display terms satisfied without hiding
-        that a comparison happened.
-      </p>
+      <div className="complete-trip-actions">
+        <form action={selectProperty}>
+          <input type="hidden" name="tripId" value={tripId} />
+          <input type="hidden" name="hotelId" value={hotel.id} />
+          <input type="hidden" name="hotelCity" value={hotel.city} />
+          <input type="hidden" name="checkIn" value={checkIn} />
+          <input type="hidden" name="checkOut" value={checkOut} />
+          <button className="btn" type="submit">
+            Choose this hotel →
+          </button>
+        </form>
+        <Link className="btn btn-ghost" href={compareHref}>
+          ← Back to compare
+        </Link>
+      </div>
 
       <Footer />
     </div>

@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://ratemanifest.com"),
   title: "Rate Manifest | Travel Decision Intelligence",
   description:
-    "Real insights. Smarter choices. Better journeys. Rate Manifest helps travellers compare, verify and make better-informed travel decisions.",
+    "Real insights. Smarter choices. Better journeys. Rate Manifest helps travellers shortlist, compare and make better-informed travel decisions.",
   alternates: {
     canonical: "https://ratemanifest.com/",
   },
@@ -84,7 +84,7 @@ const structuredData = {
       name: "Rate Manifest",
       url: "https://ratemanifest.com/",
       description:
-        "Rate Manifest is a travel decision intelligence platform that helps travellers compare, verify and make better-informed travel decisions.",
+        "Rate Manifest is a travel decision intelligence platform that helps travellers shortlist, compare and make better-informed travel decisions.",
     },
     {
       "@type": "WebSite",

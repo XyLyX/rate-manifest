@@ -18,7 +18,7 @@ import { Footer } from "@/components/Footer";
 export const metadata: Metadata = {
   title: "Methodology — Rate Manifest",
   description:
-    "How Rate Manifest discovers, normalizes, verifies, and analyses hotel rates to reach a decision - and what it won't do when the evidence isn't there.",
+    "How Rate Manifest intends to discover, normalize, verify and analyse hotel rates to reach a decision - and what it won't do when the evidence isn't there. Rate verification is currently unavailable.",
   alternates: {
     canonical: "https://ratemanifest.com/methodology",
   },
@@ -33,17 +33,20 @@ export default function MethodologyPage() {
         <div className="hero-eyebrow">Methodology</div>
         <h1>How Rate Manifest works.</h1>
         <p>
-          Rate Manifest does more than display hotel rates. It brings available offers together,
-          normalizes the differences between them, verifies what can be verified, and turns the
-          evidence into a decision.
+          Rate Manifest is designed to do more than display hotel rates. It is intended to bring
+          offers together, normalize the differences between them, verify what can be verified,
+          and turn the evidence into a decision.
+        </p>
+        <p>
+          Rate verification is currently unavailable. This page describes the intended method.
         </p>
       </div>
 
       <div className="card">
         <h2 className="card-title">1. Discover</h2>
         <p style={{ color: "var(--text-dim)" }}>
-          Rate Manifest discovers properties and offers through the sources it currently has access
-          to. This is not universal hotel inventory — it's whatever those sources can actually
+          Rate Manifest discovers properties (and, in the intended method, offers) through the
+          sources it currently has access to. This is not universal hotel inventory — it's whatever those sources can actually
           return, and that set grows as more sources are added.
         </p>
       </div>
@@ -54,7 +57,8 @@ export default function MethodologyPage() {
           Offers from different sources aren&apos;t directly comparable. Room type, occupancy, meal
           inclusion, cancellation conditions, payment conditions, rate structure, and the source
           itself can all differ between two listings for what looks like &quot;the same room.&quot;
-          Rate Manifest normalizes offers against the attributes it actually captures, rather than
+          In the intended method, Rate Manifest normalizes offers against the attributes it actually
+          captures, rather than
           assuming any two prices are describing the same thing.
         </p>
       </div>
@@ -62,16 +66,18 @@ export default function MethodologyPage() {
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <h2 className="card-title">3. Verify</h2>
         <p style={{ color: "var(--text-dim)" }}>
-          Selected rates can be checked against live source data. Live verification is a separate,
-          explicit action — Rate Manifest doesn&apos;t call a live source just because a page is
-          being viewed. It happens when you ask it to, through Check IQ.
+          In the intended method, selected rates can be checked against live source data. Live
+          verification would be a separate, explicit action — Rate Manifest would not call a live
+          source just because a page is being viewed, only when you ask it to, through Check IQ.
+          This is currently unavailable.
         </p>
       </div>
 
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <h2 className="card-title">4. Analyse</h2>
         <p style={{ color: "var(--text-dim)" }}>
-          For each set of offers, Rate Manifest looks at what&apos;s actually being compared, what
+          In the intended method, for each set of offers, Rate Manifest looks at what&apos;s actually
+          being compared, what
           evidence exists for it, what evidence is missing, and how confident it can be given that
           evidence. That analysis is what determines why a rate receives the assessment it does —
           not a fixed rule like &quot;lowest price wins.&quot;
@@ -81,15 +87,15 @@ export default function MethodologyPage() {
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <h2 className="card-title">5. Decide</h2>
         <p style={{ color: "var(--text-dim)" }}>
-          The output isn&apos;t &quot;this is the cheapest rate.&quot; It&apos;s which available
-          option makes the most sense, based on the evidence Rate Manifest actually has for it.
+          In the intended method, the output isn&apos;t &quot;this is the cheapest rate.&quot; It&apos;s
+          which option makes the most sense, based on the evidence Rate Manifest actually has for it.
         </p>
       </div>
 
       <div className="card" style={{ marginTop: "1.5rem" }}>
         <h2 className="card-title">6. Rate Memory</h2>
         <p style={{ color: "var(--text-dim)" }}>
-          Every live check contributes an observation to Rate Memory. Over time, that builds a real
+          In the intended method, every live check contributes an observation to Rate Memory. Over time, that builds a real
           history for a property rather than a single snapshot. Rate Manifest does not claim
           historical trends, a &quot;normal&quot; price, or an unusually cheap or expensive rate
           until enough observations actually exist to support that — the historical clock starts

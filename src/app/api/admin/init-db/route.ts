@@ -551,6 +551,101 @@ DELETE FROM hotels WHERE id = 'palm-crescent';
 DELETE FROM hotels WHERE id = 'business-bay-central';
 DELETE FROM hotels WHERE id = 'al-fahidi-heritage';
 DELETE FROM hotels WHERE id = 'jbr-beachfront';
+
+-- 2026-09-21, Phase 1A shared four-tower platform foundation. ADDITIVE ONLY:
+-- new tables, no change to any table above. Mirrors src/db/schema.ts
+-- (tripComponents, merchants, accessRoutes, merchantAccessRoutes,
+-- offerSnapshots, componentSelections, commercialRoutes). Independent of
+-- StayingAPI and of the legacy suppliers/trip_selections tables.
+CREATE TABLE IF NOT EXISTS trip_components (
+  id text PRIMARY KEY,
+  trip_id text NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  position integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'draft',
+  input_json text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS trip_components_trip_idx ON trip_components (trip_id);
+
+CREATE TABLE IF NOT EXISTS merchants (
+  id text PRIMARY KEY,
+  slug text NOT NULL UNIQUE,
+  name text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS access_routes (
+  id text PRIMARY KEY,
+  slug text NOT NULL UNIQUE,
+  name text NOT NULL,
+  kind text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS merchant_access_routes (
+  id text PRIMARY KEY,
+  merchant_id text NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+  access_route_id text NOT NULL REFERENCES access_routes(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'unverified'
+);
+CREATE UNIQUE INDEX IF NOT EXISTS merchant_access_routes_pair_idx
+  ON merchant_access_routes (merchant_id, access_route_id);
+
+CREATE TABLE IF NOT EXISTS offer_snapshots (
+  id text PRIMARY KEY,
+  component_id text NOT NULL REFERENCES trip_components(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  merchant_id text NOT NULL REFERENCES merchants(id),
+  external_ref text,
+  currency text NOT NULL,
+  total_price double precision NOT NULL,
+  source_url text,
+  captured_at timestamp NOT NULL DEFAULT now(),
+  payload_json text NOT NULL DEFAULT '{}',
+  provenance_json text NOT NULL
+);
+CREATE INDEX IF NOT EXISTS offer_snapshots_component_idx ON offer_snapshots (component_id);
+
+CREATE TABLE IF NOT EXISTS component_selections (
+  id text PRIMARY KEY,
+  component_id text NOT NULL REFERENCES trip_components(id) ON DELETE CASCADE,
+  offer_id text NOT NULL REFERENCES offer_snapshots(id) ON DELETE CASCADE,
+  selected_at timestamp NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS component_selections_component_idx
+  ON component_selections (component_id);
+
+-- Phase 2: commercial-only handoff (no inventory, no price).
+CREATE TABLE IF NOT EXISTS commercial_handoffs (
+  id text PRIMARY KEY,
+  component_id text NOT NULL REFERENCES trip_components(id) ON DELETE CASCADE,
+  merchant_id text NOT NULL REFERENCES merchants(id),
+  context_json text NOT NULL,
+  landing_url text,
+  provenance_json text NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS commercial_handoffs_component_idx ON commercial_handoffs (component_id);
+
+CREATE TABLE IF NOT EXISTS commercial_routes (
+  id text PRIMARY KEY,
+  selection_id text REFERENCES component_selections(id) ON DELETE CASCADE,
+  handoff_id text REFERENCES commercial_handoffs(id) ON DELETE CASCADE,
+  component_id text NOT NULL REFERENCES trip_components(id) ON DELETE CASCADE,
+  merchant_id text NOT NULL REFERENCES merchants(id),
+  access_route_id text REFERENCES access_routes(id),
+  route_type text NOT NULL,
+  eligibility text NOT NULL,
+  destination_url text,
+  attribution_json text NOT NULL,
+  reason text,
+  resolved_at timestamp NOT NULL DEFAULT now(),
+  CONSTRAINT commercial_routes_subject_check CHECK ((selection_id IS NULL) <> (handoff_id IS NULL))
+);
+CREATE INDEX IF NOT EXISTS commercial_routes_selection_idx ON commercial_routes (selection_id);
+CREATE INDEX IF NOT EXISTS commercial_routes_component_idx ON commercial_routes (component_id);
 `;
 
 export async function GET(request: Request) {
