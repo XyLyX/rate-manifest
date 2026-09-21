@@ -178,6 +178,10 @@ export interface TrackingEvidence {
   verifiedAt: string; // ISO timestamp
   // Optional detail from the access route (e.g. the network campaign that confirmed it).
   campaignId?: number | null;
+  // Opaque Rate Manifest attribution identifier sent to the network as the
+  // publisher Sub-ID. Never derived from traveller data. Stored with the
+  // route's attribution JSON (no schema change).
+  attributionId?: string;
 }
 
 // --- Commercial handoff (no inventory) ------------------------------------
