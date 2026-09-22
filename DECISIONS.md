@@ -185,7 +185,7 @@ the "pending review" theory above was wrong, or at least not the whole
 story, since the 404 persists even with an active project on the real
 domain. Re-tested directly:
 ```
-curl "https://engine.hotellook.com/api/v2/lookup.json?query=Dubai&token=7f761c1c7006e74fdbf1d6ac674f142f"
+curl "https://engine.hotellook.com/api/v2/lookup.json?query=Dubai&token=REVOKED TOKEN"
 ```
 still 404s. Checked Travelpayouts' own support docs directly (not
 guessed): the Hotels Data API is gated behind a **separate written
