@@ -3,7 +3,19 @@ import type { CommercialHandoff, CommercialRoute, OfferSnapshot, Selection, Trip
 import type { AccessRoute, Merchant, MerchantAccessLink } from "./types";
 
 // In-memory PlatformStore used by tests. Mirrors the semantics of
-// drizzleStore.ts (unique slugs, one selection per component).
+// drizzleStore.ts (unique slugs, one selection per component, a unique
+// (merchant_id, access_route_id) pair - see schema.ts's merchants.slug,
+// access_routes.slug and merchant_access_routes_pair_idx).
+//
+// Duplicate-insert errors carry `code: "23505"` - Postgres' own
+// unique_violation SQLSTATE, exactly what the `pg` driver attaches to a real
+// constraint violation - so code exercising concurrent-registration recovery
+// (see joaliCommercial.ts) behaves identically against this store and the
+// real one.
+function uniqueViolation(message: string): Error & { code: string } {
+  return Object.assign(new Error(message), { code: "23505" });
+}
+
 export class MemoryPlatformStore implements PlatformStore {
   components = new Map<string, TripComponent>();
   merchants = new Map<string, Merchant>();
@@ -36,7 +48,15 @@ export class MemoryPlatformStore implements PlatformStore {
     return this.merchants.get(id) ?? null;
   }
   async insertMerchant(m: Merchant) {
-    if (await this.getMerchantBySlug(m.slug)) throw new Error("duplicate merchant slug");
+    // Checked synchronously (not via `await this.getMerchantBySlug(...)`,
+    // which - despite doing no real I/O - still yields a microtask tick and
+    // would let two concurrent inserts both observe "not found" before
+    // either's `.set()` runs). A real Postgres unique index has no such
+    // window; this keeps that same atomicity guarantee here, so
+    // interleaved/concurrent callers (see joali.test.ts's race simulations)
+    // exercise the same unique_violation recovery path they would against
+    // the real database, not an artifact of this store's own async shape.
+    if ([...this.merchants.values()].some((x) => x.slug === m.slug)) throw uniqueViolation("duplicate merchant slug");
     this.merchants.set(m.id, m);
   }
 
@@ -47,13 +67,17 @@ export class MemoryPlatformStore implements PlatformStore {
     return this.accessRoutes.get(id) ?? null;
   }
   async insertAccessRoute(r: AccessRoute) {
-    if (await this.getAccessRouteBySlug(r.slug)) throw new Error("duplicate access route slug");
+    // Synchronous check - see insertMerchant's own comment above.
+    if ([...this.accessRoutes.values()].some((x) => x.slug === r.slug)) throw uniqueViolation("duplicate access route slug");
     this.accessRoutes.set(r.id, r);
   }
   async listMerchantAccessLinks(merchantId: string) {
     return this.links.filter((l) => l.merchantId === merchantId);
   }
   async insertMerchantAccessLink(l: MerchantAccessLink) {
+    if (this.links.some((x) => x.merchantId === l.merchantId && x.accessRouteId === l.accessRouteId)) {
+      throw uniqueViolation("duplicate merchant_access_routes pair");
+    }
     this.links.push(l);
   }
 

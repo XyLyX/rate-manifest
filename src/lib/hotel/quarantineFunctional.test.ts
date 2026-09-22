@@ -124,7 +124,10 @@ test("13: no StayingAPI-derived verdict is required or read by the active journe
 });
 
 test("14: commercial routing is independent of StayingAPI: no builders, no seller-derived route, honest CTA", async () => {
-  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), []);
+  // GitHub Issue #3 (2026-09-22): "joali" is the one registered H2 builder -
+  // a direct affiliate destination with no StayingAPI/seller dependency
+  // (see joali.test.ts's own StayingAPI-isolation checks).
+  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), ["joali"]);
   for (const f of ["lib/hotel/commercial.ts", "lib/hotel/decision.ts", "lib/hotel/journey.ts", "lib/platform/service.ts", "lib/platform/route.ts"]) {
     assert.ok(!/stayingApi\w*|SUPPLIER_ADAPTERS|runSearch/.test(code(f)), `${f} depends on StayingAPI`);
   }

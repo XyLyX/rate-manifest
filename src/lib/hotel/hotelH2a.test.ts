@@ -182,7 +182,10 @@ test("non-bookable outcomes are re-evaluated (retried) but never append duplicat
 // ---- Anantara blocked state -------------------------------------------------
 
 test("Anantara: production builder remains BLOCKED - no builder, no URL guess, no catalogue mapping, no name matching", () => {
-  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), []);
+  // GitHub Issue #3 (2026-09-22): "joali" is the first real, owner-verified
+  // H2 builder (see joaliDestination.ts) - every OTHER merchant, including
+  // Anantara, stays exactly as blocked as before.
+  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), ["joali"]);
   for (const f of readdirSync(join(SRC, "lib/hotel")).filter((n) => !n.endsWith(".test.ts"))) {
     assert.ok(!/anantara/i.test(code(`lib/hotel/${f}`)), `${f} must not reference Anantara until the proven destination is recovered`);
   }

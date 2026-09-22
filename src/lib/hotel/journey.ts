@@ -4,6 +4,7 @@ import { getTrip } from "@/lib/trip";
 import { drizzlePlatformStore } from "@/lib/platform/drizzleStore";
 import { inquiryOnlyCta, previewHotelCtaForTrip, propertyBookingUnavailableCta, resolveHotelActionForTrip, type HotelCta } from "./commercial";
 import { getPropertyChoice, propertyChoiceWithLegacyFallback, recordHotelDecision, recordPropertyChoice, type HotelDecisionInput, type PropertyChoice, type PropertyChoiceInput } from "./decision";
+import { ensureJoaliCommercialSetup as ensureJoaliCommercialSetupPure, joaliCtaForChoice as joaliCtaForChoicePure } from "./joaliCommercial";
 
 
 // DB-backed wiring of the Hotel V1 decision/commercial layer into the live
@@ -116,4 +117,25 @@ export async function propertyChoiceForTrip(tripId: string): Promise<PropertyCho
 /** Confirm CTA for a property-only choice: no merchant/route evidence exists, so honestly no booking CTA. */
 export function propertyCta(propertyName: string): HotelCta {
   return propertyBookingUnavailableCta(propertyName);
+}
+
+/**
+ * Idempotent one-time registration of the JOALI merchant and its Awin access
+ * route (GitHub Issue #3). Called explicitly from the isolated JOALI entry
+ * flow (src/app/actions/joali.ts) at the moment a traveller chooses a JOALI
+ * property - never at module import, and never implied by any other Hotel V1
+ * path. Thin DB-bound wrapper; the actual (store-injected, directly
+ * testable) logic lives in joaliCommercial.ts.
+ */
+export async function ensureJoaliCommercialSetup(): Promise<void> {
+  await ensureJoaliCommercialSetupPure(drizzlePlatformStore);
+}
+
+/**
+ * Confirm CTA for a JOALI property choice - real Awin booking route, or null
+ * for a non-JOALI property so the caller falls back to propertyCta. Thin
+ * DB-bound wrapper; see joaliCommercial.ts for the store-injected logic.
+ */
+export async function joaliCtaForChoice(propertyId: string, stay: PropertyChoiceInput["stay"]): Promise<HotelCta | null> {
+  return joaliCtaForChoicePure(drizzlePlatformStore, propertyId, stay);
 }

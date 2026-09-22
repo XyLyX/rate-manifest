@@ -1,9 +1,12 @@
 import { cuelinksEvidenceFor } from "../platform/cuelinksAccess";
+import { awinConfigFromEnv, AWIN_PROVEN, createAwinAdapter } from "../platform/awinAccess";
+import { makeAttributionId } from "../platform/attribution";
 import { assertRouteInvariants, buildCommercialRoute, isValidHandoffUrl } from "../platform/route";
 import { pickAccessRoute, type PlatformStore } from "../platform/service";
 import type { CommercialRoute, HotelInput, Merchant, TrackingEvidence } from "../platform/types";
 import type { CuelinksConversionResult } from "../commercial/cuelinks";
 import { getHotelDecision, type HotelDecision } from "./decision";
+import { buildJoaliDestination } from "./joaliDestination";
 import { newId } from "../id";
 
 // Hotel V1 commercial action: ONE policy used by Check IQ (preview, per
@@ -33,12 +36,17 @@ export interface HotelRouteBuild {
 // already-proven builder/path. Returns null when none is known.
 export type HotelRouteBuilder = (ctx: HotelRouteContext) => HotelRouteBuild | null;
 
-// Production registry of verified contextual builders. INTENTIONALLY EMPTY in
-// H1: the generic merchant landing URLs from the Phase 2 proof are fixture
-// evidence, not production deeplinks. H2 adds a builder here only where a
-// contextual builder is separately verified. Until then every merchant
-// resolves honestly to "no attributable route".
-export const HOTEL_ROUTE_BUILDERS: Record<string, HotelRouteBuilder> = {};
+// Production registry of verified contextual builders. Empty through H1: the
+// generic merchant landing URLs from the Phase 2 proof were fixture evidence,
+// not production deeplinks, so nothing was registered. H2 adds a builder
+// here only where a contextual builder is separately verified - every
+// merchant without one still resolves honestly to "no attributable route".
+// "joali" (GitHub Issue #3) is the first: a direct reservation-engine
+// destination, owner-confirmed via a real Awin redirect test for both
+// properties - see joaliDestination.ts.
+export const HOTEL_ROUTE_BUILDERS: Record<string, HotelRouteBuilder> = {
+  joali: buildJoaliDestination,
+};
 
 export interface HotelCta {
   enabled: boolean;
@@ -115,6 +123,13 @@ async function evaluateHotelRoute(
   let evidence: TrackingEvidence | null = null;
   if (accessRoute && build && accessRoute.kind === "affiliate_network" && accessRoute.slug === "cuelinks") {
     evidence = (await cuelinksEvidenceFor(build.url, { convert: opts?.convert, expectedCampaignId: build.expectedCampaignId })).evidence;
+  } else if (accessRoute && build && accessRoute.kind === "affiliate_network" && accessRoute.slug === "awin") {
+    const outcome = await createAwinAdapter(awinConfigFromEnv()).issue({
+      destinationUrl: build.url,
+      attributionId: makeAttributionId(),
+      expectedIdentity: { offerId: AWIN_PROVEN.advertiserId, affiliateId: AWIN_PROVEN.publisherId },
+    });
+    evidence = outcome.ok ? outcome.evidence : null;
   }
   // Other network kinds have no evidence producer yet: they stay honestly ineligible.
 

@@ -143,8 +143,11 @@ test("5: unaffiliated / unattributable / unbuildable merchants never produce an 
   assert.equal(a1!.cta.enabled, false);
   assert.equal(a1!.cta.url, null);
 
-  // approved route but no verified contextual builder (production registry is empty) -> unavailable, no CTA
-  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), []);
+  // approved route but no verified contextual builder for THIS merchant -> unavailable, no CTA.
+  // GitHub Issue #3 (2026-09-22): "joali" is now the one registered H2 builder
+  // (see joaliDestination.ts); "test-merchant" still has none.
+  assert.deepEqual(Object.keys(HOTEL_ROUTE_BUILDERS), ["joali"]);
+  assert.ok(!Object.prototype.hasOwnProperty.call(HOTEL_ROUTE_BUILDERS, "test-merchant"));
   const s2 = new MemoryPlatformStore();
   await withCuelinksApproved(s2);
   await recordHotelDecision(s2, decisionInput());

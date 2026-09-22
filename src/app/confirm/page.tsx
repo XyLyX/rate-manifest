@@ -3,7 +3,9 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { getTrip, getTripExperiences } from "@/lib/trip";
-import { propertyChoiceForTrip, propertyCta } from "@/lib/hotel/journey";
+import { joaliCtaForChoice, propertyChoiceForTrip, propertyCta } from "@/lib/hotel/journey";
+import { JOALI_VERIFIED_PROPERTIES } from "@/lib/hotel/joaliDestination";
+import { isJoaliStagingEnabled } from "@/lib/hotel/joaliStagingGate";
 import { rateCheckReturnHref } from "@/lib/hotel/links";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -68,9 +70,24 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const experiences = await getTripExperiences(tripId);
   const nights = nightsBetween(trip.checkIn, trip.checkOut);
 
-  // Hotel V1 commercial policy: no merchant/route evidence exists for a bare
-  // property choice, so honestly no booking CTA (never enabled, no URL).
-  const cta = propertyCta(hotel?.name ?? "this hotel");
+  // JOALI (GitHub Issue #3) is never seeded into the hotels catalogue, so
+  // `hotel` above is always undefined for it - its display name/area come
+  // from the same verified property map the booking-route builder uses.
+  const joaliProperty = JOALI_VERIFIED_PROPERTIES[choice.propertyId];
+  const displayHotelName = hotel?.name ?? joaliProperty?.name ?? "—";
+
+  // Hotel V1 commercial policy: for a bare property choice there is
+  // normally no merchant/route evidence, so honestly no booking CTA (never
+  // enabled, no URL). JOALI is the one exception with a real, owner-
+  // confirmed Awin route - resolved the same way Check IQ previews any
+  // other merchant's CTA (previewHotelCta), just without a priced decision.
+  //
+  // Enforced independently here too (see joaliStagingGate.ts): a trip whose
+  // hotel component already has a JOALI propertyId from before the flag was
+  // disabled must fall back to the honest, disabled propertyCta - never
+  // expose a live affiliate CTA just because it was recorded earlier.
+  const joaliEnabled = Boolean(joaliProperty) && isJoaliStagingEnabled();
+  const cta = joaliEnabled ? ((await joaliCtaForChoice(choice.propertyId, choice.stay)) ?? propertyCta(displayHotelName)) : propertyCta(displayHotelName);
 
   // A combined monetary total is NOT computed: there is no verified hotel
   // price. Only an experiences subtotal is shown, and only when every priced
@@ -99,7 +116,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
 
         <div className="confirm-summary-block">
           <div className="confirm-summary-label">Hotel</div>
-          <div className="confirm-summary-value confirm-summary-value-lg">{hotel?.name ?? "—"}</div>
+          <div className="confirm-summary-value confirm-summary-value-lg">{displayHotelName}</div>
           {hotel && (
             <div className="your-hotel-meta">
               {hotel.area}, {hotel.city} · {hotel.starRating}-star
