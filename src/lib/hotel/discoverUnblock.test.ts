@@ -78,11 +78,14 @@ test("7+8: selected hotel ids and the trip's dates/party reach Compare", () => {
   const page = code("app/page.tsx");
   assert.match(page, /const checkIn = trip \? trip\.checkIn : defaultCheckIn\(\);/);
   assert.match(page, /<HotelSelectionGrid hotels=\{shortlistHotels\} checkIn=\{checkIn\} checkOut=\{checkOut\} tripId=\{trip\.id\} \/>/);
-  // createTrip records destination/dates/rooms/adults/children and returns to the shortlist
+  // createTrip records destination/dates/rooms/adults/children (via the
+  // shared V2A validation contract - src/lib/tripIntent.ts, see
+  // tripIntent.test.ts and createTrip.test.ts) and returns to the shortlist
   const actions = code("app/actions/trip.ts");
-  for (const f of ["destination", "checkIn: new Date(checkin)", "checkOut: new Date(checkout)", 'parseIntOr(formData.get("adults"), 2)', 'parseIntOr(formData.get("children"), 0)', 'parseIntOr(formData.get("rooms"), 1)']) {
+  for (const f of ["destination: core.value.destination", "checkIn: new Date(core.value.checkIn)", "checkOut: new Date(core.value.checkOut)", "adults: core.value.adults", "children: core.value.children", "rooms: core.value.rooms"]) {
     assert.ok(actions.includes(f), `createTrip stores ${f}`);
   }
+  assert.match(actions, /parseTripCoreFields\(/);
   assert.match(actions, /redirect\(`\/\?trip=\$\{id\}#shortlist`\)/);
   // Compare reads the ids list; Check IQ reads party/rooms from the trip
   assert.match(code("app/compare/page.tsx"), /\(params\.hotels \?\? ""\)\.split\(","\)/);

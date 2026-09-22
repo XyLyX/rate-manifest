@@ -313,6 +313,15 @@ CREATE TABLE IF NOT EXISTS trips (
   created_at timestamp NOT NULL DEFAULT now()
 );
 
+-- V2A Build 1 (Traveller Intent Profile), added after trips already existed
+-- in production, so CREATE TABLE IF NOT EXISTS above won't add it to an
+-- already-created table - same idempotent ADD COLUMN IF NOT EXISTS pattern
+-- as hotels' featured_in_iq/state/enrichment columns above. Nullable, no
+-- default: every existing trip keeps preferences_json = NULL (read back as
+-- "no preferences given," not an error or an invented default) - see
+-- src/lib/tripIntent.ts.
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS preferences_json text;
+
 CREATE TABLE IF NOT EXISTS trip_selections (
   id text PRIMARY KEY,
   trip_id text NOT NULL REFERENCES trips(id) ON DELETE CASCADE,

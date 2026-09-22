@@ -1,9 +1,27 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { createTrip } from "@/app/actions/trip";
 import { recordDestinationInterest } from "@/app/actions/destinationInterest";
 import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
+import {
+  ESSENTIAL_REQUIREMENTS,
+  ESSENTIAL_REQUIREMENT_LABELS,
+  MAX_TRIP_PRIORITIES,
+  PREFERENCE_CURRENCIES,
+  PREFERRED_LOCATION_MAX_LENGTH,
+  TRIP_PRIORITIES,
+  TRIP_PRIORITY_LABELS,
+  type CreateTripState,
+  type EssentialRequirement,
+  type PreferenceCurrency,
+  type TripPriority,
+} from "@/lib/tripIntent";
+
+const CREATE_TRIP_INITIAL_STATE: CreateTripState = { ok: true };
+// The <select>'s own sentinel for "let me type a different ISO 4217 code" -
+// never itself submitted as a currency value (see the hidden resolved input below).
+const OTHER_CURRENCY = "OTHER" as const;
 
 interface DiscoverFormProps {
   cities: string[];
@@ -57,9 +75,41 @@ function normalise(s: string): string {
 // action that writes to destination_interest). The destination is captured
 // automatically from the visitor's search - they never re-enter it.
 export function DiscoverForm({ cities, defaultDestination = "", destinationSupported = false, defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
+  // V2A Build 1: bound via useActionState (not a bare `action={createTrip}`)
+  // so an invalid/tampered submission returns a rendered, accessible error
+  // - see createTrip's own comment - instead of throwing into Next.js's
+  // generic error boundary. Nothing here resets any other field's state on
+  // failure, so everything the traveller already entered stays exactly as
+  // they left it (see the `state.ok === false` block below).
+  const [state, formAction] = useActionState(createTrip, CREATE_TRIP_INITIAL_STATE);
+
   const [checkIn, setCheckIn] = useState(defaultCheckIn);
   const [checkOut, setCheckOut] = useState(defaultCheckOut);
   const [purpose, setPurpose] = useState<TripPurpose>("UNSPECIFIED");
+
+  // V2A Build 1: "Personalise your stay" - entirely optional, so every
+  // piece of state here starts genuinely empty, never a pre-picked value.
+  const [budgetAmount, setBudgetAmount] = useState("");
+  // budgetCurrency is the RESOLVED value actually submitted (one of the six
+  // quick-picks, or whatever the traveller typed after choosing "Other").
+  // currencyMode only controls which control is shown - it is never itself submitted.
+  const [budgetCurrency, setBudgetCurrency] = useState<PreferenceCurrency | string>("");
+  const [currencyMode, setCurrencyMode] = useState<"preset" | "other">("preset");
+  const [preferredLocation, setPreferredLocation] = useState("");
+  const [priorities, setPriorities] = useState<TripPriority[]>([]);
+  const [essentials, setEssentials] = useState<EssentialRequirement[]>([]);
+
+  function togglePriority(key: TripPriority) {
+    setPriorities((current) => {
+      if (current.includes(key)) return current.filter((k) => k !== key);
+      if (current.length >= MAX_TRIP_PRIORITIES) return current; // cap enforced client-side too; the server enforces it regardless
+      return [...current, key];
+    });
+  }
+
+  function toggleEssential(key: EssentialRequirement) {
+    setEssentials((current) => (current.includes(key) ? current.filter((k) => k !== key) : [...current, key]));
+  }
 
   // Destination combobox state
   const [destInput, setDestInput] = useState(defaultDestination);
@@ -135,9 +185,25 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
   }
 
   return (
-    <form className="discover-form" action={createTrip} onSubmit={handleSubmit}>
+    <form className="discover-form" action={formAction} onSubmit={handleSubmit}>
       {/* Hidden input carries the resolved, canonical city name to createTrip */}
       <input type="hidden" name="destination" value={resolvedCity ?? destInput} />
+
+      {/* V2A Build 1: a rejected submission (invalid/tampered core fields or
+          preferences) renders here instead of throwing into Next.js's
+          generic error page. Nothing above has reset, so every value the
+          traveller already entered - destination, dates, party size,
+          personalisation - is still exactly as they left it. */}
+      {!state.ok && (
+        <div className="discover-form-error" role="alert">
+          <span className="discover-form-error-headline">We couldn&apos;t start that search.</span>
+          <ul>
+            {state.errors.map((err) => (
+              <li key={err}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="discover-form-row">
         <div className="field">
@@ -327,6 +393,131 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
         </div>
         <input type="hidden" name="purpose" value={purpose} />
       </div>
+
+      {/* V2A Build 1: entirely optional - collapsed by default (<details>),
+          nothing here feeds discovery, ranking or filtering; it is only
+          stored against the trip for later pages to read (see
+          src/lib/tripIntent.ts). Leaving every field untouched submits no
+          preferences at all, not an object of empty/invented defaults. */}
+      <details className="discover-form-personalise">
+        <summary className="discover-form-personalise-summary">
+          <span className="discover-form-intent-label">Personalise your stay (optional)</span>
+        </summary>
+        <div className="discover-form-personalise-body">
+          <div className="discover-form-row discover-form-row-budget">
+            <div className="field field-narrow">
+              <label htmlFor="budget-amount">Nightly budget</label>
+              <input
+                id="budget-amount"
+                name="budgetAmount"
+                type="number"
+                min={0}
+                step="1"
+                inputMode="decimal"
+                placeholder="e.g. 500"
+                value={budgetAmount}
+                onChange={(e) => setBudgetAmount(e.target.value)}
+              />
+            </div>
+            <div className="field field-narrow">
+              <label htmlFor="budget-currency">Currency</label>
+              {/* This <select> is display-only (unnamed) - the value actually
+                  submitted travels through the single hidden input below, so
+                  the server always sees exactly one resolved budgetCurrency
+                  regardless of which control produced it. */}
+              <select
+                id="budget-currency"
+                value={currencyMode === "other" ? OTHER_CURRENCY : budgetCurrency}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === OTHER_CURRENCY) {
+                    setCurrencyMode("other");
+                    setBudgetCurrency("");
+                  } else {
+                    setCurrencyMode("preset");
+                    setBudgetCurrency(v as PreferenceCurrency | "");
+                  }
+                }}
+              >
+                <option value="">—</option>
+                {PREFERENCE_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value={OTHER_CURRENCY}>Other…</option>
+              </select>
+              {currencyMode === "other" && (
+                <input
+                  type="text"
+                  aria-label="Other currency (ISO 4217 code, e.g. JPY)"
+                  placeholder="e.g. JPY"
+                  maxLength={3}
+                  value={budgetCurrency}
+                  onChange={(e) => setBudgetCurrency(e.target.value.toUpperCase())}
+                  className="discover-form-other-currency"
+                />
+              )}
+              {/* The one field the server actually reads - see parseBudget()/isValidIsoCurrencyCode() in src/lib/tripIntent.ts. */}
+              <input type="hidden" name="budgetCurrency" value={budgetCurrency} />
+            </div>
+            <div className="field">
+              <label htmlFor="preferred-location">Preferred location</label>
+              <input
+                id="preferred-location"
+                name="preferredLocation"
+                type="text"
+                maxLength={PREFERRED_LOCATION_MAX_LENGTH}
+                placeholder="e.g. near the beach, Downtown"
+                value={preferredLocation}
+                onChange={(e) => setPreferredLocation(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="discover-form-intent">
+            <span className="discover-form-intent-label">
+              Trip priorities — choose up to {MAX_TRIP_PRIORITIES} (optional)
+            </span>
+            <div className="trip-intent-chips" role="group" aria-label="Trip priorities">
+              {TRIP_PRIORITIES.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={priorities.includes(key) ? "trip-intent-chip active" : "trip-intent-chip"}
+                  onClick={() => togglePriority(key)}
+                  aria-pressed={priorities.includes(key)}
+                >
+                  {TRIP_PRIORITY_LABELS[key]}
+                </button>
+              ))}
+            </div>
+            {priorities.map((p) => (
+              <input key={p} type="hidden" name="priorities" value={p} />
+            ))}
+          </div>
+
+          <div className="discover-form-intent">
+            <span className="discover-form-intent-label">Essential requirements (optional)</span>
+            <div className="trip-intent-chips" role="group" aria-label="Essential requirements">
+              {ESSENTIAL_REQUIREMENTS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={essentials.includes(key) ? "trip-intent-chip active" : "trip-intent-chip"}
+                  onClick={() => toggleEssential(key)}
+                  aria-pressed={essentials.includes(key)}
+                >
+                  {ESSENTIAL_REQUIREMENT_LABELS[key]}
+                </button>
+              ))}
+            </div>
+            {essentials.map((r) => (
+              <input key={r} type="hidden" name="essentialRequirements" value={r} />
+            ))}
+          </div>
+        </div>
+      </details>
 
       <button className="btn discover-form-submit" type="submit">
         Explore this destination &rarr;

@@ -495,6 +495,17 @@ export const trips = pgTable("trips", {
   // explicit "customer didn't say" one, so downstream code never has to
   // handle a missing column on top of the "no strong signal" case.
   purpose: text("purpose").notNull().default("UNSPECIFIED"),
+  // V2A Build 1 (Traveller Intent Profile): the optional "Personalise your
+  // stay" section on Page 1 - nightly budget + currency, preferred
+  // location, up to three trip priorities, optional essential requirements
+  // (see src/lib/tripIntent.ts's TripPreferences and its own module comment).
+  // Nullable, no default: NULL means the traveller never touched that
+  // section, or this trip predates V2A Build 1 - both read back identically
+  // via deserializeTripPreferences(), so every existing trip stays valid
+  // with zero backfill. JSON-encoded text, the same "encode as text"
+  // convention already used elsewhere in this schema (hotels.images,
+  // verdicts.reasons_json, staying_api_cache.offers_json).
+  preferencesJson: text("preferences_json"),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().default(sql`now()`),
 });
 

@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import type { TripPurpose } from "@/lib/constants";
+import { deserializeTripPreferences, type TripPreferences } from "@/lib/tripIntent";
 
 // Read-only helpers over the trips/trip_selections/trip_experiences tables
 // (see src/db/schema.ts's own comment on those three for the full
@@ -20,6 +21,10 @@ export interface Trip {
   children: number;
   rooms: number;
   purpose: TripPurpose;
+  // V2A Build 1: null for every trip made before this feature and for any
+  // trip where the traveller left "Personalise your stay" untouched - see
+  // src/lib/tripIntent.ts. Never an object with invented/placeholder fields.
+  preferences: TripPreferences | null;
   createdAt: Date;
 }
 
@@ -34,6 +39,7 @@ function toTrip(row: typeof schema.trips.$inferSelect): Trip {
     children: row.children,
     rooms: row.rooms,
     purpose: row.purpose as TripPurpose,
+    preferences: deserializeTripPreferences(row.preferencesJson),
     createdAt: row.createdAt,
   };
 }

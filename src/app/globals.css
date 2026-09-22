@@ -2562,6 +2562,70 @@ input:focus {
   align-self: flex-start;
 }
 
+/* V2A Build 1: "Personalise your stay" - collapsed by default. Reuses
+   .discover-form-row/.field/.discover-form-intent/.trip-intent-chip as-is
+   (including their .globe-band > .home-search-card overrides further
+   down) rather than introducing parallel styling. */
+.discover-form-personalise {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.85rem;
+}
+
+.discover-form-personalise-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.discover-form-personalise-summary::-webkit-details-marker {
+  display: none;
+}
+
+.discover-form-personalise-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+.discover-form-row-budget {
+  grid-template-columns: 1fr 1fr 2fr;
+}
+
+@media (max-width: 720px) {
+  .discover-form-row-budget {
+    grid-template-columns: 1fr;
+  }
+}
+
+.discover-form-other-currency {
+  margin-top: 0.4rem;
+  text-transform: uppercase;
+}
+
+/* V2A Build 1: createTrip's rejected-submission state - same bordered
+   "something needs attention" language as .unsupported-destination below,
+   reused rather than a new visual pattern. */
+.discover-form-error {
+  border: 1.5px solid var(--error);
+  background: rgba(239, 68, 68, 0.04);
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+}
+
+.discover-form-error-headline {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 700;
+  color: rgba(180, 195, 218, 0.9);
+}
+
+.discover-form-error ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
 .unsupported-destination {
   margin-top: 1rem;
   border: 1.5px solid var(--error);

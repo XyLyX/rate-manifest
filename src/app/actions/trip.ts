@@ -9,6 +9,7 @@ import { getSessionId } from "@/lib/session";
 import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
 import { getTrip } from "@/lib/trip";
 import { recordPropertyChoicePersisted } from "@/lib/hotel/journey";
+import { parseTripCoreFields, parseTripPreferencesFields, serializeTripPreferences, type CreateTripState } from "@/lib/tripIntent";
 
 // The three mutations behind the four-page journey (see
 // claude/travel-decision-platform-assessment.md, "RateManifest — Final
@@ -23,9 +24,15 @@ function parsePurpose(raw: FormDataEntryValue | null): TripPurpose {
   return (TRIP_PURPOSES as readonly string[]).includes(value) ? (value as TripPurpose) : "UNSPECIFIED";
 }
 
-function parseIntOr(raw: FormDataEntryValue | null, fallback: number): number {
-  const n = parseInt(String(raw ?? ""), 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+// FormData.get/getAll return FormDataEntryValue (string | File). Every field
+// this action reads is a plain text/hidden input, so a File here can only
+// mean a tampered request - normalised to a value the validator will itself
+// reject (a stray File never silently becomes a legitimate string).
+function str(v: FormDataEntryValue | null): string {
+  return typeof v === "string" ? v : "";
+}
+function strAll(values: FormDataEntryValue[]): string[] {
+  return values.map(str);
 }
 
 /**
@@ -42,12 +49,44 @@ function parseIntOr(raw: FormDataEntryValue | null, fallback: number): number {
  * by it yet. Recorded now so it's already in place once that changes,
  * exactly the "document the interface, don't fake the machinery" rule the
  * Sprint 1 Customer/Trip Graph followed everywhere else.
+ *
+ * V2A Build 1: both the core fields (destination/dates/adults/children/
+ * rooms) and the optional "Personalise your stay" preferences go through
+ * the SAME shared validation contract (src/lib/tripIntent.ts) before
+ * anything is written. A present-but-invalid value (a tampered adults/
+ * children/rooms count, an unknown priority, a budget with no currency,
+ * ...) is never silently coerced into a default - see that module's own
+ * comment for why that used to be exactly the bug here.
+ *
+ * Bound to DiscoverForm via React's useActionState rather than a bare
+ * `<form action={createTrip}>`, specifically so an invalid submission can
+ * return `{ ok: false, errors }` for the form to render inline - a thrown
+ * Error here would otherwise surface Next.js's generic, unhandled error
+ * boundary instead of a clear, accessible, in-page message, and the
+ * traveller's already-entered values would have no obvious path back. No
+ * trip is written when validation fails, tampered or not.
  */
-export async function createTrip(formData: FormData) {
-  const destination = String(formData.get("destination") ?? "").trim();
-  const checkin = String(formData.get("checkin") ?? "");
-  const checkout = String(formData.get("checkout") ?? "");
-  if (!destination || !checkin || !checkout) throw new Error("Missing destination or dates.");
+export async function createTrip(_prevState: CreateTripState, formData: FormData): Promise<CreateTripState> {
+  const core = parseTripCoreFields({
+    destination: str(formData.get("destination")),
+    checkin: str(formData.get("checkin")),
+    checkout: str(formData.get("checkout")),
+    adults: str(formData.get("adults")),
+    children: str(formData.get("children")),
+    rooms: str(formData.get("rooms")),
+  });
+  const preferences = parseTripPreferencesFields({
+    budgetAmount: str(formData.get("budgetAmount")),
+    budgetCurrency: str(formData.get("budgetCurrency")),
+    preferredLocation: str(formData.get("preferredLocation")),
+    priorities: strAll(formData.getAll("priorities")),
+    essentialRequirements: strAll(formData.getAll("essentialRequirements")),
+  });
+
+  const errors = [...(core.ok ? [] : core.errors), ...(preferences.ok ? [] : preferences.errors)];
+  if (errors.length > 0 || !core.ok || !preferences.ok) {
+    return { ok: false, errors: errors.length > 0 ? errors : ["Invalid trip details."] };
+  }
 
   const sessionId = await getSessionId();
   const id = newId();
@@ -55,16 +94,17 @@ export async function createTrip(formData: FormData) {
   await db.insert(schema.trips).values({
     id,
     sessionId,
-    destination,
-    checkIn: new Date(checkin),
-    checkOut: new Date(checkout),
-    adults: parseIntOr(formData.get("adults"), 2),
-    children: parseIntOr(formData.get("children"), 0),
-    rooms: parseIntOr(formData.get("rooms"), 1),
+    destination: core.value.destination,
+    checkIn: new Date(core.value.checkIn),
+    checkOut: new Date(core.value.checkOut),
+    adults: core.value.adults,
+    children: core.value.children,
+    rooms: core.value.rooms,
     purpose: parsePurpose(formData.get("purpose")),
+    preferencesJson: serializeTripPreferences(preferences.value),
   });
 
-  redirect(`/?trip=${id}#shortlist`);
+  redirect(`/?trip=${id}#shortlist`); // never returns; CreateTripState is only observed on failure
 }
 
 /**
