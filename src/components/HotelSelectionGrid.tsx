@@ -27,6 +27,15 @@ interface HotelSelectionGridProps {
 // removed so the journey remains Discover -> Shortlist -> Compare -> Verify.
 // Real property imagery is rendered from hotel.imageUrl when available; missing
 // imagery uses a neutral text fallback rather than an initial or fabricated image.
+//
+// V2A hotel-card visual refinement (2026-09-22): this grid renders inside
+// .home-hiw-wrap's own dark-navy strip (see globals.css), so the card
+// styling was changed to match (dark surface, gold accent, 16:10 image
+// area) - see .home-hotel-card* in globals.css for the actual colours.
+// Confirmed via the live catalogue: 0 of 37 seeded hotels have a stored
+// image today, so the fallback below (an SVG glyph, not a substitute
+// photograph) is what every card currently shows - populating real,
+// rights-cleared images is a separate, future data task.
 export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelSelectionGridProps) {
   const [selected, setSelected] = useState<string[]>([]);
   const [limitNotice, setLimitNotice] = useState(false);
@@ -79,7 +88,40 @@ export function HotelSelectionGrid({ hotels, checkIn, checkOut, tripId }: HotelS
                 {hotel.imageUrl ? (
                   <img className="home-hotel-card-img" src={hotel.imageUrl} alt={`${hotel.name} property`} />
                 ) : (
-                  <span className="home-hotel-card-image-unavailable">Property image unavailable</span>
+                  // Honest CSS/SVG-only fallback - a generic building glyph,
+                  // never a substitute photograph of this or any other
+                  // property/destination. See curatedCatalogSource.ts: no
+                  // hotel in the catalogue has a stored image yet.
+                  <span className="home-hotel-card-image-unavailable">
+                    <svg
+                      className="home-hotel-card-image-icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M4 21V9.5L12 4l8 5.5V21H4Z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M9.5 21v-6h5v6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M8.5 12h1.4M14.1 12h1.4"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Property image unavailable
+                  </span>
                 )}
               </div>
               {hotel.isMockData && <span className="hotel-card-demo">Demo</span>}

@@ -2394,20 +2394,30 @@ input:focus {
 }
 
 /* --- Top Hotels grid, homepage variant --- */
+/* V2A hotel-card refinement (2026-09-22): this grid renders inside
+   .home-hiw-wrap (background #0c1527, "HOW IT WORKS — COMPACT DARK STRIP"
+   further down this file) - the card was still the plain white/light
+   .hotel-card base, which is what actually clashed. .home-hotel-card* is
+   used ONLY by HotelSelectionGrid.tsx (no other page references it), so
+   this whole block can be restyled without affecting any other page. Colours
+   reused, not invented: #0c1527 is the section's own background, #d4a853 is
+   the gold accent already used by .how-card-num in the same dark strip,
+   and the translucent-white-on-dark surface pattern matches the existing
+   .globe-band > .home-search-card glass treatment elsewhere in this file. */
 
 .home-hotel-grid {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr); /* desktop: three per row */
 }
 
 @media (max-width: 1000px) {
   .home-hotel-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr); /* tablet: two per row */
   }
 }
 
 @media (max-width: 560px) {
   .home-hotel-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* mobile: one per row */
   }
 }
 
@@ -2415,11 +2425,34 @@ input:focus {
   padding: 0;
   overflow: hidden;
   cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.home-hotel-card:hover {
+  border-color: rgba(212, 168, 83, 0.55); /* gold, matches .how-card-num */
+  transform: translateY(-2px);
+}
+
+.home-hotel-card:focus-visible {
+  outline: 2px solid #d4a853;
+  outline-offset: 2px;
+}
+
+/* Selected state overrides the shared .hotel-card-selected (used only by
+   this component) with the dark-strip's own gold accent, plus a visible
+   glow - never colour alone, since the "✓ Shortlisted" hint text and a
+   persistent border both carry the same information. */
+.home-hotel-card.hotel-card-selected {
+  border-color: #d4a853;
+  box-shadow: 0 0 0 1px #d4a853, 0 8px 24px -8px rgba(212, 168, 83, 0.45);
 }
 
 .home-hotel-card-image {
-  height: 7rem;
-  background: var(--surface-alt);
+  aspect-ratio: 16 / 10; /* prominent, image-led hero area */
+  background: linear-gradient(160deg, #111e36, #0c1527);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2433,25 +2466,44 @@ input:focus {
   object-fit: cover;
 }
 
+/* Honest CSS-only fallback for a property with no verified photo yet - an
+   icon, never a substitute photograph (no other destination's or hotel's
+   image is ever used here; see curatedCatalogSource.ts / HotelSelectionGrid.tsx). */
 .home-hotel-card-image-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0 1rem;
   text-align: center;
   font-size: 0.72rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.home-hotel-card-image-icon {
+  width: 2rem;
+  height: 2rem;
+  color: rgba(255, 255, 255, 0.22);
 }
 
 .home-hotel-card-shortlist-hint {
   margin: 0.9rem 1.1rem 1.1rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--primary);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.home-hotel-card.hotel-card-selected .home-hotel-card-shortlist-hint {
+  color: #d4a853;
 }
 
 .home-hotel-card .hotel-card-demo {
   top: 0.7rem;
   right: 0.7rem;
-  background: var(--surface);
+  background: rgba(4, 14, 33, 0.75);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .home-hotel-card .hotel-card-name,
@@ -2463,6 +2515,11 @@ input:focus {
 .home-hotel-card .hotel-card-name {
   margin-top: 0.9rem;
   padding-right: 1.1rem;
+  color: #ffffff;
+}
+
+.home-hotel-card .hotel-card-meta {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* .home-hotel-card-badges / .home-hotel-badge* removed 2026-09-05 - the

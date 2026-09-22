@@ -111,3 +111,59 @@ test("stale copy: Complete Your Trip no longer says Rate Manifest compares hotel
   assert.match(footer, /may earn a referral fee/);
   assert.match(footer, /influence which properties or information Rate Manifest shows you/);
 });
+
+// ---- V2A hotel-card visual refinement -------------------------------------
+// The grid still renders exactly the same facts (no price/availability/
+// seller claim - CLAIMS above already guards that), the shortlist cap and
+// Compare behaviour are untouched, and a missing image still degrades to an
+// honest, non-photographic fallback - only its presentation changed.
+
+test("V2A refinement: the shortlist grid is three-per-row on desktop, two on tablet, one on mobile", () => {
+  const css = code("app/globals.css");
+  const gridBlock = css.slice(css.indexOf(".home-hotel-grid {"), css.indexOf("Selected state overrides"));
+  assert.match(gridBlock, /\.home-hotel-grid \{\s*grid-template-columns: repeat\(3, 1fr\);/); // desktop
+  assert.match(gridBlock, /@media \(max-width: 1000px\) \{[\s\S]*?grid-template-columns: repeat\(2, 1fr\);/); // tablet
+  assert.match(gridBlock, /@media \(max-width: 560px\) \{[\s\S]*?grid-template-columns: 1fr;/); // mobile
+});
+
+test("V2A refinement: the card is a dark surface (not the white base .hotel-card), not just a colour tweak on hover", () => {
+  const css = code("app/globals.css");
+  assert.match(css, /\.home-hotel-card \{[\s\S]*?background: rgba\(255, 255, 255, 0\.04\);/);
+  assert.match(css, /\.home-hotel-card \{[\s\S]*?border-color: rgba\(255, 255, 255, 0\.1\);/);
+  // hotel name/meta text get explicit light colours - the base .hotel-card
+  // rules (near-black text) would be unreadable on the new dark surface
+  assert.match(css, /\.home-hotel-card \.hotel-card-name \{[\s\S]*?color: #ffffff;/);
+  assert.match(css, /\.home-hotel-card \.hotel-card-meta \{\s*color: rgba\(255, 255, 255, 0\.5\);/);
+});
+
+test("V2A refinement: the image area is a prominent 16:10 box, and a missing image never falls back to another hotel's or destination's photo", () => {
+  const css = code("app/globals.css");
+  assert.match(css, /\.home-hotel-card-image \{[\s\S]*?aspect-ratio: 16 \/ 10;/);
+  const grid = code("components/HotelSelectionGrid.tsx");
+  assert.match(grid, /hotel\.imageUrl \?/); // a real image is still shown first, when present
+  assert.match(grid, /<img className="home-hotel-card-img" src=\{hotel\.imageUrl\} alt=\{`\$\{hotel\.name\} property`\} \/>/);
+  assert.ok(!/picsum|unsplash|placeholder\.com|placehold|stock/i.test(grid), "no external stock/placeholder photo service");
+  // the fallback is decorative markup (SVG) plus honest text, not an <img> of any kind
+  const fallback = grid.slice(grid.indexOf("home-hotel-card-image-unavailable"), grid.indexOf("Property image unavailable") + 40);
+  assert.match(fallback, /<svg/);
+  assert.ok(!/<img/.test(fallback));
+});
+
+test("V2A refinement: selected state is never colour-only - the persistent text hint changes too, and the shortlist cap/Compare flow is untouched", () => {
+  const css = code("app/globals.css");
+  assert.match(css, /\.home-hotel-card\.hotel-card-selected \{[\s\S]*?border-color: #d4a853;/);
+  assert.match(css, /\.home-hotel-card\.hotel-card-selected \.home-hotel-card-shortlist-hint \{\s*color: #d4a853;/);
+  const grid = code("components/HotelSelectionGrid.tsx");
+  assert.match(grid, /const MAX_SELECTION = 5;/);
+  assert.match(grid, /isSelected \? "✓ Shortlisted" : "Select to shortlist"/);
+  assert.match(grid, /`\/compare\?hotels=\$\{selected\.join\(","\)\}`/);
+});
+
+test("V2A refinement: the card keeps its accessible toggle semantics and gets a visible keyboard focus ring", () => {
+  const grid = code("components/HotelSelectionGrid.tsx");
+  for (const f of ['role="button"', "tabIndex={0}", "aria-pressed={isSelected}", 'event.key === "Enter" || event.key === " "']) {
+    assert.ok(grid.includes(f), `HotelSelectionGrid must keep ${f}`);
+  }
+  const css = code("app/globals.css");
+  assert.match(css, /\.home-hotel-card:focus-visible \{\s*outline: 2px solid #d4a853;/);
+});
