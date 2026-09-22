@@ -65,7 +65,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const cities = Array.from(new Set(catalogueCities.map((r) => r.city))).sort((a, b) => a.localeCompare(b));
   const normalise = (s: string) => s.trim().toLowerCase();
   const tripCity = trip ? cities.find((c) => normalise(c) === normalise(trip.destination)) : undefined;
-  const shortlistHotels = trip && tripCity ? await activeDiscoverySource.search({ destination: tripCity }) : [];
+  // Public affiliate-readiness gate. Keep OFF until Navin explicitly approves reopening hotel discovery.\n  // The catalogue, shortlist, Compare and Check IQ remain intact behind this presentation gate.\n  const PUBLIC_HOTEL_DISCOVERY_ENABLED = false;\n  const shortlistHotels = PUBLIC_HOTEL_DISCOVERY_ENABLED && trip && tripCity\n    ? await activeDiscoverySource.search({ destination: tripCity })\n    : [];
 
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
@@ -169,7 +169,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <DiscoverForm
               cities={cities}
               defaultDestination={trip?.destination ?? ""}
-              destinationSupported={Boolean(tripCity)}
+              destinationSupported={PUBLIC_HOTEL_DISCOVERY_ENABLED && Boolean(tripCity)}
               defaultCheckIn={checkIn}
               defaultCheckOut={checkOut}
             />
@@ -204,7 +204,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           verdicts - the catalogue is not an inventory or supplier feed. Cards
           toggle selection (up to 5) and carry the chosen ids, with the trip's
           dates/party, into Compare. */}
-      {trip && tripCity && shortlistHotels.length > 0 && (
+      {PUBLIC_HOTEL_DISCOVERY_ENABLED && trip && tripCity && shortlistHotels.length > 0 && (
         <div className="home-hiw-wrap" id="shortlist">
           <section className="home-top-hotels">
             <div className="home-section-heading">
