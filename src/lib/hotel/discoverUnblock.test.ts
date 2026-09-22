@@ -86,7 +86,9 @@ test("7+8: selected hotel ids and the trip's dates/party reach Compare", () => {
     assert.ok(actions.includes(f), `createTrip stores ${f}`);
   }
   assert.match(actions, /parseTripCoreFields\(/);
-  assert.match(actions, /redirect\(`\/\?trip=\$\{id\}#shortlist`\)/);
+  // GitHub Issue #3 follow-up (2026-09-23): createTrip's redirect now uses
+  // the id from its shared createTripFromFormData helper's return value.
+  assert.match(actions, /redirect\(`\/\?trip=\$\{result\.trip\.id\}#shortlist`\)/);
   // Compare reads the ids list; Check IQ reads party/rooms from the trip
   assert.match(code("app/compare/page.tsx"), /\(params\.hotels \?\? ""\)\.split\(","\)/);
   const checkIq = code("app/check-iq/page.tsx");

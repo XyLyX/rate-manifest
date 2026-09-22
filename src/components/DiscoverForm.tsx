@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
-import { createTrip } from "@/app/actions/trip";
+import { createTrip, exploreJoaliFromDiscover } from "@/app/actions/trip";
 import { recordDestinationInterest } from "@/app/actions/destinationInterest";
 import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
 import {
@@ -31,6 +31,12 @@ interface DiscoverFormProps {
   destinationSupported?: boolean;
   defaultCheckIn: string;
   defaultCheckOut: string;
+  // GitHub Issue #3 follow-up (2026-09-23): server-computed JOALI_STAGING_ENABLED
+  // (see joaliStagingGate.ts), passed down from page.tsx since this is a client
+  // component. Only ever governs whether the "Explore JOALI resorts" button is
+  // OFFERED - exploreJoaliFromDiscover (src/app/actions/trip.ts) independently
+  // re-checks the same gate server-side before ever redirecting to /joali.
+  joaliStagingEnabled?: boolean;
 }
 
 // Plain-language labels for the trip-intent chips - see
@@ -74,7 +80,7 @@ function normalise(s: string): string {
 // name/email form that submits to recordDestinationInterest() (a server
 // action that writes to destination_interest). The destination is captured
 // automatically from the visitor's search - they never re-enter it.
-export function DiscoverForm({ cities, defaultDestination = "", destinationSupported = false, defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
+export function DiscoverForm({ cities, defaultDestination = "", destinationSupported = false, defaultCheckIn, defaultCheckOut, joaliStagingEnabled = false }: DiscoverFormProps) {
   // V2A Build 1: bound via useActionState (not a bare `action={createTrip}`)
   // so an invalid/tampered submission returns a rendered, accessible error
   // - see createTrip's own comment - instead of throwing into Next.js's
@@ -136,6 +142,10 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
             normalise(c) !== normalise(destInput),
         )
       : [];
+
+  // GitHub Issue #3 follow-up: a UI hint only - exploreJoaliFromDiscover
+  // independently re-checks both the gate and the destination server-side.
+  const isMaldivesInput = normalise(destInput) === "maldives";
 
   function handleDestChange(value: string) {
     setDestInput(value);
@@ -522,6 +532,17 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
       <button className="btn discover-form-submit" type="submit">
         Explore this destination &rarr;
       </button>
+
+      {/* GitHub Issue #3 follow-up (2026-09-23): a second submit target on
+          this SAME form - formAction overrides the form's own action for
+          just this button's click. Shown only while the search reads
+          "Maldives" and the server-passed gate is on; exploreJoaliFromDiscover
+          re-validates both independently before ever redirecting to /joali. */}
+      {joaliStagingEnabled && isMaldivesInput && (
+        <button className="btn discover-form-submit discover-form-joali-cta" type="submit" formAction={exploreJoaliFromDiscover}>
+          Explore JOALI resorts &rarr;
+        </button>
+      )}
     </form>
   );
 }

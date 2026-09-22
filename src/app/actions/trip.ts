@@ -10,6 +10,7 @@ import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
 import { getTrip } from "@/lib/trip";
 import { recordPropertyChoicePersisted } from "@/lib/hotel/journey";
 import { parseTripCoreFields, parseTripPreferencesFields, serializeTripPreferences, type CreateTripState } from "@/lib/tripIntent";
+import { isJoaliEligibleDestination } from "@/lib/hotel/joaliStagingGate";
 
 // The three mutations behind the four-page journey (see
 // claude/travel-decision-platform-assessment.md, "RateManifest — Final
@@ -66,7 +67,18 @@ function strAll(values: FormDataEntryValue[]): string[] {
  * traveller's already-entered values would have no obvious path back. No
  * trip is written when validation fails, tampered or not.
  */
-export async function createTrip(_prevState: CreateTripState, formData: FormData): Promise<CreateTripState> {
+interface CreatedTrip {
+  id: string;
+  destination: string;
+}
+
+/**
+ * The validated parse + insert both createTrip and exploreJoaliFromDiscover
+ * (below) share verbatim - same core-field/preferences validation, same
+ * trips row shape. Not exported: a "use server" file may only export async
+ * functions, so this stays a private helper, not a server action itself.
+ */
+async function createTripFromFormData(formData: FormData): Promise<{ ok: true; trip: CreatedTrip } | { ok: false; errors: string[] }> {
   const core = parseTripCoreFields({
     destination: str(formData.get("destination")),
     checkin: str(formData.get("checkin")),
@@ -104,7 +116,43 @@ export async function createTrip(_prevState: CreateTripState, formData: FormData
     preferencesJson: serializeTripPreferences(preferences.value),
   });
 
-  redirect(`/?trip=${id}#shortlist`); // never returns; CreateTripState is only observed on failure
+  return { ok: true, trip: { id, destination: core.value.destination } };
+}
+
+export async function createTrip(_prevState: CreateTripState, formData: FormData): Promise<CreateTripState> {
+  const result = await createTripFromFormData(formData);
+  if (!result.ok) return { ok: false, errors: result.errors };
+  redirect(`/?trip=${result.trip.id}#shortlist`); // never returns; CreateTripState is only observed on failure
+}
+
+/**
+ * DiscoverForm's "Explore JOALI resorts" button (GitHub Issue #3 follow-up,
+ * 2026-09-23): a Maldives search previously created a trip exactly like any
+ * other destination but had no path from it to /joali - the visitor only
+ * ever saw the generic "we're curating this destination" notice, with no
+ * visible trip id and no JOALI link. This is a second submit target on the
+ * SAME Discover form (via the button's own formAction, not a separate form),
+ * reusing createTripFromFormData's identical validated parsing/insert - the
+ * created trip is indistinguishable from one made through the normal
+ * "Explore this destination" button.
+ *
+ * The JOALI redirect is independently re-validated here, server-side: the
+ * button's visibility in DiscoverForm.tsx (gate + "maldives" match) is a UI
+ * hint only, never trusted. If the gate is off or the validated destination
+ * isn't exactly "maldives" (a tampered request, e.g. a direct POST with a
+ * different destination and this action's formAction spoofed), this falls
+ * back to the exact same outcome the normal Explore button would produce -
+ * never a JOALI redirect, never a rejected/lost search.
+ */
+export async function exploreJoaliFromDiscover(formData: FormData): Promise<void> {
+  const result = await createTripFromFormData(formData);
+  if (!result.ok) {
+    redirect("/"); // invalid input - no bound useActionState here to render field errors for this button; fail safe to a fresh start
+  }
+  if (isJoaliEligibleDestination(result.trip.destination)) {
+    redirect(`/joali?trip=${result.trip.id}`);
+  }
+  redirect(`/?trip=${result.trip.id}#shortlist`); // gate off or not Maldives - identical outcome to createTrip
 }
 
 /**

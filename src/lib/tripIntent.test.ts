@@ -358,8 +358,11 @@ test("point 3: createTrip returns a validation result instead of throwing - an i
   const actions = code("src/app/actions/trip.ts");
   assert.match(actions, /export async function createTrip\(_prevState: CreateTripState, formData: FormData\): Promise<CreateTripState>/);
   assert.match(actions, /return \{ ok: false, errors: errors\.length > 0 \? errors : \["Invalid trip details\."\] \};/);
-  // the success path still redirects (unchanged behaviour) rather than returning a state the caller would render
-  assert.match(actions, /redirect\(`\/\?trip=\$\{id\}#shortlist`\)/);
+  // the success path still redirects (unchanged behaviour) rather than returning a state the caller would render.
+  // GitHub Issue #3 follow-up (2026-09-23): the validated parse/insert moved into
+  // a shared createTripFromFormData helper (also used by exploreJoaliFromDiscover) -
+  // createTrip now redirects using its returned trip id, same outcome as before.
+  assert.match(actions, /redirect\(`\/\?trip=\$\{result\.trip\.id\}#shortlist`\)/);
   assert.ok(!/throw new Error\(errors\.join/.test(actions), "createTrip must not throw on invalid input");
 });
 

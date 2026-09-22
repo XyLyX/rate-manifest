@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
 import { activeDiscoverySource, LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED } from "@/lib/discovery";
+import { isJoaliStagingEnabled } from "@/lib/hotel/joaliStagingGate";
 import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -185,6 +186,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               destinationSupported={Boolean(tripCity)}
               defaultCheckIn={checkIn}
               defaultCheckOut={checkOut}
+              joaliStagingEnabled={isJoaliStagingEnabled()}
             />
           </>
         )}
