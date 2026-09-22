@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { editorialArticles } from "@/lib/editorial/articles";
 
 const baseUrl = "https://ratemanifest.com";
 
@@ -37,5 +38,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${baseUrl}/terms`,
     },
+    { url: `${baseUrl}/travel-intelligence` },
+    ...editorialArticles.map((article) => ({ url: `${baseUrl}/travel-intelligence/${article.slug}` })),
   ];
 }
