@@ -5,6 +5,7 @@ import { activeDiscoverySource } from "@/lib/discovery";
 import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
+import { TravelIntelligence } from "@/components/TravelIntelligence";
 import { DiscoverForm } from "@/components/DiscoverForm";
 import { AtmosphereProvider } from "@/components/AtmosphereProvider";
 import { getDestinationPillarsLive } from "@/lib/travel/destinationResearch";
@@ -292,6 +293,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           Rate Manifest does not currently show hotel rates or availability.
         </p>
       </div>
+
+      <TravelIntelligence />
 
       {/* ── 6. CLOSING HERO ───────────────────────────────────────────────── */}
       {/* Uses the session atmosphere's hero.jpg — the same asset that was
