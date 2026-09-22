@@ -344,6 +344,21 @@ input {
   color: var(--text);
 }
 
+/* V2A Build 1 bugfix: a <select>'s own `color` is inherited by its <option>
+   children, but native dropdown POPUPS render on the OS's own (light)
+   surface, not the page's themed background - so a light/near-white select
+   text colour (e.g. the .globe-band > .home-search-card override below)
+   made every option in the currency dropdown invisible against that light
+   popup, even though the options themselves were present and correct. This
+   explicit rule always wins for the option's own text (a child's own
+   declared colour overrides an inherited one regardless of the parent
+   rule's !important), independent of whatever theme colours the enclosing
+   <select> uses anywhere in the app. */
+select option {
+  color: #17263c;
+  background: #ffffff;
+}
+
 select:focus,
 input:focus {
   outline: none;

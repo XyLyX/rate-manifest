@@ -394,6 +394,49 @@ test("point 3 wiring: an invalid submission renders an accessible, in-page alert
   assert.ok(!/state\.ok[\s\S]{0,80}set(DestInput|CheckIn|CheckOut|BudgetAmount)\(""\)/.test(form));
 });
 
+// ---- STAGING BUG 01 regression: the currency dropdown rendered no visible
+// options because .globe-band > .home-search-card select set a near-white
+// `color` that <option> elements inherit - but native dropdown POPUPS render
+// on the OS's own light surface, not the page's dark theme, so the option
+// text was there but unreadable. The options were never absent and
+// budgetCurrency's state handling was never the bug - see globals.css's own
+// fix comment. These tests guard both ends: the options genuinely exist in
+// the DOM output, and the CSS can no longer make them invisible. ----------
+
+test("STAGING BUG 01: the currency <select> genuinely renders all six preset options plus Other, unconditionally", () => {
+  const form = code("src/components/DiscoverForm.tsx");
+  const selectBlock = form.slice(form.indexOf('id="budget-currency"'), form.indexOf("</select>"));
+  assert.match(selectBlock, /PREFERENCE_CURRENCIES\.map/); // not a hand-written, editable-and-forgettable list
+  assert.match(selectBlock, /<option value=\{OTHER_CURRENCY\}>Other…<\/option>/);
+  // nothing conditionally hides the option list itself (only the free-text "Other" input is conditional)
+  assert.ok(!/\{currencyMode[\s\S]{0,40}&&[\s\S]{0,20}<option/.test(selectBlock));
+});
+
+test("STAGING BUG 01: PREFERENCE_CURRENCIES is a real, non-empty six-value list - the options were never actually absent", () => {
+  assert.equal(PREFERENCE_CURRENCIES.length, 6);
+  assert.deepEqual([...PREFERENCE_CURRENCIES], ["AED", "USD", "EUR", "GBP", "INR", "SAR"]);
+});
+
+test("STAGING BUG 01: <option> elements always get their own explicit, readable colour - never just inherit a themed <select>'s colour", () => {
+  const css = code("src/app/globals.css");
+  const m = css.match(/select option\s*\{([\s\S]*?)\}/);
+  assert.ok(m, "a `select option { ... }` rule must exist");
+  const body = m![1]!;
+  const color = /color:\s*([^;]+);/.exec(body)?.[1]?.trim();
+  const background = /background(?:-color)?:\s*([^;]+);/.exec(body)?.[1]?.trim();
+  assert.ok(color, "option text colour must be set explicitly");
+  assert.ok(background, "option background must be set explicitly, independent of any themed <select>");
+  assert.notEqual(color!, background!, "option text and background must not be the same colour");
+  // the rule targets bare `select option` (not `.globe-band ... select option`), so it protects every <select> in the app, not just this one
+  assert.match(css, /\nselect option\s*\{/);
+});
+
+test("STAGING BUG 01: the fix does not touch the <select>'s own themed appearance (only <option> children)", () => {
+  const css = code("src/app/globals.css");
+  // the pre-existing globe-band select theming (dark, translucent) is untouched
+  assert.match(css, /\.globe-band > \.home-search-card input:not\(\[type="hidden"\]\):not\(\[type="number"\]\),\n\.globe-band > \.home-search-card input\[type="date"\],\n\.globe-band > \.home-search-card input\[type="number"\],\n\.globe-band > \.home-search-card select \{/);
+});
+
 test("hard restrictions: tripIntent.ts feeds nothing into discovery, ranking or filtering", () => {
   for (const f of ["src/lib/discovery/curatedCatalogSource.ts", "src/lib/discovery/types.ts", "src/lib/hotel/commercial.ts", "src/lib/scoring/bestDealScore.ts"]) {
     assert.ok(!code(f).includes("tripIntent"), `${f} must not import the traveller-intent contract`);
