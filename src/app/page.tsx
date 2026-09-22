@@ -65,7 +65,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const cities = Array.from(new Set(catalogueCities.map((r) => r.city))).sort((a, b) => a.localeCompare(b));
   const normalise = (s: string) => s.trim().toLowerCase();
   const tripCity = trip ? cities.find((c) => normalise(c) === normalise(trip.destination)) : undefined;
-  // Public affiliate-readiness gate. Keep OFF until Navin explicitly approves reopening hotel discovery.\n  // The catalogue, shortlist, Compare and Check IQ remain intact behind this presentation gate.\n  const PUBLIC_HOTEL_DISCOVERY_ENABLED = false;\n  const shortlistHotels = PUBLIC_HOTEL_DISCOVERY_ENABLED && trip && tripCity\n    ? await activeDiscoverySource.search({ destination: tripCity })\n    : [];
+  // Public affiliate-readiness gate. Keep OFF until Navin explicitly approves reopening hotel discovery.
+  // The catalogue, shortlist, Compare and Check IQ remain intact behind this presentation gate.
+  const PUBLIC_HOTEL_DISCOVERY_ENABLED = false;
+  const shortlistHotels = PUBLIC_HOTEL_DISCOVERY_ENABLED && trip && tripCity
+    ? await activeDiscoverySource.search({ destination: tripCity })
+    : [];
 
   const checkIn = trip ? trip.checkIn : defaultCheckIn();
   const checkOut = trip ? trip.checkOut : defaultCheckOut();
