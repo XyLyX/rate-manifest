@@ -167,3 +167,87 @@ test("V2A refinement: the card keeps its accessible toggle semantics and gets a 
   const css = code("app/globals.css");
   assert.match(css, /\.home-hotel-card:focus-visible \{\s*outline: 2px solid #d4a853;/);
 });
+
+// ---- V2A legacy hotel catalogue retirement (2026-09-22) -------------------
+// The retired 37-hotel UAE catalogue must never be recreated by a fresh
+// initialization, and the public homepage must never expose it merely
+// because rows happen to exist in the `hotels` table - discovery being live
+// is an explicit, code-level decision, not a side effect of table content.
+
+test("retirement 1: initialization can never reseed the retired 37-hotel catalogue", () => {
+  const route = code("app/api/admin/init-db/route.ts");
+  // matches the real SQL statement shape (with its column list), not this
+  // test file's or route.ts's own prose mentioning the phrase
+  assert.ok(!/INSERT INTO hotels \(/.test(route), "init-db must not insert any hotel row");
+  assert.ok(!/INSERT INTO rooms \(/.test(route), "init-db must not insert any room row for a retired hotel");
+  assert.ok(!/UPDATE hotels SET featured_in_iq/.test(route), "init-db must not flag any retired hotel id as featured");
+  // real table shape is untouched - a fresh environment still gets every
+  // real table/column (including V2A's own preferences_json)
+  assert.match(route, /CREATE TABLE IF NOT EXISTS hotels \(/);
+  assert.match(route, /CREATE TABLE IF NOT EXISTS rooms \(/);
+  assert.match(route, /ALTER TABLE trips ADD COLUMN IF NOT EXISTS preferences_json text;/);
+  // suppliers (real Commercial Router config, unrelated to the retired
+  // catalogue) are unaffected
+  assert.match(route, /INSERT INTO suppliers \(/);
+  assert.match(route, /VALUES\s*\('supplier-booking', 'booking', 'Booking\.com'/);
+});
+
+test("retirement 2: no cleanup DELETE was added to the initialization endpoint - that stays a separate, staging-only, explicitly-approved step", () => {
+  const route = code("app/api/admin/init-db/route.ts");
+  // the pre-existing, already-approved single/six-id DELETEs for hotels
+  // retired *before* this task (ibis-deira-city-centre, the six fictional
+  // demo hotels) are untouched precedent, not something this task added
+  assert.match(route, /DELETE FROM hotels WHERE id = 'ibis-deira-city-centre';/);
+  assert.match(route, /DELETE FROM hotels WHERE id = 'marina-skyline';/);
+  // none of the 37 retired real-catalogue ids get a DELETE statement here
+  for (const id of ["sofitel-dubai-the-palm", "atlantis-the-royal", "armani-hotel-dubai", "oberoi-beach-resort-al-zorah"]) {
+    assert.ok(!route.includes(`DELETE FROM hotels WHERE id = '${id}'`), `${id} must not be deleted by init-db - cleanup is separate`);
+  }
+});
+
+test("retirement 3: the homepage's public discovery gate is explicit - it does not derive from hotels-table row content", () => {
+  const page = code("app/page.tsx");
+  assert.match(page, /import \{ activeDiscoverySource, LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED \} from "@\/lib\/discovery";/);
+  // the hotels table is not even queried while the gate is closed
+  assert.match(page, /const catalogueCities = LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED\s*\n\s*\? await db\.select\(\{ city: schema\.hotels\.city \}\)\.from\(schema\.hotels\)\s*\n\s*: \[\];/);
+  // tripCity can only ever resolve when the gate is open - never merely
+  // because `cities`/`hotels` happens to contain a matching row
+  assert.match(page, /const tripCity =\s*\n\s*LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED && trip\s*\n\s*\? cities\.find/);
+  const discovery = code("lib/discovery/index.ts");
+  assert.match(discovery, /export const LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED = false;/);
+});
+
+test("retirement 4: every destination - including Dubai - shows the curating gate and interest form while the discovery gate is closed", () => {
+  const page = code("app/page.tsx");
+  assert.match(page, /destinationSupported=\{Boolean\(tripCity\)\}/);
+  // with LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED false, tripCity is always
+  // undefined (see retirement 3), so destinationSupported is always false
+  // for every destination string, including "Dubai" - DiscoverForm's own
+  // `unsupported` initial state (Boolean(defaultDestination) && !destinationSupported)
+  // is therefore true for any non-empty destination once a trip exists.
+  const form = code("components/DiscoverForm.tsx");
+  assert.match(form, /useState\(Boolean\(defaultDestination\) && !destinationSupported\)/);
+  assert.match(form, /We&apos;re curating this destination\./);
+  // the destination-interest form (name/email -> recordDestinationInterest) stays reachable
+  assert.match(form, /import \{ recordDestinationInterest \} from "@\/app\/actions\/destinationInterest";/);
+  assert.match(form, /const result = await recordDestinationInterest\(destInput, interestName, interestEmail\);/);
+  assert.match(form, /id="interest-name"/);
+  assert.match(form, /id="interest-email"/);
+});
+
+test("retirement 5: no StayingAPI discovery call is reachable while the catalogue is retired", () => {
+  // same StayingAPI/supplier-adapter isolation guard as test 5 above,
+  // re-affirmed for the files this task touched
+  for (const f of ["app/page.tsx", "lib/discovery/index.ts", "lib/discovery/curatedCatalogSource.ts"]) {
+    assert.ok(
+      !/stayingApi|staying_api|runSearch|ensureLiveCheckTriggered|pollLiveCheck|SUPPLIER_ADAPTERS|lib\/suppliers|STAYINGAPI/.test(code(f)),
+      `${f} reaches StayingAPI/supplier code`
+    );
+  }
+  // runSearch() (the one function that ever calls a supplier adapter) still
+  // requires a real, existing hotel row before it calls any adapter - with
+  // the catalogue retired/empty, it returns null first
+  const search = code("lib/search.ts");
+  assert.match(search, /const hotel = await db\.query\.hotels\.findFirst\(\{ where: eq\(schema\.hotels\.id, hotelId\) \}\);/);
+  assert.match(search, /if \(!hotel\) return null;/);
+});

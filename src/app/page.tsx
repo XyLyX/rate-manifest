@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db, schema } from "@/db/client";
 import { getTrip } from "@/lib/trip";
-import { activeDiscoverySource } from "@/lib/discovery";
+import { activeDiscoverySource, LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED } from "@/lib/discovery";
 import { HotelSelectionGrid } from "@/components/HotelSelectionGrid";
 import { NavBar } from "@/components/NavBar";
 import { Footer } from "@/components/Footer";
@@ -61,10 +61,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // factual property identities (name, area, city, stars, image). The
   // catalogue says nothing about rooms, rates or availability, and this page
   // never touches StayingAPI, supplier adapters or any price source.
-  const catalogueCities = await db.select({ city: schema.hotels.city }).from(schema.hotels);
+  //
+  // V2A legacy catalogue retirement (2026-09-22): the explicit public
+  // discovery gate. LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED is false until a
+  // real, vetted discovery supplier is approved - so every destination,
+  // including Dubai, shows the "we're curating this destination" state and
+  // interest form below. This does not read the `hotels` table at all while
+  // the gate is closed: discovery being live must never depend on whether
+  // that table happens to hold rows, only on this explicit decision.
+  const catalogueCities = LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED
+    ? await db.select({ city: schema.hotels.city }).from(schema.hotels)
+    : [];
   const cities = Array.from(new Set(catalogueCities.map((r) => r.city))).sort((a, b) => a.localeCompare(b));
   const normalise = (s: string) => s.trim().toLowerCase();
-  const tripCity = trip ? cities.find((c) => normalise(c) === normalise(trip.destination)) : undefined;
+  const tripCity =
+    LEGITIMATE_DISCOVERY_SUPPLIER_APPROVED && trip
+      ? cities.find((c) => normalise(c) === normalise(trip.destination))
+      : undefined;
   const shortlistHotels = trip && tripCity ? await activeDiscoverySource.search({ destination: tripCity }) : [];
 
   const checkIn = trip ? trip.checkIn : defaultCheckIn();

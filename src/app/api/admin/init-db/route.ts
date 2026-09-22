@@ -73,37 +73,14 @@ ALTER TABLE hotels ADD COLUMN IF NOT EXISTS images text;
 -- why this isn't a per-field flag or a new confidence scale.
 ALTER TABLE hotels ADD COLUMN IF NOT EXISTS enrichment_confidence text;
 
--- 2026-09-11 - curates the initial Exceptional Stays / Rate Manifest IQ
--- launch set (claude/rate-manifest-technical-blueprint.md, "Final property
--- set... locked 2026-09-11"): the 5 real Dubai hotels that already existed
--- before this feature, each already vetted the same way the whole real
--- catalog was. The other 7 named in that doc (One&Only The Palm, Atlantis
--- The Royal, etc.) are deliberately NOT flagged here - Navin's own
--- instruction was that they're "a product recommendation, not yet a claim
--- ... to be technically seeded without checking their actual availability/
--- data path," so they get added only after being seeded as real hotel rows
--- and individually verified against real StayingAPI data, same bar as
--- these five. A plain UPDATE, not an INSERT - idempotent by construction,
--- safe to re-run like every other statement in this file.
-UPDATE hotels SET featured_in_iq = true
-WHERE id IN (
-  'sofitel-dubai-the-palm',
-  'address-downtown',
-  'oberoi-dubai',
-  'rixos-premium-jbr',
-  'one-and-only-royal-mirage'
-);
-
--- 2026-09-11 - the first of the 7 candidates above to actually clear
--- Navin's verification bar: a real live Check IQ (2026-09-25/26, one
--- night) returned a genuine 3-source comparison (AED 4,533-4,565, "BOOK
--- NOW", medium confidence) - not a "checked, nothing available" empty
--- result. The other 6 came back "nothing available" for that same date on
--- this same pass; see claude/rate-manifest-technical-blueprint.md's
--- execution log for why that's being treated as inconclusive rather than
--- disqualifying, and left unflagged pending Navin's call rather than
--- retried unilaterally (each retry spends more real StayingAPI credit).
-UPDATE hotels SET featured_in_iq = true WHERE id = 'atlantis-the-royal';
+-- V2A legacy catalogue retirement (2026-09-22): this file used to flag five,
+-- then six, specific hotel ids as featured_in_iq here. Both UPDATEs named
+-- ids from the now-retired 37-hotel catalogue seed below, which this
+-- initialization script no longer inserts - an UPDATE naming an id that
+-- will never exist is dead weight, not a safe no-op worth keeping. A future
+-- discovery adapter that seeds real, approved properties should set
+-- featured_in_iq explicitly on insert instead of via a standalone UPDATE
+-- like this one.
 
 CREATE TABLE IF NOT EXISTS rooms (
   id text PRIMARY KEY,
@@ -403,120 +380,25 @@ VALUES
   ('supplier-priceline', 'priceline', 'Priceline', 'api_partner', true, true, 'Real data via StayingAPI, when a real hotel has been refreshed.')
 ON CONFLICT (slug) DO NOTHING;
 
--- Real hotels (is_mock_data = false). mock_base_price stays NULL - the
--- mock adapter already no-ops for any hotel without one, and these get
--- real prices from staying_api_cache instead, once refreshed. Top five
--- 5-star hotels per emirate (Dubai, Abu Dhabi, Fujairah, Ras Al Khaimah,
--- Sharjah, Ajman), each verified as a currently-operating property (name,
--- brand and status checked, not just carried over from memory) - see
--- DECISIONS.md, "Real UAE hotels seeded for StayingAPI."
--- Ibis Deira City Centre (3-star) was dropped from this list - it doesn't
--- fit the "top five 5-star" criteria the rest of this set follows.
-INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
-VALUES
-  -- Dubai
-  ('sofitel-dubai-the-palm', 'Sofitel Dubai The Palm', 'Palm Jumeirah', 'Dubai', 5, false, NULL),
-  ('address-downtown', 'Address Downtown', 'Downtown Dubai', 'Dubai', 5, false, NULL),
-  ('oberoi-dubai', 'The Oberoi Dubai', 'Business Bay', 'Dubai', 5, false, NULL),
-  ('rixos-premium-jbr', 'Rixos Premium Dubai JBR', 'Jumeirah Beach Residence', 'Dubai', 5, false, NULL),
-  ('one-and-only-royal-mirage', 'One&Only Royal Mirage', 'Al Sufouh', 'Dubai', 5, false, NULL),
-  -- Abu Dhabi
-  ('emirates-palace-mandarin-oriental', 'Emirates Palace Mandarin Oriental', 'Corniche', 'Abu Dhabi', 5, false, NULL),
-  ('rosewood-abu-dhabi', 'Rosewood Abu Dhabi', 'Al Maryah Island', 'Abu Dhabi', 5, false, NULL),
-  ('conrad-abu-dhabi-etihad-towers', 'Conrad Abu Dhabi Etihad Towers', 'Corniche', 'Abu Dhabi', 5, false, NULL),
-  ('ritz-carlton-abu-dhabi-grand-canal', 'The Ritz-Carlton Abu Dhabi, Grand Canal', 'Grand Canal', 'Abu Dhabi', 5, false, NULL),
-  ('hilton-abu-dhabi-yas-island', 'Hilton Abu Dhabi Yas Island', 'Yas Island', 'Abu Dhabi', 5, false, NULL),
-  -- Fujairah
-  ('al-bahar-hotel-resort-fujairah', 'Al Bahar Hotel & Resort', 'Fujairah Corniche', 'Fujairah', 5, false, NULL),
-  ('palace-beach-resort-fujairah', 'Palace Beach Resort Fujairah', 'Fujairah', 'Fujairah', 5, false, NULL),
-  ('doubletree-hilton-fujairah-city', 'DoubleTree by Hilton Fujairah City', 'Fujairah City', 'Fujairah', 5, false, NULL),
-  ('royal-m-hotel-gewan-fujairah', 'Royal M Hotel by Gewan Fujairah', 'Fujairah', 'Fujairah', 5, false, NULL),
-  ('al-diar-siji-hotel', 'Al Diar Siji Hotel', 'Fujairah', 'Fujairah', 5, false, NULL),
-  -- Ras Al Khaimah
-  ('so-ras-al-khaimah', 'SO/ Ras Al Khaimah Hotel & Resort', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
-  ('rixos-bab-al-bahr', 'Rixos Bab Al Bahr', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
-  ('sofitel-rak-al-hamra', 'Sofitel Ras Al Khaimah Al Hamra Beach Resort', 'Al Hamra', 'Ras Al Khaimah', 5, false, NULL),
-  ('movenpick-al-marjan-island', 'Movenpick Resort Al Marjan Island', 'Al Marjan Island', 'Ras Al Khaimah', 5, false, NULL),
-  ('intercontinental-rak-resort-spa', 'InterContinental Ras Al Khaimah Resort & Spa', 'Mina Al Arab', 'Ras Al Khaimah', 5, false, NULL),
-  -- Sharjah
-  ('sheraton-sharjah-beach-resort', 'Sheraton Sharjah Beach Resort & Spa', 'Corniche', 'Sharjah', 5, false, NULL),
-  ('chedi-al-bait-sharjah', 'The Chedi Al Bait, Sharjah', 'Sharjah Heritage Area', 'Sharjah', 5, false, NULL),
-  ('pullman-sharjah', 'Pullman Sharjah', 'Sharjah', 'Sharjah', 5, false, NULL),
-  ('corniche-hotel-sharjah', 'Corniche Hotel Sharjah', 'Buhaira Corniche', 'Sharjah', 5, false, NULL),
-  ('hotel-72-sharjah', '72 Hotel Sharjah', 'Al Khan Lagoon', 'Sharjah', 5, false, NULL),
-  -- Ajman
-  ('bahi-ajman-palace', 'Bahi Ajman Palace Hotel', 'Ajman Corniche', 'Ajman', 5, false, NULL),
-  ('fairmont-ajman', 'Fairmont Ajman', 'Ajman Corniche', 'Ajman', 5, false, NULL),
-  ('dusit-ajman-resort-villas', 'Dusit Ajman Resort & Villas', 'Ajman', 'Ajman', 5, false, NULL),
-  ('ajman-saray-luxury-collection', 'Ajman Saray, a Luxury Collection Resort', 'Ajman Corniche', 'Ajman', 5, false, NULL),
-  ('oberoi-beach-resort-al-zorah', 'The Oberoi Beach Resort, Al Zorah', 'Al Zorah', 'Ajman', 5, false, NULL)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
-VALUES
-  ('room-sofitel-dubai-the-palm', 'sofitel-dubai-the-palm', 'double_standard', 2, '1 king bed'),
-  ('room-address-downtown', 'address-downtown', 'double_standard', 2, '1 king bed'),
-  ('room-oberoi-dubai', 'oberoi-dubai', 'double_standard', 2, '1 king bed'),
-  ('room-rixos-premium-jbr', 'rixos-premium-jbr', 'double_standard', 2, '1 king bed'),
-  ('room-one-and-only-royal-mirage', 'one-and-only-royal-mirage', 'double_standard', 2, '1 king bed'),
-  ('room-emirates-palace-mandarin-oriental', 'emirates-palace-mandarin-oriental', 'double_standard', 2, '1 king bed'),
-  ('room-rosewood-abu-dhabi', 'rosewood-abu-dhabi', 'double_standard', 2, '1 king bed'),
-  ('room-conrad-abu-dhabi-etihad-towers', 'conrad-abu-dhabi-etihad-towers', 'double_standard', 2, '1 king bed'),
-  ('room-ritz-carlton-abu-dhabi-grand-canal', 'ritz-carlton-abu-dhabi-grand-canal', 'double_standard', 2, '1 king bed'),
-  ('room-hilton-abu-dhabi-yas-island', 'hilton-abu-dhabi-yas-island', 'double_standard', 2, '1 king bed'),
-  ('room-al-bahar-hotel-resort-fujairah', 'al-bahar-hotel-resort-fujairah', 'double_standard', 2, '1 king bed'),
-  ('room-palace-beach-resort-fujairah', 'palace-beach-resort-fujairah', 'double_standard', 2, '1 king bed'),
-  ('room-doubletree-hilton-fujairah-city', 'doubletree-hilton-fujairah-city', 'double_standard', 2, '1 king bed'),
-  ('room-royal-m-hotel-gewan-fujairah', 'royal-m-hotel-gewan-fujairah', 'double_standard', 2, '1 king bed'),
-  ('room-al-diar-siji-hotel', 'al-diar-siji-hotel', 'double_standard', 2, '1 king bed'),
-  ('room-so-ras-al-khaimah', 'so-ras-al-khaimah', 'double_standard', 2, '1 king bed'),
-  ('room-rixos-bab-al-bahr', 'rixos-bab-al-bahr', 'double_standard', 2, '1 king bed'),
-  ('room-sofitel-rak-al-hamra', 'sofitel-rak-al-hamra', 'double_standard', 2, '1 king bed'),
-  ('room-movenpick-al-marjan-island', 'movenpick-al-marjan-island', 'double_standard', 2, '1 king bed'),
-  ('room-intercontinental-rak-resort-spa', 'intercontinental-rak-resort-spa', 'double_standard', 2, '1 king bed'),
-  ('room-sheraton-sharjah-beach-resort', 'sheraton-sharjah-beach-resort', 'double_standard', 2, '1 king bed'),
-  ('room-chedi-al-bait-sharjah', 'chedi-al-bait-sharjah', 'double_standard', 2, '1 king bed'),
-  ('room-pullman-sharjah', 'pullman-sharjah', 'double_standard', 2, '1 king bed'),
-  ('room-corniche-hotel-sharjah', 'corniche-hotel-sharjah', 'double_standard', 2, '1 king bed'),
-  ('room-hotel-72-sharjah', 'hotel-72-sharjah', 'double_standard', 2, '1 king bed'),
-  ('room-bahi-ajman-palace', 'bahi-ajman-palace', 'double_standard', 2, '1 king bed'),
-  ('room-fairmont-ajman', 'fairmont-ajman', 'double_standard', 2, '1 king bed'),
-  ('room-dusit-ajman-resort-villas', 'dusit-ajman-resort-villas', 'double_standard', 2, '1 king bed'),
-  ('room-ajman-saray-luxury-collection', 'ajman-saray-luxury-collection', 'double_standard', 2, '1 king bed'),
-  ('room-oberoi-beach-resort-al-zorah', 'oberoi-beach-resort-al-zorah', 'double_standard', 2, '1 king bed')
-ON CONFLICT (id) DO NOTHING;
-
--- 2026-09-11 - the 7 Exceptional Stays additions (claude/rate-manifest-
--- technical-blueprint.md, "Final property set... locked 2026-09-11").
--- Deliberately NOT flagged featured_in_iq here - Navin's own caveat was
--- that these 7 are "a product recommendation, not a seeding instruction":
--- each needs to actually resolve through StayingAPI (real property,
--- plausible price response) before being presented as IQ-ready, same bar
--- the original 5 were held to. That verification happens next, via a real
--- live check per hotel; only after it succeeds does a separate UPDATE (not
--- yet written) flag these true, the same way the existing 5 were flagged
--- above.
-INSERT INTO hotels (id, name, area, city, star_rating, is_mock_data, mock_base_price)
-VALUES
-  ('one-and-only-the-palm', 'One&Only The Palm', 'Palm Jumeirah (West Crescent)', 'Dubai', 5, false, NULL),
-  ('atlantis-the-royal', 'Atlantis The Royal', 'Palm Jumeirah', 'Dubai', 5, false, NULL),
-  ('mandarin-oriental-jumeira-dubai', 'Mandarin Oriental Jumeira, Dubai', 'Jumeirah Beach Road', 'Dubai', 5, false, NULL),
-  ('bulgari-resort-dubai', 'Bulgari Resort Dubai', 'Jumeira Bay Island', 'Dubai', 5, false, NULL),
-  ('four-seasons-resort-dubai-jumeirah-beach', 'Four Seasons Resort Dubai at Jumeirah Beach', 'Jumeirah Beach Road', 'Dubai', 5, false, NULL),
-  ('armani-hotel-dubai', 'Armani Hotel Dubai', 'Downtown Dubai (Burj Khalifa)', 'Dubai', 5, false, NULL),
-  ('jumeirah-al-naseem', 'Jumeirah Al Naseem', 'Madinat Jumeirah, Umm Suqeim', 'Dubai', 5, false, NULL)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO rooms (id, hotel_id, normalized_type, occupancy, bed_config)
-VALUES
-  ('room-one-and-only-the-palm', 'one-and-only-the-palm', 'double_standard', 2, '1 king bed'),
-  ('room-atlantis-the-royal', 'atlantis-the-royal', 'double_standard', 2, '1 king bed'),
-  ('room-mandarin-oriental-jumeira-dubai', 'mandarin-oriental-jumeira-dubai', 'double_standard', 2, '1 king bed'),
-  ('room-bulgari-resort-dubai', 'bulgari-resort-dubai', 'double_standard', 2, '1 king bed'),
-  ('room-four-seasons-resort-dubai-jumeirah-beach', 'four-seasons-resort-dubai-jumeirah-beach', 'double_standard', 2, '1 king bed'),
-  ('room-armani-hotel-dubai', 'armani-hotel-dubai', 'double_standard', 2, '1 king bed'),
-  ('room-jumeirah-al-naseem', 'jumeirah-al-naseem', 'double_standard', 2, '1 king bed')
-ON CONFLICT (id) DO NOTHING;
+-- V2A legacy catalogue retirement (2026-09-22, approved read-only audit):
+-- this file used to seed 37 real UAE hotels (30 "top five per emirate" +
+-- 7 later "Exceptional Stays" candidates) and their matching room rows
+-- directly into the initialization script. That catalogue is retired by
+-- an authoritative decision - it must never be treated as live inventory
+-- or recreated by a fresh initialization - so both INSERT INTO hotels
+-- blocks and their matching INSERT INTO rooms blocks were removed here.
+-- Nothing else changed: every CREATE TABLE / ALTER TABLE / CREATE INDEX
+-- statement in this file (including hotels' own shape) is untouched, so a
+-- fresh environment still gets every real table with the right columns -
+-- it just starts, correctly, with zero hotel rows instead of 37. Cleanup
+-- of any hotels already seeded by an earlier run of this script into an
+-- existing database is a separate, explicitly-approved, staging-only
+-- operation - deliberately not a DELETE in this file (see the existing
+-- 'ibis-deira-city-centre' DELETE below for why an id-scoped DELETE here
+-- would otherwise be the established pattern: it names one already-and-
+-- separately-retired hotel from before this catalogue existed, which is
+-- different from bulk-removing the 37 that a previous run of this exact
+-- script may have inserted).
 
 -- Ibis Deira City Centre (3-star) was seeded by an earlier version of this
 -- route, before the real-hotel catalog became "top five 5-star per
