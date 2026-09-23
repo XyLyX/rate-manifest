@@ -172,15 +172,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </p>
             </div>
             <DiscoverForm
-              cities={cities}
+              key={trip?.id ?? "new-search"}
+              cities={PUBLIC_HOTEL_DISCOVERY_ENABLED ? cities : []}
               defaultDestination={trip?.destination ?? ""}
-              // Catalogue coverage, not the affiliate-readiness presentation
-              // gate above - PUBLIC_HOTEL_DISCOVERY_ENABLED controls whether
-              // the shortlist grid is shown, not whether a destination is in
-              // the catalogue. Gating this on it too made DiscoverForm's
-              // "we're curating this destination" state show for every
-              // search, including ones with full catalogue coverage.
-              destinationSupported={Boolean(tripCity)}
+              showHotelNotification={Boolean(trip) && (!PUBLIC_HOTEL_DISCOVERY_ENABLED || !tripCity)}
               defaultCheckIn={checkIn}
               defaultCheckOut={checkOut}
             />
