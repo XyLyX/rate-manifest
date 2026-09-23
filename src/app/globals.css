@@ -4079,7 +4079,7 @@ input:focus {
   text-transform: uppercase;
   color: #d4a853;
   text-decoration: none;
-  cursor: default;
+  cursor: pointer;
 }
 .intel-row-cta::after {
   content: '→';

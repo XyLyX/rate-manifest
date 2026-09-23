@@ -174,7 +174,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <DiscoverForm
               cities={cities}
               defaultDestination={trip?.destination ?? ""}
-              destinationSupported={PUBLIC_HOTEL_DISCOVERY_ENABLED && Boolean(tripCity)}
+              // Catalogue coverage, not the affiliate-readiness presentation
+              // gate above - PUBLIC_HOTEL_DISCOVERY_ENABLED controls whether
+              // the shortlist grid is shown, not whether a destination is in
+              // the catalogue. Gating this on it too made DiscoverForm's
+              // "we're curating this destination" state show for every
+              // search, including ones with full catalogue coverage.
+              destinationSupported={Boolean(tripCity)}
               defaultCheckIn={checkIn}
               defaultCheckOut={checkOut}
             />
@@ -253,7 +259,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <div className="intel-row-label">{c.label}</div>
                 <h2 className="intel-row-title">{c.title}</h2>
                 <p className="intel-row-body">{c.body}</p>
-                <span className="intel-row-cta">{ctas[c.pillar] ?? "Explore"}</span>
+                {/* Was a plain <span> with no href/onClick - styled like a
+                    link but not actually clickable. Each pillar links to its
+                    own dedicated guide at /explore/{pillar} (see
+                    src/app/explore/[pillar]/page.tsx) - general, evergreen
+                    guidance for this pillar, distinct from these cards'
+                    live, destination-specific Gemini text. */}
+                <a href={`/explore/${c.pillar}`} className="intel-row-cta">
+                  {ctas[c.pillar] ?? "Explore"}
+                </a>
               </div>
             </div>
           );
