@@ -116,8 +116,8 @@ interface PillarPageProps {
 
 export async function generateMetadata({ params }: PillarPageProps): Promise<Metadata> {
   const { pillar } = await params;
-  const g = GUIDES[pillar];
-  if (!g) return { title: "Guide not found" };
+  const g = Object.prototype.hasOwnProperty.call(GUIDES, pillar) ? GUIDES[pillar] : undefined;
+  if (!g) notFound();
   return {
     title: `${g.title} | Rate Manifest`,
     description: g.intro,
@@ -128,7 +128,7 @@ export async function generateMetadata({ params }: PillarPageProps): Promise<Met
 
 export default async function PillarGuidePage({ params }: PillarPageProps) {
   const { pillar } = await params;
-  const g = GUIDES[pillar];
+  const g = Object.prototype.hasOwnProperty.call(GUIDES, pillar) ? GUIDES[pillar] : undefined;
   if (!g) notFound();
 
   return (
