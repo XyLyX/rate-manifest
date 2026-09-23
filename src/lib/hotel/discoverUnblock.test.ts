@@ -32,10 +32,9 @@ test("1: a catalogued destination returns property candidates: page resolves the
   assert.match(page, /cities\.find\(\(c\) => normalise\(c\) === normalise\(trip\.destination\)\)/);
   assert.match(page, /activeDiscoverySource\.search\(\{ destination: tripCity \}\)/);
   assert.match(page, /trip && tripCity && shortlistHotels\.length > 0/); // only for a real trip + catalogued destination
-  // the form is given the real city list (suggestions/exact match) and does not show "curating" for a supported city
-  assert.match(page, /cities=\{cities\}/);
-  assert.match(page, /destinationSupported=\{Boolean\(tripCity\)\}/);
-  assert.match(code("components/DiscoverForm.tsx"), /useState\(Boolean\(defaultDestination\) && !destinationSupported\)/);
+  // Public suggestions and notifications follow the discovery gate, not internal coverage.
+  assert.match(page, /cities=\{PUBLIC_HOTEL_DISCOVERY_ENABLED \? cities : \[\]\}/);
+  assert.match(page, /showHotelNotification=\{Boolean\(trip\) && \(!PUBLIC_HOTEL_DISCOVERY_ENABLED \|\| !tripCity\)\}/);
   // the catalogue source only reads the hotels table by city
   assert.match(code("lib/discovery/curatedCatalogSource.ts"), /eq\(schema\.hotels\.city, destination\)/);
 });
