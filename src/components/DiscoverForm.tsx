@@ -37,6 +37,17 @@ function addDays(dateIso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Makes the WHOLE check-in/check-out field open the native date picker on
+// click, not just the small calendar-icon affordance some browsers restrict
+// it to. showPicker() is a standard HTMLInputElement method (no new
+// dependency) - optional-chained so this is a silent no-op on a browser
+// that lacks it, where the field's existing default click/focus behaviour
+// (and manual typing/keyboard date-segment entry, unaffected either way)
+// still applies exactly as before.
+function openDatePicker(e: React.MouseEvent<HTMLInputElement>) {
+  e.currentTarget.showPicker?.();
+}
+
 // Normalise a string for city matching: lowercase, collapse internal
 // whitespace, trim. Both the input value and the supported cities list go
 // through the same transform before comparison, so "Abu  Dhabi" and
@@ -270,6 +281,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
             type="date"
             value={checkIn}
             onChange={(e) => handleCheckInChange(e.target.value)}
+            onClick={openDatePicker}
             required
           />
         </div>
@@ -282,6 +294,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
             value={checkOut}
             min={checkIn ? addDays(checkIn, 1) : undefined}
             onChange={(e) => setCheckOut(e.target.value)}
+            onClick={openDatePicker}
             required
           />
         </div>
