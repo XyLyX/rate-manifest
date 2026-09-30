@@ -26,3 +26,8 @@ Sources: https://developers.openai.com/api/docs/guides/image-generation and http
 Travellers can correct any previous answer without adding another answer slot. Corrections rebuild the trip from the revised answer history, while image edits preserve the previous composition where possible. Failed description updates retain the original answers and the edit draft. A failed render retains the revised wishes and previous image.
 
 The My trip view lists selected wishes and downloads a plain-text planning brief containing the answers and scene description, with no credentials or generated image. The immersive view hides the controls while keeping a return button. These wishes are not bookable products: verified inventory and itemised prices remain a separate integration before checkout.
+
+
+## Save and resume
+
+Save my trip explicitly saves the answers, wishes, unsent draft and scene-render count on the current browser/device. Resume saved trip restores them without calling an AI provider. Saving again replaces the previous saved trip; Start over clears the current journey but preserves the saved copy. Credentials and generated images are excluded. Restoring an image requires a new render and does not reset the existing scene allowance. Browser storage failures are reported, with the text-brief download as a fallback.

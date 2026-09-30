@@ -1,6 +1,7 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { World } from '@/lib/rami/world';
+import { DRAFT_KEY, parseDraft, type TripDraft } from '@/lib/rami/draft';
 import styles from './experience.module.css';
 
 export default function Experience() {
@@ -20,6 +21,27 @@ export default function Experience() {
   const [review, setReview] = useState(false);
   const [focusScene, setFocusScene] = useState(false);
   const answerInput = useRef<HTMLTextAreaElement>(null);
+  const [savedDraft, setSavedDraft] = useState<TripDraft | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) setSavedDraft(parseDraft(JSON.parse(raw)));
+    } catch { setSaveMessage('Your saved trip could not be opened. You can start a new trip.'); }
+  }, []);
+  function saveTrip() {
+    try {
+      const draft = parseDraft({ version: 1, answers, world, input, editing, renders });
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setSavedDraft(draft); setSaveMessage('Trip saved on this device. Save again after making changes.');
+    } catch { setSaveMessage('This browser could not save your trip. Download your trip brief to keep a copy.'); }
+  }
+  function resumeTrip() {
+    if (!savedDraft || phase) return;
+    setAnswers(savedDraft.answers); setWorld(savedDraft.world); setInput(savedDraft.input); setEditing(savedDraft.editing); setRenders(savedDraft.renders);
+    setImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
+    setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
+  }
   async function call(body: object) {
     const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessCode: accessInput.current?.value ?? access }) });
     const text = await response.text();
@@ -68,7 +90,7 @@ export default function Experience() {
   return <main className={`${styles.root} ${focusScene ? styles.focusScene : ''}`}>
     {image && <img className={styles.scene} src={image} alt={renderedScene} />}
     <div className={styles.shade} />
-    <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={reset} disabled={!!phase}>Start over</button></div></header>
+    <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={saveTrip} disabled={!!phase || (!world && !input.trim())}>Save my trip</button><button onClick={reset} disabled={!!phase}>Start over</button></div></header>
     <div className={styles.layout}>
       <section className={styles.world} aria-label="Your imagined trip">
         <span className={styles.eyebrow}>YOUR EXPERIENCE, TAKING SHAPE</span>
@@ -81,6 +103,8 @@ export default function Experience() {
       <aside className={styles.panel}>
         <h2>Imagine it with RaMi</h2>
         <p className={styles.intro}>A place. A feeling. The little details that make it yours. Tell RaMi in your own words.</p>
+        {savedDraft && <button onClick={resumeTrip} disabled={!!phase}>Resume saved trip</button>}
+        {saveMessage && <p role="status" aria-live="polite">{saveMessage}</p>}
         <details className={styles.connection} open={!world}><summary>Private preview access</summary><label className={styles.label}>Prototype access code<input ref={accessInput} type="password" autoComplete="off" defaultValue="" onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label></details>
         <nav className={styles.tabs} aria-label="Trip view"><button aria-pressed={!review} onClick={() => setReview(false)}>Imagine</button><button aria-pressed={review} onClick={() => setReview(true)} disabled={!world}>My trip{world ? ` · ${world.requirements.length} wishes` : ''}</button></nav>
         {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><ul>{world.requirements.map((r, i) => <li key={i}>{r}</li>)}</ul><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><button onClick={downloadBrief}>Download my trip brief</button><button onClick={() => setReview(false)}>Keep customising</button></section> : <>
