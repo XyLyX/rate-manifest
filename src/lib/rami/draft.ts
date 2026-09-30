@@ -1,7 +1,8 @@
 import { parseWorld, type World } from './world';
+import { parsePriorities, reconcilePriorities, type WishSelection } from './priorities';
 
 export const DRAFT_KEY = 'rami-trip-draft-v1';
-export type TripDraft = { version: 1; answers: string[]; world: World | null; input: string; editing: number | null; renders: number };
+export type TripDraft = { version: 1; answers: string[]; world: World | null; input: string; editing: number | null; renders: number; priorities: WishSelection[] };
 
 // Explicit allowlist: access codes and image payloads never enter the saved brief.
 export function parseDraft(value: unknown): TripDraft {
@@ -17,5 +18,6 @@ export function parseDraft(value: unknown): TripDraft {
   const world = draft.world === null ? null : parseWorld(draft.world);
   if ((draft.answers.length > 0) !== (world !== null)) throw new Error('Incomplete saved trip');
   return { version: 1, answers: [...draft.answers] as string[], world: world ? { scene: world.scene, question: world.question, requirements: [...world.requirements], changed: world.changed } : null,
-    input: draft.input, editing: draft.editing as number | null, renders: draft.renders as number };
+    input: draft.input, editing: draft.editing as number | null, renders: draft.renders as number,
+    priorities: reconcilePriorities(world?.requirements ?? [], parsePriorities(draft.priorities)) };
 }

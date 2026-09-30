@@ -31,3 +31,8 @@ The My trip view lists selected wishes and downloads a plain-text planning brief
 ## Save and resume
 
 Save my trip explicitly saves the answers, wishes, unsent draft and scene-render count on the current browser/device. Resume saved trip restores them without calling an AI provider. Saving again replaces the previous saved trip; Start over clears the current journey but preserves the saved copy. Credentials and generated images are excluded. Restoring an image requires a new render and does not reset the existing scene allowance. Browser storage failures are reported, with the text-brief download as a fallback.
+
+
+## Wish priorities
+
+My trip lets the traveller explicitly mark each wish Essential or Flexible, with no inferred default. Choices appear in the downloaded brief and saved trip. When the AI revises wishes, only exact unchanged wishes retain their priorities; changed wishes need a fresh choice. Priorities do not remove amenities from the scene or imply verified availability.

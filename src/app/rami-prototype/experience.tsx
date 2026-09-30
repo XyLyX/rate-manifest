@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { World } from '@/lib/rami/world';
 import { DRAFT_KEY, parseDraft, type TripDraft } from '@/lib/rami/draft';
+import { reconcilePriorities, type WishPriority, type WishSelection } from '@/lib/rami/priorities';
 import styles from './experience.module.css';
 
 export default function Experience() {
@@ -23,6 +24,10 @@ export default function Experience() {
   const answerInput = useRef<HTMLTextAreaElement>(null);
   const [savedDraft, setSavedDraft] = useState<TripDraft | null>(null);
   const [saveMessage, setSaveMessage] = useState('');
+  const [priorities, setPriorities] = useState<WishSelection[]>([]);
+  function prioritise(wish: string, priority: WishPriority | '') {
+    setPriorities(current => [...current.filter(s => s.wish !== wish), ...(priority ? [{ wish, priority }] : [])]);
+  }
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -31,7 +36,7 @@ export default function Experience() {
   }, []);
   function saveTrip() {
     try {
-      const draft = parseDraft({ version: 1, answers, world, input, editing, renders });
+      const draft = parseDraft({ version: 1, answers, world, input, editing, renders, priorities });
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setSavedDraft(draft); setSaveMessage('Trip saved on this device. Save again after making changes.');
     } catch { setSaveMessage('This browser could not save your trip. Download your trip brief to keep a copy.'); }
@@ -39,6 +44,7 @@ export default function Experience() {
   function resumeTrip() {
     if (!savedDraft || phase) return;
     setAnswers(savedDraft.answers); setWorld(savedDraft.world); setInput(savedDraft.input); setEditing(savedDraft.editing); setRenders(savedDraft.renders);
+    setPriorities(savedDraft.priorities);
     setImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
     setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
   }
@@ -70,6 +76,7 @@ export default function Experience() {
       const result = await call({ action: 'describe', answers: nextAnswers, previous: editing === null ? world : null });
       const next = result.world as World;
       setAnswers(nextAnswers); setWorld(next); setInput(''); setEditing(null); setReview(false);
+      setPriorities(current => reconcilePriorities(next.requirements, current));
       if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editing !== null)))) await render(next);
     } catch (e) { setError(e instanceof Error ? e.message : 'The update failed.'); }
     finally { setPhase(''); }
@@ -80,10 +87,10 @@ export default function Experience() {
     try { await render(world); } catch (e) { setError(e instanceof Error ? e.message : 'The scene failed.'); } finally { setPhase(''); }
   }
   function editAnswer(index: number) { const answer = answers[index]; if (answer === undefined) return; setEditing(index); setInput(answer); setReview(false); answerInput.current?.focus(); }
-  function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); }
+  function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); }
   function downloadBrief() {
     if (!world) return;
-    const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r}`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
+    const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r} [${priorities.find(s => s.wish === r)?.priority || 'priority not chosen'}]`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
     const url = URL.createObjectURL(new Blob([brief], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'my-rami-trip.txt'; link.click(); URL.revokeObjectURL(url);
   }
@@ -107,7 +114,7 @@ export default function Experience() {
         {saveMessage && <p role="status" aria-live="polite">{saveMessage}</p>}
         <details className={styles.connection} open={!world}><summary>Private preview access</summary><label className={styles.label}>Prototype access code<input ref={accessInput} type="password" autoComplete="off" defaultValue="" onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label></details>
         <nav className={styles.tabs} aria-label="Trip view"><button aria-pressed={!review} onClick={() => setReview(false)}>Imagine</button><button aria-pressed={review} onClick={() => setReview(true)} disabled={!world}>My trip{world ? ` · ${world.requirements.length} wishes` : ''}</button></nav>
-        {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><ul>{world.requirements.map((r, i) => <li key={i}>{r}</li>)}</ul><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><button onClick={downloadBrief}>Download my trip brief</button><button onClick={() => setReview(false)}>Keep customising</button></section> : <>
+        {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><p>Which wishes are essential? Where could you be flexible?</p><ul>{world.requirements.map((r, i) => <li key={i}><span>{r}</span><label className={styles.label}>Priority for {r}<select value={priorities.find(s => s.wish === r)?.priority || ''} onChange={e => prioritise(r, e.target.value as WishPriority | '')} disabled={!!phase}><option value="">Choose priority</option><option value="essential">Essential</option><option value="flexible">Flexible</option></select></label></li>)}</ul><p>{priorities.filter(s => s.priority === 'essential').length} essential · {priorities.filter(s => s.priority === 'flexible').length} flexible · {world.requirements.length - priorities.length} to decide</p><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><button onClick={downloadBrief}>Download my trip brief</button><button onClick={() => setReview(false)}>Keep customising</button></section> : <>
         <details className={styles.answers}><summary>Your story so far · {answers.length} answers</summary><div className={styles.history} aria-label="Your answers">{answers.map((a, i) => <div className={styles.answer} key={i}><p>{a}</p><button onClick={() => editAnswer(i)} disabled={!!phase} aria-label={`Edit answer ${i + 1}`}>Edit</button></div>)}</div></details>
         <p className={styles.question}>{editing !== null ? 'What would you like to change in this answer?' : world?.question || 'What would your ideal trip feel like?'}</p>
         <form onSubmit={submit}>
