@@ -78,3 +78,8 @@ Add selected experiences to my plan submits the editable selection draft directl
 ## Scene continuity
 
 Each successfully preloaded scene fades in over the previous visible image for 1.2 seconds. The new image has a fresh animation key on every successful render; the previous image stays as a background layer and is released after the transition. Reduced-motion preferences switch without animation. Failed/stopped renders do not touch the current image. Start over and restored drafts clear both layers. A scene-ready message appears only when the visible scene description matches the latest accepted wishes and no update is running.
+
+
+## Suggestions during source search
+
+RaMi's one-at-a-time suggestion stream now runs while catalogue and experience sources are searched, sharing the same selected-experience draft as scene generation. Source search shows elapsed time and supports Stop searching. Leaving the matching view aborts its request; late stopped responses cannot enter the results. Selected suggestions live in the parent trip view and survive the search finishing, failing, stopping or unmounting.

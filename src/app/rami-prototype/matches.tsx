@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { World } from '@/lib/rami/world';
 import type { WishSelection } from '@/lib/rami/priorities';
 import type { MatchResults } from '@/lib/rami/matches';
 import { shortlistBrief, toggleCandidate } from '@/lib/rami/shortlist';
 import styles from './experience.module.css';
+import SuggestionStream from './suggestion-stream';
+import { activeResult } from '@/lib/rami/update';
 
-export default function Matches({ world, priorities, call, onSaveShortlist }: { world: World; priorities: WishSelection[]; call: (body: object) => Promise<MatchResults>; onSaveShortlist: (brief: string) => void }) {
+export default function Matches({ world, priorities, call, onSaveShortlist, selectedIdeas, onSelectIdea }: { world: World; priorities: WishSelection[]; call: (body: object, signal?: AbortSignal) => Promise<MatchResults>; onSaveShortlist: (brief: string) => void; selectedIdeas: string; onSelectIdea: (answer: string) => void }) {
   const [destination, setDestination] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -15,6 +17,15 @@ export default function Matches({ world, priorities, call, onSaveShortlist }: { 
   const [results, setResults] = useState<MatchResults | null>(null);
   const [hotelIds, setHotelIds] = useState<string[]>([]);
   const [experienceIds, setExperienceIds] = useState<string[]>([]);
+  const activeSearch = useRef<AbortController | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => () => activeSearch.current?.abort(), []);
+  useEffect(() => {
+    if (!busy) return;
+    const started = Date.now(); setElapsed(0);
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
   function clearResults() { setResults(null); setHotelIds([]); setExperienceIds([]); }
   function select(kind: 'hotel' | 'experience', id: string) {
     if (!results) return;
@@ -30,11 +41,12 @@ export default function Matches({ world, priorities, call, onSaveShortlist }: { 
     const link = document.createElement('a'); link.href = url; link.download = 'my-rami-shortlist.txt'; link.click(); URL.revokeObjectURL(url);
   }
   async function search(event: React.FormEvent) {
-    event.preventDefault(); if (busy) return;
+    event.preventDefault(); if (busy || activeSearch.current) return;
+    const controller = new AbortController(); activeSearch.current = controller;
     setBusy(true); setError(''); clearResults();
-    try { setResults(await call({ action: 'matches', destination, checkIn, checkOut, world, priorities })); }
-    catch (e) { setError(e instanceof Error ? e.message : 'The search failed.'); }
-    finally { setBusy(false); }
+    try { setResults(await activeResult(call({ action: 'matches', destination, checkIn, checkOut, world, priorities }, controller.signal), controller.signal)); }
+    catch (e) { setError(e instanceof Error && e.name === 'AbortError' ? 'Stopped searching. Your trip wishes and selected suggestions are retained.' : e instanceof Error ? e.message : 'The search failed.'); }
+    finally { if (activeSearch.current === controller) { activeSearch.current = null; setBusy(false); } }
   }
   return <section className={styles.matching} aria-label="Explore stays and experiences">
     <h3>Bring your trip closer</h3><p>Choose where and when to explore catalogue stays and supplier experiences.</p><p>Changing the destination, dates or wishes starts a fresh shortlist. Save or download your choices to keep a copy.</p>
@@ -44,6 +56,7 @@ export default function Matches({ world, priorities, call, onSaveShortlist }: { 
       <label className={styles.label}>Check-out<input required type="date" value={checkOut} min={checkIn || undefined} onChange={e => { setCheckOut(e.target.value); clearResults(); }} disabled={busy} /></label>
       <button className={styles.primary} disabled={busy}>{busy ? 'Searching sources…' : 'Explore options'}</button>
     </form>
+    {busy && <><p role="status">RaMi is checking sources for {destination} · {elapsed}s elapsed.</p><SuggestionStream context={[destination, ...world.requirements].join(' ')} selected={selectedIdeas} onSelect={onSelectIdea} /><button onClick={() => activeSearch.current?.abort()}>Stop searching</button></>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {results && <div aria-live="polite"><h4>Stays in {results.destination}</h4><p>Catalogue identities only. Your requested amenities, prices and room availability still need checking.</p>
       {results.hotelStatus === 'unavailable' && <p>The stay catalogue could not be reached. Try again later.</p>}
