@@ -6,7 +6,7 @@ export const maxDuration = 120;
 const reply = (body: object, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
 export async function POST(request: Request) {
-  const token = process.env.RAMI_PROTOTYPE_TOKEN;
+  const token = process.env.RAMI_PROTOTYPE_TOKEN?.trim();
   const key = process.env.OPENAI_API_KEY;
   if (process.env.RAMI_PROTOTYPE_ENABLED !== 'true' || !token || !key) {
     return reply({ error: 'The private RaMi prototype is not connected yet.' }, 503);
@@ -18,9 +18,10 @@ export async function POST(request: Request) {
     body = JSON.parse(raw);
     if (!body || typeof body !== 'object') return reply({ error: 'Invalid request.' }, 400);
   } catch { return reply({ error: 'Invalid request.' }, 400); }
-  const supplied = typeof body.accessCode === 'string' ? body.accessCode : '';
+  const supplied = typeof body.accessCode === 'string' ? body.accessCode.trim() : '';
+  if (!supplied) return reply({ error: 'The access-code field was empty when sent. Type your saved code into the field, then try again.' }, 401);
   if (Buffer.byteLength(supplied) !== Buffer.byteLength(token) ||
-      !timingSafeEqual(Buffer.from(supplied), Buffer.from(token))) return reply({ error: 'Enter the prototype access code.' }, 401);
+      !timingSafeEqual(Buffer.from(supplied), Buffer.from(token))) return reply({ error: 'The entered code does not match the code configured for this deployed preview.' }, 401);
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) {
     return reply({ error: 'This request must come from the prototype page.' }, 403);
   }
