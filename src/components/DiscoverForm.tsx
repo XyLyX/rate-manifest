@@ -8,9 +8,7 @@ import { TRIP_PURPOSES, type TripPurpose } from "@/lib/constants";
 interface DiscoverFormProps {
   cities: string[];
   defaultDestination?: string;
-  // True when defaultDestination has properties in the catalogue, so the
-  // "we're curating this destination" state must not be shown for it.
-  destinationSupported?: boolean;
+  showHotelNotification?: boolean;
   defaultCheckIn: string;
   defaultCheckOut: string;
 }
@@ -59,15 +57,9 @@ function normalise(s: string): string {
 // Page 1 (Discover)'s search card - destination, dates, guests/rooms, and
 // trip-intent, in one form. Submits to createTrip() (src/app/actions/trip.ts).
 //
-// W2 (2026-09-14): destination field changed from a closed <select> to an
-// open free-text input with a suggestions overlay. Client-side submit
-// interception guards against an unsupported destination reaching createTrip.
-//
-// W3 (2026-09-14): unsupported-destination state extended with an inline
-// name/email form that submits to recordDestinationInterest() (a server
-// action that writes to destination_interest). The destination is captured
-// automatically from the visitor's search - they never re-enter it.
-export function DiscoverForm({ cities, defaultDestination = "", destinationSupported = false, defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
+// Destination entry is unrestricted. The page keys this component by trip ID
+// so each completed search resets the optional hotel notification state.
+export function DiscoverForm({ cities, defaultDestination = "", showHotelNotification = false, defaultCheckIn, defaultCheckOut }: DiscoverFormProps) {
   const [checkIn, setCheckIn] = useState(defaultCheckIn);
   const [checkOut, setCheckOut] = useState(defaultCheckOut);
   const [purpose, setPurpose] = useState<TripPurpose>("UNSPECIFIED");
@@ -75,7 +67,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
   // Destination combobox state
   const [destInput, setDestInput] = useState(defaultDestination);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [unsupported, setUnsupported] = useState(Boolean(defaultDestination) && !destinationSupported);
+  const [notificationVisible, setNotificationVisible] = useState(showHotelNotification);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // W3: destination interest form state
@@ -100,7 +92,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
 
   function handleDestChange(value: string) {
     setDestInput(value);
-    setUnsupported(false);
+    setNotificationVisible(false);
     setInterestStatus("idle");
     setShowSuggestions(true);
   }
@@ -108,7 +100,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
   function pickSuggestion(city: string) {
     setDestInput(city);
     setShowSuggestions(false);
-    setUnsupported(false);
+    setNotificationVisible(false);
     inputRef.current?.focus();
   }
 
@@ -121,7 +113,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
 
   // Phase A: destination entry is open. Hotel inventory support is independent
   // from destination intelligence, so every non-empty destination may create a trip.
-  // After the redirect, defaultDestination is populated and the curating state is shown.
+  // After the redirect, the page offers an optional hotel availability notification.
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     if (!destInput.trim()) {
       e.preventDefault();
@@ -132,7 +124,8 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
   }
 
   // W3: submit interest form via server action, stay on page, show result
-  function handleInterestSubmit() {
+  function handleInterestSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setInterestError("");
     startTransition(async () => {
       const result = await recordDestinationInterest(destInput, interestName, interestEmail);
@@ -146,6 +139,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
   }
 
   return (
+    <>
     <form className="discover-form" action={createTrip} onSubmit={handleSubmit}>
       {/* Hidden input carries the resolved, canonical city name to createTrip */}
       <input type="hidden" name="destination" value={resolvedCity ?? destInput} />
@@ -195,82 +189,7 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
             )}
           </div>
 
-          {/* W3: unsupported-destination state with inline interest form */}
-          {unsupported && (
-            <div className="unsupported-destination" role="alert">
-              <span className="unsupported-destination-headline">
-                We&apos;re curating this destination.
-              </span>
-              <span className="unsupported-destination-sub">
-                Rate Manifest isn&apos;t live here yet — but we&apos;re working on it.
-              </span>
 
-              {interestStatus === "success" ? (
-                <div className="interest-success">
-                  <span className="interest-success-headline">You&apos;re on the list.</span>
-                  <span className="interest-success-sub">
-                    We&apos;ll let you know when Rate Manifest is live in{" "}
-                    <strong>{destInput}</strong> — with hotels and travel intelligence
-                    worth knowing.
-                  </span>
-                </div>
-              ) : (
-                <div
-                  className="interest-form"
-                  aria-label={"Register interest for " + destInput}
-                >
-                  <p className="interest-form-hook">Want to know when it&apos;s ready?</p>
-                  <p className="interest-form-dest">
-                    <strong>{destInput}</strong>
-                  </p>
-
-                  <div className="interest-form-fields">
-                    <div className="interest-form-field">
-                      <label htmlFor="interest-name">Your name</label>
-                      <input
-                        id="interest-name"
-                        type="text"
-                        value={interestName}
-                        onChange={(e) => setInterestName(e.target.value)}
-                        placeholder="Your name"
-                        autoComplete="name"
-                        disabled={isPending}
-                        required
-                      />
-                    </div>
-                    <div className="interest-form-field">
-                      <label htmlFor="interest-email">Email address</label>
-                      <input
-                        id="interest-email"
-                        type="email"
-                        value={interestEmail}
-                        onChange={(e) => setInterestEmail(e.target.value)}
-                        placeholder="Email address"
-                        autoComplete="email"
-                        disabled={isPending}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {interestStatus === "error" && (
-                    <p className="interest-form-error" role="alert">
-                      {interestError}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    className="btn interest-form-submit"
-                    onClick={handleInterestSubmit}
-                    disabled={isPending}
-                  >
-                    {isPending ? "Sending…" : "Notify me"}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="field">
@@ -345,5 +264,64 @@ export function DiscoverForm({ cities, defaultDestination = "", destinationSuppo
         Explore this destination &rarr;
       </button>
     </form>
+    {notificationVisible && (
+      <details style={{ marginTop: "1rem" }}>
+        <summary
+          className="interest-form-hook"
+          style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", cursor: "pointer", fontSize: "0.85rem" }}
+        >
+          <span>Hotel comparisons are coming soon. Get notified when they&apos;re available.</span>
+          <span className="btn btn-ghost">Notify me</span>
+        </summary>
+        {interestStatus === "success" ? (
+          <p className="interest-success-sub" role="status" style={{ marginTop: "0.75rem" }}>
+            You&apos;re on the list. We&apos;ll notify you when hotel comparisons are available.
+          </p>
+        ) : (
+          <form
+            className="interest-form"
+            style={{ marginTop: "0.75rem", width: "100%", maxWidth: "520px" }}
+            onSubmit={handleInterestSubmit}
+            aria-label="Hotel comparison notification"
+          >
+            <div className="interest-form-fields">
+              <div className="interest-form-field">
+                <label htmlFor="interest-name">Your name</label>
+                <input
+                  id="interest-name"
+                  type="text"
+                  value={interestName}
+                  onChange={(e) => setInterestName(e.target.value)}
+                  placeholder="Your name"
+                  autoComplete="name"
+                  disabled={isPending}
+                  required
+                />
+              </div>
+              <div className="interest-form-field">
+                <label htmlFor="interest-email">Email address</label>
+                <input
+                  id="interest-email"
+                  type="email"
+                  value={interestEmail}
+                  onChange={(e) => setInterestEmail(e.target.value)}
+                  placeholder="Email address"
+                  autoComplete="email"
+                  disabled={isPending}
+                  required
+                />
+              </div>
+            </div>
+            {interestStatus === "error" && (
+              <p className="interest-form-error" role="alert">{interestError}</p>
+            )}
+            <button type="submit" className="btn btn-ghost interest-form-submit" disabled={isPending}>
+              {isPending ? "Sending…" : "Send notification request"}
+            </button>
+          </form>
+        )}
+      </details>
+    )}
+    </>
   );
 }
