@@ -12,3 +12,5 @@
 .waiting{border:1px solid #ffffff30;border-radius:12px;padding:14px;margin-top:12px}.waiting p{font-size:13px;line-height:1.6;color:#c1cee2}.waiting button{width:100%}
 
 .ideas{margin-top:22px;border-top:1px solid #ffffff30;padding-top:16px}.ideas h3{font-family:var(--font-display),serif;font-size:26px;line-height:1.3}.ideas p,.nextIdea p{font-size:14px;line-height:1.6;color:#c1cee2}.ideas div{display:grid;gap:10px}.root .ideas div button{text-align:left;background:#ffffff08;padding:16px}.ideas strong,.ideas span,.ideas small{display:block}.ideas strong{font-size:16px}.ideas span{font-size:14px;color:#c1cee2;line-height:1.6;margin:6px 0}.ideas small{color:#f2cd77}.ideas>button{margin-top:12px}.nextIdea{border:1px solid #f2cd7760;border-radius:14px;padding:16px;margin-top:20px}.nextIdea button{margin:8px 8px 0 0}
+
+.suggestion{padding:20px;background:#ffffff08;border:1px solid #ffffff30;border-radius:16px}.suggestion h4{font-family:var(--font-display),serif;font-size:26px;margin:14px 0}.suggestion button{margin-top:10px}.ideas .suggestionNote{font-size:12px}.suggestion .eyebrow{font-size:11px;color:#f2cd77}

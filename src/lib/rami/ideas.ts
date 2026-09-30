@@ -21,3 +21,7 @@ export function appendIdea(draft: string, idea: string): string {
   if (draft.includes(idea.trim())) return draft;
   return [draft.trim(), idea.trim()].filter(Boolean).join('\n').slice(0, 1000);
 }
+
+export function pendingIdeas(ideas: TripIdea[], selected: string): TripIdea[] {
+  return ideas.filter(idea => !selected.includes(idea.answer.trim()));
+}

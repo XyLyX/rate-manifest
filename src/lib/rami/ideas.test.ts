@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendIdea, tripIdeas } from './ideas';
+import { appendIdea, pendingIdeas, tripIdeas } from './ideas';
 import { parseDraft } from './draft';
 
 test('ideas follow the traveller context while leaving arbitrary additions open', () => {
@@ -11,6 +11,16 @@ test('ideas follow the traveller context while leaving arbitrary additions open'
   assert.ok(arbitrary.some(i => i.id === 'own'));
   assert.ok(arbitrary.some(i => i.id === 'culture'));
   assert.ok(!tripIdeas('mountain nature walk').some(i => i.id === 'nature'));
+});
+test('select advances the stream and selected experiences never repeat', () => {
+  const ideas = tripIdeas('quiet beach').filter(idea => idea.id !== 'own');
+  const first = ideas[0]!;
+  const selected = appendIdea('', first.answer);
+  const remaining = pendingIdeas(ideas, selected);
+  assert.equal(remaining.length, ideas.length - 1);
+  assert.ok(!remaining.some(idea => idea.id === first.id));
+  assert.notEqual(remaining[0]?.id, first.id);
+  assert.deepEqual(pendingIdeas(ideas, ideas.map(idea => idea.answer).join('\n')), []);
 });
 test('idea drafts preserve an unfinished answer and survive saving independently of accepted wishes', () => {
   assert.equal(appendIdea('My original answer', 'A food experience'), 'My original answer\nA food experience');

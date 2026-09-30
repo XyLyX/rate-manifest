@@ -63,3 +63,8 @@ Trip understanding and scene rendering show elapsed seconds for the current step
 ## Ideas during the wait
 
 While understanding or rendering runs, RaMi shows optional planning prompts using the traveller's actual answer text and wishes as context. More ideas browses additional prompts. Suggestions cover contextual moments plus food, culture, downtime, arrival and unrestricted personal additions; they do not select a preset scene, assert bookability, quote prices or make paid additions. Clicking only fills a separate editable next-answer draft. After the current update, Use in my next answer appends it to the ordinary input; only Tell RaMi submits it. Stop waiting and update errors keep the idea draft. Save my trip preserves it; old saved trips remain compatible.
+
+
+## RaMi-led suggestion stream
+
+The waiting experience now presents one experience idea at a time in RaMi's voice: While we're curating your plan, I'd like to suggest a few experiences you could add. Select queues the idea and immediately advances to another unselected suggestion. Not now skips. Suggestions advance automatically every ten seconds; Pause suggestions, hover and keyboard focus stop advancement so controls stay stable. Selected requests stay in the editable next-answer draft and do not repeat. No preset themes, invented products or automatic charges are introduced.
