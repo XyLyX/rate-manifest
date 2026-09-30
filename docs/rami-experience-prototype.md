@@ -19,3 +19,10 @@ Run a private live trial: snowy mountain → lakeside cabin/fireplace → couple
 Before public release add durable session quotas/rate limits, budget ceilings, image storage/jobs rather than large inline images, answer queuing, actual shared Trip State integration, and matching to verified supplier imagery. The current handler can exceed hosting request limits for slow image generations; a durable asynchronous job is required if live trial shows this. No public rollout until measured.
 
 Sources: https://developers.openai.com/api/docs/guides/image-generation and https://docs.netlify.com/build/ai-gateway/overview/.
+
+
+## Traveller journey
+
+Travellers can correct any previous answer without adding another answer slot. Corrections rebuild the trip from the revised answer history, while image edits preserve the previous composition where possible. Failed description updates retain the original answers and the edit draft. A failed render retains the revised wishes and previous image.
+
+The My trip view lists selected wishes and downloads a plain-text planning brief containing the answers and scene description, with no credentials or generated image. The immersive view hides the controls while keeping a return button. These wishes are not bookable products: verified inventory and itemised prices remain a separate integration before checkout.
