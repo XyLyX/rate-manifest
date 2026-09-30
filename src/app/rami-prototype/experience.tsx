@@ -7,11 +7,14 @@ import styles from './experience.module.css';
 import Matches from './matches';
 import { SHORTLIST_KEY, parseSavedShortlist, type SavedShortlist } from '@/lib/rami/shortlist';
 import { activeResult, assertUpdateActive, updateError } from '@/lib/rami/update';
+import { appendIdea, tripIdeas } from '@/lib/rami/ideas';
 
 export default function Experience() {
   const [access, setAccess] = useState('');
   const accessInput = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
+  const [nextIdea, setNextIdea] = useState('');
+  const [ideaPage, setIdeaPage] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [world, setWorld] = useState<World | null>(null);
   const [image, setImage] = useState('');
@@ -69,7 +72,7 @@ export default function Experience() {
   }
   function saveTrip() {
     try {
-      const draft = parseDraft({ version: 1, answers, world, input, editing, renders, priorities });
+      const draft = parseDraft({ version: 1, answers, world, input, nextIdea, editing, renders, priorities });
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setSavedDraft(draft); setSaveMessage('Trip saved on this device. Save again after making changes.');
     } catch { setSaveMessage('This browser could not save your trip. Download your trip brief to keep a copy.'); }
@@ -78,6 +81,7 @@ export default function Experience() {
     if (!savedDraft || phase) return;
     setAnswers(savedDraft.answers); setWorld(savedDraft.world); setInput(savedDraft.input); setEditing(savedDraft.editing); setRenders(savedDraft.renders);
     setPriorities(savedDraft.priorities);
+    setNextIdea(savedDraft.nextIdea);
     setImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
     setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
   }
@@ -131,17 +135,19 @@ export default function Experience() {
     try { await render(world, controller.signal); } catch (e) { setError(updateError(e)); } finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
   }
   function editAnswer(index: number) { const answer = answers[index]; if (answer === undefined) return; setEditing(index); setInput(answer); setReview(false); answerInput.current?.focus(); }
-  function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); }
+  function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); setNextIdea(''); setIdeaPage(0); }
   function downloadBrief() {
     if (!world) return;
     const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r} [${priorities.find(s => s.wish === r)?.priority || 'priority not chosen'}]`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
     const url = URL.createObjectURL(new Blob([brief], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'my-rami-trip.txt'; link.click(); URL.revokeObjectURL(url);
   }
+  const ideas = tripIdeas([...answers, input, ...(world?.requirements ?? [])].join(' '));
+  const visibleIdeas = Array.from({ length: Math.min(3, ideas.length) }, (_, i) => ideas[(ideaPage * 3 + i) % ideas.length]!);
   return <main className={`${styles.root} ${focusScene ? styles.focusScene : ''}`}>
     {image && <img className={styles.scene} src={image} alt={renderedScene} />}
     <div className={styles.shade} />
-    <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={saveTrip} disabled={!!phase || (!world && !input.trim())}>Save my trip</button><button onClick={reset} disabled={!!phase}>Start over</button></div></header>
+    <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={saveTrip} disabled={!!phase || (!world && !input.trim() && !nextIdea.trim())}>Save my trip</button><button onClick={reset} disabled={!!phase}>Start over</button></div></header>
     <div className={styles.layout}>
       <section className={styles.world} aria-label="Your imagined trip">
         <span className={styles.eyebrow}>YOUR EXPERIENCE, TAKING SHAPE</span>
@@ -154,6 +160,8 @@ export default function Experience() {
       <aside className={styles.panel}>
         <h2>Imagine it with RaMi</h2>
         <p className={styles.intro}>A place. A feeling. The little details that make it yours. Tell RaMi in your own words.</p>
+        {phase && <section className={styles.ideas} aria-label="Ideas for your trip"><h3>While your trip takes shape…</h3><p>What else would make it yours? These are optional ideas to explore.</p><div>{visibleIdeas.map(idea => <button key={idea.id} onClick={() => setNextIdea(current => appendIdea(current, idea.answer))}><strong>{idea.title}</strong><span>{idea.detail}</span><small>Add to my next answer</small></button>)}</div><button onClick={() => setIdeaPage(page => page + 1)}>More ideas</button></section>}
+        {nextIdea && <section className={styles.nextIdea} aria-label="Your next addition"><label className={styles.label} htmlFor="rami-next-idea">Your next addition — edit it your way</label><textarea id="rami-next-idea" value={nextIdea} maxLength={1000} rows={3} onChange={e => setNextIdea(e.target.value)} /><p>This stays separate from your plan until you submit your next answer.</p><button disabled={!!phase || answers.length >= 12 || editing !== null} onClick={() => { setInput(current => appendIdea(current, nextIdea)); setNextIdea(''); setReview(false); }}>Use in my next answer</button><button onClick={() => setNextIdea('')}>Discard idea</button></section>}
         {shortlistMessage && <p role="status" aria-live="polite">{shortlistMessage}</p>}
         {savedShortlist && <details className={styles.savedShortlist}><summary>Saved shortlist</summary><p>Saved {new Date(savedShortlist.savedAt).toLocaleString()}. This is a copy of your earlier choices; it may differ from your current wishes. Prices and availability have not been rechecked.</p><pre>{savedShortlist.brief}</pre><button onClick={downloadSavedShortlist}>Download saved shortlist</button></details>}
         {savedDraft && <button onClick={resumeTrip} disabled={!!phase}>Resume saved trip</button>}

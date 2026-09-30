@@ -58,3 +58,8 @@ Save shortlist on this device preserves a dated plain-text copy independently of
 ## Waiting and stopped updates
 
 Trip understanding and scene rendering show elapsed seconds for the current step. Stop waiting aborts the browser request and prevents late responses from replacing the current scene or answers. Stopping before understanding finishes keeps the unfinished answer. Stopping after understanding succeeds keeps those updated wishes and the previous scene. Image preloading respects the same signal, and unmount aborts active updates. This does not promise cancellation of an already-running provider job or its cost.
+
+
+## Ideas during the wait
+
+While understanding or rendering runs, RaMi shows optional planning prompts using the traveller's actual answer text and wishes as context. More ideas browses additional prompts. Suggestions cover contextual moments plus food, culture, downtime, arrival and unrestricted personal additions; they do not select a preset scene, assert bookability, quote prices or make paid additions. Clicking only fills a separate editable next-answer draft. After the current update, Use in my next answer appends it to the ordinary input; only Tell RaMi submits it. Stop waiting and update errors keep the idea draft. Save my trip preserves it; old saved trips remain compatible.
