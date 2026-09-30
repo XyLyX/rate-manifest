@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import { parseMatchQuery, catalogueCandidates, experienceCandidates } from '@/lib/rami/matches';
 import { parseWorld, scenePrompt } from '@/lib/rami/world';
 
 export const runtime = 'nodejs';
@@ -26,6 +27,24 @@ export async function POST(request: Request) {
     return reply({ error: 'This request must come from the prototype page.' }, 403);
   }
   try {
+    if (body.action === 'matches') {
+      let query;
+      try { query = parseMatchQuery(body); } catch { return reply({ error: 'Choose a destination and valid future travel dates.' }, 400); }
+      let hotels: ReturnType<typeof catalogueCandidates> = [];
+      let hotelStatus = 'ok';
+      try {
+        const { activeDiscoverySource } = await import('@/lib/discovery');
+        const { db, schema } = await import('@/db/client');
+        const cities = await db.select({ city: schema.hotels.city }).from(schema.hotels);
+        const city = cities.find(c => c.city.trim().toLowerCase() === query.destination.toLowerCase())?.city;
+        if (city) hotels = catalogueCandidates(await activeDiscoverySource.search({ destination: city }), city);
+      } catch { hotelStatus = 'unavailable'; }
+      const mode = process.env.VIATOR_PRODUCTION_API_KEY ? 'production' : process.env.VIATOR_SANDBOX_API_KEY ? 'sandbox' : 'unavailable';
+      const { searchThingsToDo } = await import('@/lib/viator/searchThingsToDo');
+      const products = mode === 'unavailable' ? [] : await searchThingsToDo({ destinationName: query.destination, startDate: query.checkIn, endDate: query.checkOut, currency: 'AED', exactDestination: true });
+      return reply({ destination: query.destination, hotels, hotelStatus, experiences: experienceCandidates(products, query.requirements), experiencesMode: mode,
+        pendingWishes: query.requirements.map(wish => ({ wish, priority: query.priorities.find(s => s.wish === wish)?.priority || 'not chosen' })) });
+    }
     const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
     const headers = { Authorization: `Bearer ${key}` };
     if (body.action === 'describe') {

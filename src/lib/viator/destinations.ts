@@ -51,7 +51,7 @@ async function getAllDestinations(): Promise<DestinationDetails[]> {
  * as "no results" the same way every supplier adapter in this app
  * degrades on a miss, not as an error.
  */
-export async function resolveDestinationId(name: string): Promise<number | null> {
+export async function resolveDestinationId(name: string, exactOnly = false): Promise<number | null> {
   const destinations = await getAllDestinations();
   const needle = name.trim().toLowerCase();
 
@@ -60,6 +60,8 @@ export async function resolveDestinationId(name: string): Promise<number | null>
 
   const anyExact = destinations.find((d) => d.name.toLowerCase() === needle);
   if (anyExact) return anyExact.destinationId;
+
+  if (exactOnly) return null;
 
   const partial = destinations.find((d) => d.name.toLowerCase().includes(needle));
   return partial ? partial.destinationId : null;

@@ -36,3 +36,10 @@ Save my trip explicitly saves the answers, wishes, unsent draft and scene-render
 ## Wish priorities
 
 My trip lets the traveller explicitly mark each wish Essential or Flexible, with no inferred default. Choices appear in the downloaded brief and saved trip. When the AI revises wishes, only exact unchanged wishes retain their priorities; changed wishes need a fresh choice. Priorities do not remove amenities from the scene or imply verified availability.
+
+
+## Source-backed options
+
+My trip includes an explicit destination/date search. The private endpoint reads the existing curated catalogue only, excluding mock records and draft identities. It never queries StayingAPI or reopens public discovery. Catalogue results establish property identity, not amenities, room availability or price.
+
+Viator results reuse the existing destination-search adapter with exact destination matching. Sandbox results are visibly labelled test data. Production results show supplier from-prices and timestamps without claiming party-specific availability. Text overlaps help order activities, but all wishes remain unconfirmed; there is no automatic booking, selection or payment. Source failures and empty catalogue coverage display honest empty states. Live integration testing remains blocked by prototype access.

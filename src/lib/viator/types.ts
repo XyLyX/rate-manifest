@@ -63,6 +63,7 @@ export interface ThingsToDoProduct {
 }
 
 export interface ThingsToDoSearchParams {
+  exactDestination?: boolean;
   destinationName: string; // e.g. "Dubai" - resolved to a destinationId internally
   startDate: string; // ISO date
   endDate: string; // ISO date
