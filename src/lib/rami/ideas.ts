@@ -25,3 +25,10 @@ export function appendIdea(draft: string, idea: string): string {
 export function pendingIdeas(ideas: TripIdea[], selected: string): TripIdea[] {
   return ideas.filter(idea => !selected.includes(idea.answer.trim()));
 }
+
+// Do not discard ideas selected or edited while the submitted batch was running.
+export function remainingIdeas(current: string, submitted: string): string {
+  if (current.trim() === submitted.trim()) return '';
+  if (current.startsWith(submitted.trim() + '\n')) return current.slice(submitted.trim().length).trim();
+  return current;
+}

@@ -7,7 +7,7 @@ import styles from './experience.module.css';
 import Matches from './matches';
 import { SHORTLIST_KEY, parseSavedShortlist, type SavedShortlist } from '@/lib/rami/shortlist';
 import { activeResult, assertUpdateActive, updateError } from '@/lib/rami/update';
-import { appendIdea } from '@/lib/rami/ideas';
+import { appendIdea, remainingIdeas } from '@/lib/rami/ideas';
 import SuggestionStream from './suggestion-stream';
 
 export default function Experience() {
@@ -112,19 +112,23 @@ export default function Experience() {
     assertUpdateActive(signal);
     setImage(result.image); setRenderedScene(next.scene); setSeconds(Math.round(result.elapsedMs / 1000)); setRenders(n => n + 1);
   }
-  async function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent, selectedExperiences?: string) {
     event.preventDefault();
-    if (!input.trim() || phase || activeUpdate.current || (editing === null && answers.length >= 12)) return;
+    const answer = (selectedExperiences ?? input).trim();
+    const editIndex = selectedExperiences === undefined ? editing : null;
+    if (!answer || phase || activeUpdate.current || (editIndex === null && answers.length >= 12)) return;
     const controller = new AbortController(); activeUpdate.current = controller;
     setError(''); setPhase('Understanding your trip…');
     try {
-      const nextAnswers = editing === null ? [...answers, input.trim()] : answers.map((a, i) => i === editing ? input.trim() : a);
+      const nextAnswers = editIndex === null ? [...answers, answer] : answers.map((a, i) => i === editIndex ? answer : a);
       // Rebuild from answers when correcting an earlier wish, so removed details cannot linger.
-      const result = await activeResult(call({ action: 'describe', answers: nextAnswers, previous: editing === null ? world : null }, controller.signal), controller.signal);
+      const result = await activeResult(call({ action: 'describe', answers: nextAnswers, previous: editIndex === null ? world : null }, controller.signal), controller.signal);
       const next = result.world as World;
-      setAnswers(nextAnswers); setWorld(next); setInput(''); setEditing(null); setReview(false);
+      setAnswers(nextAnswers); setWorld(next); setEditing(null); setReview(false);
+      if (selectedExperiences === undefined) setInput('');
+      else setNextIdea(current => remainingIdeas(current, answer));
       setPriorities(current => reconcilePriorities(next.requirements, current));
-      if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editing !== null)))) await render(next, controller.signal);
+      if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editIndex !== null)))) await render(next, controller.signal);
     } catch (e) { setError(updateError(e)); }
     finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
   }
@@ -138,7 +142,7 @@ export default function Experience() {
   function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); setNextIdea(''); }
   function downloadBrief() {
     if (!world) return;
-    const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r} [${priorities.find(s => s.wish === r)?.priority || 'priority not chosen'}]`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
+    const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r} [${priorities.find(s => s.wish === r)?.priority || 'priority not chosen'}]`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Selected experiences awaiting submission', nextIdea || 'None', '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
     const url = URL.createObjectURL(new Blob([brief], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'my-rami-trip.txt'; link.click(); URL.revokeObjectURL(url);
   }
@@ -159,7 +163,7 @@ export default function Experience() {
         <h2>Imagine it with RaMi</h2>
         <p className={styles.intro}>A place. A feeling. The little details that make it yours. Tell RaMi in your own words.</p>
         {phase && <SuggestionStream context={[...answers, input, ...(world?.requirements ?? [])].join(' ')} selected={nextIdea} onSelect={answer => setNextIdea(current => appendIdea(current, answer))} />}
-        {nextIdea && <section className={styles.nextIdea} aria-label="Your next addition"><label className={styles.label} htmlFor="rami-next-idea">Selected experiences — edit them your way</label><textarea id="rami-next-idea" value={nextIdea} maxLength={1000} rows={3} onChange={e => setNextIdea(e.target.value)} /><p>I’ve kept these experiences ready to add with your next answer.</p><button disabled={!!phase || answers.length >= 12 || editing !== null} onClick={() => { setInput(current => appendIdea(current, nextIdea)); setNextIdea(''); setReview(false); }}>Add to my next answer</button><button onClick={() => setNextIdea('')}>Clear selections</button></section>}
+        {nextIdea && <section className={styles.nextIdea} aria-label="Your next addition"><label className={styles.label} htmlFor="rami-next-idea">Selected experiences — edit them your way</label><textarea id="rami-next-idea" value={nextIdea} maxLength={1000} rows={3} onChange={e => setNextIdea(e.target.value)} /><p>{phase ? 'I’ve kept your selections ready. You can add them when this update finishes.' : 'Ready to add these experiences to your plan?'}</p><form onSubmit={event => submit(event, nextIdea)}><button disabled={!!phase || !nextIdea.trim() || answers.length >= 12 || editing !== null}>Add selected experiences to my plan</button></form><button onClick={() => setNextIdea('')}>Clear selections</button></section>}
         {shortlistMessage && <p role="status" aria-live="polite">{shortlistMessage}</p>}
         {savedShortlist && <details className={styles.savedShortlist}><summary>Saved shortlist</summary><p>Saved {new Date(savedShortlist.savedAt).toLocaleString()}. This is a copy of your earlier choices; it may differ from your current wishes. Prices and availability have not been rechecked.</p><pre>{savedShortlist.brief}</pre><button onClick={downloadSavedShortlist}>Download saved shortlist</button></details>}
         {savedDraft && <button onClick={resumeTrip} disabled={!!phase}>Resume saved trip</button>}

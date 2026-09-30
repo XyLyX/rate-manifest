@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendIdea, pendingIdeas, tripIdeas } from './ideas';
+import { appendIdea, pendingIdeas, remainingIdeas, tripIdeas } from './ideas';
 import { parseDraft } from './draft';
 
 test('ideas follow the traveller context while leaving arbitrary additions open', () => {
@@ -11,6 +11,11 @@ test('ideas follow the traveller context while leaving arbitrary additions open'
   assert.ok(arbitrary.some(i => i.id === 'own'));
   assert.ok(arbitrary.some(i => i.id === 'culture'));
   assert.ok(!tripIdeas('mountain nature walk').some(i => i.id === 'nature'));
+});
+test('accepting a suggestion batch preserves new selections and concurrent edits', () => {
+  assert.equal(remainingIdeas('A local guide', 'A local guide'), '');
+  assert.equal(remainingIdeas('A local guide\nA sunset meal', 'A local guide'), 'A sunset meal');
+  assert.equal(remainingIdeas('An edited cultural walk', 'A local guide'), 'An edited cultural walk');
 });
 test('select advances the stream and selected experiences never repeat', () => {
   const ideas = tripIdeas('quiet beach').filter(idea => idea.id !== 'own');

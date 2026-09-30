@@ -68,3 +68,8 @@ While understanding or rendering runs, RaMi shows optional planning prompts usin
 ## RaMi-led suggestion stream
 
 The waiting experience now presents one experience idea at a time in RaMi's voice: While we're curating your plan, I'd like to suggest a few experiences you could add. Select queues the idea and immediately advances to another unselected suggestion. Not now skips. Suggestions advance automatically every ten seconds; Pause suggestions, hover and keyboard focus stop advancement so controls stay stable. Selected requests stay in the editable next-answer draft and do not repeat. No preset themes, invented products or automatic charges are introduced.
+
+
+## Applying selected experiences
+
+Add selected experiences to my plan submits the editable selection draft directly through the authenticated trip-understanding flow. The current update must finish before submitting. Accepted additions update wishes and, with automatic scenery enabled, the scene. Failed understanding or stopping before acceptance retains the pending draft. Further selections made during a batch remain pending. The unrelated ordinary answer draft is preserved. Downloaded trip briefs distinguish pending selections from accepted wishes.
