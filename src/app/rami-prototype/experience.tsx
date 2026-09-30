@@ -1,10 +1,11 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { World } from '@/lib/rami/world';
 import styles from './experience.module.css';
 
 export default function Experience() {
   const [access, setAccess] = useState('');
+  const accessInput = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
   const [answers, setAnswers] = useState<string[]>([]);
   const [world, setWorld] = useState<World | null>(null);
@@ -16,7 +17,7 @@ export default function Experience() {
   const [renders, setRenders] = useState(0);
   const [auto, setAuto] = useState(true);
   async function call(body: object) {
-    const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-RaMi-Access': access }, body: JSON.stringify(body) });
+    const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessCode: accessInput.current?.value ?? access }) });
     const text = await response.text();
     let result;
     try { result = JSON.parse(text); }
@@ -67,16 +68,16 @@ export default function Experience() {
       </section>
       <aside className={styles.panel}>
         <h2>Imagine it with RaMi</h2>
-        <label className={styles.label}>Prototype access code<input type="password" autoComplete="off" value={access} onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label>
+        <label className={styles.label}>Prototype access code<input ref={accessInput} type="password" autoComplete="off" defaultValue="" onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label>
         <div className={styles.history} aria-label="Your answers">{answers.map((a, i) => <p key={i}>{a}</p>)}</div>
         <p className={styles.question}>{world?.question || 'What would your ideal trip feel like?'}</p>
         <form onSubmit={submit}>
           <label htmlFor="rami-answer" className={styles.label}>Your answer</label>
           <textarea id="rami-answer" value={input} maxLength={1000} onChange={e => setInput(e.target.value)} disabled={!!phase || answers.length >= 12} placeholder="Snowy mountains, a quiet lakeside cabin, a fireplace…" rows={3} />
-          <button className={styles.primary} disabled={!!phase || !input.trim() || !access || answers.length >= 12}>{phase || 'Tell RaMi'}</button>
+          <button className={styles.primary} disabled={!!phase || !input.trim() || answers.length >= 12}>{phase || 'Tell RaMi'}</button>
         </form>
         <label className={styles.toggle}><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} disabled={!!phase} />Update scenery after visual changes</label>
-        {world && <button onClick={retry} disabled={!!phase || !access || renders >= 12}>Update scene now</button>}
+        {world && <button onClick={retry} disabled={!!phase || renders >= 12}>Update scene now</button>}
         <p role="status" aria-live="polite">{phase || (seconds !== null ? `Last scene: ${seconds}s · ${renders} renders` : 'Live generation requires the prototype connection.')}</p>
         {error && <p role="alert" className={styles.error}>{error}</p>}
         {answers.length >= 12 && <p>Prototype session complete. Start over to explore another trip.</p>}

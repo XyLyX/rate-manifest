@@ -11,16 +11,20 @@ export async function POST(request: Request) {
   if (process.env.RAMI_PROTOTYPE_ENABLED !== 'true' || !token || !key) {
     return reply({ error: 'The private RaMi prototype is not connected yet.' }, 503);
   }
-  const supplied = request.headers.get('x-rami-access') ?? '';
+  let body;
+  try {
+    const raw = await request.text();
+    if (raw.length > 4_000_000) return reply({ error: 'The scene is too large to update.' }, 413);
+    body = JSON.parse(raw);
+    if (!body || typeof body !== 'object') return reply({ error: 'Invalid request.' }, 400);
+  } catch { return reply({ error: 'Invalid request.' }, 400); }
+  const supplied = typeof body.accessCode === 'string' ? body.accessCode : '';
   if (Buffer.byteLength(supplied) !== Buffer.byteLength(token) ||
       !timingSafeEqual(Buffer.from(supplied), Buffer.from(token))) return reply({ error: 'Enter the prototype access code.' }, 401);
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) {
     return reply({ error: 'This request must come from the prototype page.' }, 403);
   }
   try {
-    const raw = await request.text();
-    if (raw.length > 4_000_000) return reply({ error: 'The scene is too large to update.' }, 413);
-    const body = JSON.parse(raw);
     const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');
     const headers = { Authorization: `Bearer ${key}` };
     if (body.action === 'describe') {
