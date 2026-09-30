@@ -16,8 +16,13 @@ export default function Experience() {
   const [renders, setRenders] = useState(0);
   const [auto, setAuto] = useState(true);
   async function call(body: object) {
-    const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` }, body: JSON.stringify(body) });
-    const result = await response.json();
+    const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-RaMi-Access': access }, body: JSON.stringify(body) });
+    const text = await response.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch {
+      throw new Error(`The preview service returned an unexpected response (HTTP ${response.status}). ${response.status === 401 || response.status === 403 ? 'Sign in to the protected Netlify preview, then reload.' : 'The preview connection is not ready. Please retry after its deployment is updated.'}`);
+    }
     if (!response.ok) throw new Error(result.error || 'The update failed.');
     return result;
   }

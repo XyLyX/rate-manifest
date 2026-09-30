@@ -13,7 +13,7 @@ test('private API fails closed and edits the previous image instead of regenerat
   const env = { ...process.env };
   const originalFetch = globalThis.fetch;
   const world = { scene: 'Snowy mountain cabin for a family', question: 'What activities?', requirements: ['Family'], changed: true };
-  const req = (body: object, token = 'private-test') => new Request('https://example.test/api/rami/prototype', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  const req = (body: object, token = 'private-test') => new Request('https://example.test/api/rami/prototype', { method: 'POST', headers: { 'X-RaMi-Access': token }, body: JSON.stringify(body) });
   try {
     delete process.env.RAMI_PROTOTYPE_ENABLED;
     assert.equal((await POST(req({ action: 'describe' }))).status, 503);

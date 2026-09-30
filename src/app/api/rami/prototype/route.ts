@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (process.env.RAMI_PROTOTYPE_ENABLED !== 'true' || !token || !key) {
     return reply({ error: 'The private RaMi prototype is not connected yet.' }, 503);
   }
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
+  const supplied = request.headers.get('x-rami-access') ?? '';
   if (Buffer.byteLength(supplied) !== Buffer.byteLength(token) ||
       !timingSafeEqual(Buffer.from(supplied), Buffer.from(token))) return reply({ error: 'Enter the prototype access code.' }, 401);
   if (request.headers.get('origin') && request.headers.get('origin') !== new URL(request.url).origin) {
