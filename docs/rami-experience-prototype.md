@@ -43,3 +43,8 @@ My trip lets the traveller explicitly mark each wish Essential or Flexible, with
 My trip includes an explicit destination/date search. The private endpoint reads the existing curated catalogue only, excluding mock records and draft identities. It never queries StayingAPI or reopens public discovery. Catalogue results establish property identity, not amenities, room availability or price.
 
 Viator results reuse the existing destination-search adapter with exact destination matching. Sandbox results are visibly labelled test data. Production results show supplier from-prices and timestamps without claiming party-specific availability. Text overlaps help order activities, but all wishes remain unconfirmed; there is no automatic booking, selection or payment. Source failures and empty catalogue coverage display honest empty states. Live integration testing remains blocked by prototype access.
+
+
+## Shortlist
+
+Only explicit traveller clicks add options: up to five stays and six experiences from the current results. Removing is reversible. New searches and changed destination, dates or wishes clear the current shortlist. The shortlist is held for this view only and can be downloaded as a separate text planning brief containing dates, source labels, indicative or sandbox prices, source timestamps and all unconfirmed wishes. The Save my trip action continues to save wishes only, not supplier selections. No rates are combined into a total, and selection does not reserve, book or pay.
