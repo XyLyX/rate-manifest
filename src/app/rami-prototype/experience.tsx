@@ -6,6 +6,7 @@ import { reconcilePriorities, type WishPriority, type WishSelection } from '@/li
 import styles from './experience.module.css';
 import Matches from './matches';
 import { SHORTLIST_KEY, parseSavedShortlist, type SavedShortlist } from '@/lib/rami/shortlist';
+import { activeResult, assertUpdateActive, updateError } from '@/lib/rami/update';
 
 export default function Experience() {
   const [access, setAccess] = useState('');
@@ -16,6 +17,8 @@ export default function Experience() {
   const [image, setImage] = useState('');
   const [renderedScene, setRenderedScene] = useState('');
   const [phase, setPhase] = useState('');
+  const activeUpdate = useRef<AbortController | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const [seconds, setSeconds] = useState<number | null>(null);
   const [renders, setRenders] = useState(0);
@@ -29,6 +32,14 @@ export default function Experience() {
   const [savedShortlist, setSavedShortlist] = useState<SavedShortlist | null>(null);
   const [shortlistMessage, setShortlistMessage] = useState('');
   const [priorities, setPriorities] = useState<WishSelection[]>([]);
+  useEffect(() => {
+    if (!phase) return;
+    const started = Date.now();
+    setElapsed(0);
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+  useEffect(() => () => activeUpdate.current?.abort(), []);
   function prioritise(wish: string, priority: WishPriority | '') {
     setPriorities(current => [...current.filter(s => s.wish !== wish), ...(priority ? [{ wish, priority }] : [])]);
   }
@@ -70,8 +81,8 @@ export default function Experience() {
     setImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
     setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
   }
-  async function call(body: object) {
-    const response = await fetch('/api/rami/prototype', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessCode: accessInput.current?.value ?? access }) });
+  async function call(body: object, signal?: AbortSignal) {
+    const response = await fetch('/api/rami/prototype', { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessCode: accessInput.current?.value ?? access }) });
     const text = await response.text();
     let result;
     try { result = JSON.parse(text); }
@@ -81,32 +92,43 @@ export default function Experience() {
     if (!response.ok) throw new Error(result.error || 'The update failed.');
     return result;
   }
-  async function render(next: World) {
+  async function render(next: World, signal: AbortSignal) {
     setPhase('Building your scene…');
-    const result = await call({ action: 'render', world: next, image: image || undefined });
+    const result = await activeResult(call({ action: 'render', world: next, image: image || undefined }, signal), signal);
     // Preload before replacing the visible scene; a failed image keeps the old scene.
-    await new Promise<void>((resolve, reject) => { const img = new Image(); img.onload = () => resolve(); img.onerror = () => reject(new Error('The scene image could not load.')); img.src = result.image; });
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      const cleanup = () => { signal.removeEventListener('abort', stop); img.onload = null; img.onerror = null; };
+      const stop = () => { cleanup(); reject(new DOMException('Stopped waiting', 'AbortError')); };
+      img.onload = () => { cleanup(); resolve(); };
+      img.onerror = () => { cleanup(); reject(new Error('The scene image could not load.')); };
+      if (signal.aborted) { stop(); return; }
+      signal.addEventListener('abort', stop, { once: true }); img.src = result.image;
+    });
+    assertUpdateActive(signal);
     setImage(result.image); setRenderedScene(next.scene); setSeconds(Math.round(result.elapsedMs / 1000)); setRenders(n => n + 1);
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!input.trim() || phase || (editing === null && answers.length >= 12)) return;
+    if (!input.trim() || phase || activeUpdate.current || (editing === null && answers.length >= 12)) return;
+    const controller = new AbortController(); activeUpdate.current = controller;
     setError(''); setPhase('Understanding your trip…');
     try {
       const nextAnswers = editing === null ? [...answers, input.trim()] : answers.map((a, i) => i === editing ? input.trim() : a);
       // Rebuild from answers when correcting an earlier wish, so removed details cannot linger.
-      const result = await call({ action: 'describe', answers: nextAnswers, previous: editing === null ? world : null });
+      const result = await activeResult(call({ action: 'describe', answers: nextAnswers, previous: editing === null ? world : null }, controller.signal), controller.signal);
       const next = result.world as World;
       setAnswers(nextAnswers); setWorld(next); setInput(''); setEditing(null); setReview(false);
       setPriorities(current => reconcilePriorities(next.requirements, current));
-      if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editing !== null)))) await render(next);
-    } catch (e) { setError(e instanceof Error ? e.message : 'The update failed.'); }
-    finally { setPhase(''); }
+      if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editing !== null)))) await render(next, controller.signal);
+    } catch (e) { setError(updateError(e)); }
+    finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
   }
   async function retry() {
-    if (!world || phase || renders >= 12) return;
+    if (!world || phase || activeUpdate.current || renders >= 12) return;
+    const controller = new AbortController(); activeUpdate.current = controller;
     setError('');
-    try { await render(world); } catch (e) { setError(e instanceof Error ? e.message : 'The scene failed.'); } finally { setPhase(''); }
+    try { await render(world, controller.signal); } catch (e) { setError(updateError(e)); } finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
   }
   function editAnswer(index: number) { const answer = answers[index]; if (answer === undefined) return; setEditing(index); setInput(answer); setReview(false); answerInput.current?.focus(); }
   function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); }
@@ -151,6 +173,7 @@ export default function Experience() {
         {world && <button onClick={retry} disabled={!!phase || renders >= 12}>Update scene now</button>}
         </>}
         <p role="status" aria-live="polite">{phase || (seconds !== null ? `Last scene: ${seconds}s · ${renders} renders` : 'Live generation requires the prototype connection.')}</p>
+        {phase && <div className={styles.waiting}><p>{elapsed}s elapsed in this step{elapsed >= 20 ? ' · Still working. You can stop waiting and keep your current trip.' : ''}</p><button onClick={() => activeUpdate.current?.abort()}>Stop waiting</button><p>Stops this update on your device. A scene already being generated may still finish on the server.</p></div>}
         {error && <p role="alert" className={styles.error}>{error}</p>}
         {answers.length >= 12 && <p>Prototype session complete. Start over to explore another trip.</p>}
         {renders >= 12 && <p>The preview’s scene allowance is used. You can still review your wishes and download your brief.</p>}

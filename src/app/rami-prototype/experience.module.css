@@ -8,3 +8,5 @@
 .matching article button{display:block;margin-top:14px}.matching article button[aria-pressed=true]{border-color:#f2cd77;background:#31415a}.shortlist{border:1px solid #ffffff30;border-radius:16px;padding:16px;margin-top:24px;background:#ffffff08}
 
 .savedShortlist pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;padding:14px;background:#ffffff08;border-radius:12px}.savedShortlist p{color:#c1cee2;font-size:13px;line-height:1.6}
+
+.waiting{border:1px solid #ffffff30;border-radius:12px;padding:14px;margin-top:12px}.waiting p{font-size:13px;line-height:1.6;color:#c1cee2}.waiting button{width:100%}

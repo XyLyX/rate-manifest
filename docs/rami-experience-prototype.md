@@ -53,3 +53,8 @@ Only explicit traveller clicks add options: up to five stays and six experiences
 ## Saved shortlist copy
 
 Save shortlist on this device preserves a dated plain-text copy independently of the active search and saved wishes. It remains accessible even before a trip is resumed and survives refresh, changed wishes and Start over. Saving again replaces the previous copy. The copy retains original source timestamps and sandbox labels and is never treated as refreshed availability or restored live selections. Credentials and generated image payloads are not included. Browser storage errors leave the active shortlist downloadable.
+
+
+## Waiting and stopped updates
+
+Trip understanding and scene rendering show elapsed seconds for the current step. Stop waiting aborts the browser request and prevents late responses from replacing the current scene or answers. Stopping before understanding finishes keeps the unfinished answer. Stopping after understanding succeeds keeps those updated wishes and the previous scene. Image preloading respects the same signal, and unmount aborts active updates. This does not promise cancellation of an already-running provider job or its cost.
