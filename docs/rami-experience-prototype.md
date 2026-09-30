@@ -73,3 +73,8 @@ The waiting experience now presents one experience idea at a time in RaMi's voic
 ## Applying selected experiences
 
 Add selected experiences to my plan submits the editable selection draft directly through the authenticated trip-understanding flow. The current update must finish before submitting. Accepted additions update wishes and, with automatic scenery enabled, the scene. Failed understanding or stopping before acceptance retains the pending draft. Further selections made during a batch remain pending. The unrelated ordinary answer draft is preserved. Downloaded trip briefs distinguish pending selections from accepted wishes.
+
+
+## Scene continuity
+
+Each successfully preloaded scene fades in over the previous visible image for 1.2 seconds. The new image has a fresh animation key on every successful render; the previous image stays as a background layer and is released after the transition. Reduced-motion preferences switch without animation. Failed/stopped renders do not touch the current image. Start over and restored drafts clear both layers. A scene-ready message appears only when the visible scene description matches the latest accepted wishes and no update is running.

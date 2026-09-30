@@ -18,6 +18,7 @@ export default function Experience() {
   const [answers, setAnswers] = useState<string[]>([]);
   const [world, setWorld] = useState<World | null>(null);
   const [image, setImage] = useState('');
+  const [previousImage, setPreviousImage] = useState('');
   const [renderedScene, setRenderedScene] = useState('');
   const [phase, setPhase] = useState('');
   const activeUpdate = useRef<AbortController | null>(null);
@@ -43,6 +44,13 @@ export default function Experience() {
     return () => window.clearInterval(timer);
   }, [phase]);
   useEffect(() => () => activeUpdate.current?.abort(), []);
+  useEffect(() => {
+    if (!previousImage) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setPreviousImage(''); return; }
+    // Release the old image even when animation events are suppressed by the browser.
+    const timer = window.setTimeout(() => setPreviousImage(''), 1300);
+    return () => window.clearTimeout(timer);
+  }, [previousImage, image]);
   function prioritise(wish: string, priority: WishPriority | '') {
     setPriorities(current => [...current.filter(s => s.wish !== wish), ...(priority ? [{ wish, priority }] : [])]);
   }
@@ -82,7 +90,7 @@ export default function Experience() {
     setAnswers(savedDraft.answers); setWorld(savedDraft.world); setInput(savedDraft.input); setEditing(savedDraft.editing); setRenders(savedDraft.renders);
     setPriorities(savedDraft.priorities);
     setNextIdea(savedDraft.nextIdea);
-    setImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
+    setImage(''); setPreviousImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
     setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
   }
   async function call(body: object, signal?: AbortSignal) {
@@ -110,7 +118,7 @@ export default function Experience() {
       signal.addEventListener('abort', stop, { once: true }); img.src = result.image;
     });
     assertUpdateActive(signal);
-    setImage(result.image); setRenderedScene(next.scene); setSeconds(Math.round(result.elapsedMs / 1000)); setRenders(n => n + 1);
+    setPreviousImage(image); setImage(result.image); setRenderedScene(next.scene); setSeconds(Math.round(result.elapsedMs / 1000)); setRenders(n => n + 1);
   }
   async function submit(event: React.FormEvent, selectedExperiences?: string) {
     event.preventDefault();
@@ -139,7 +147,7 @@ export default function Experience() {
     try { await render(world, controller.signal); } catch (e) { setError(updateError(e)); } finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
   }
   function editAnswer(index: number) { const answer = answers[index]; if (answer === undefined) return; setEditing(index); setInput(answer); setReview(false); answerInput.current?.focus(); }
-  function reset() { setAnswers([]); setWorld(null); setImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); setNextIdea(''); }
+  function reset() { setAnswers([]); setWorld(null); setImage(''); setPreviousImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); setNextIdea(''); }
   function downloadBrief() {
     if (!world) return;
     const brief = ['MY RAMI TRIP', '', 'Selected wishes', ...world.requirements.map(r => `• ${r} [${priorities.find(s => s.wish === r)?.priority || 'priority not chosen'}]`), '', 'My answers', ...answers.map((a, i) => `${i + 1}. ${a}`), '', 'Selected experiences awaiting submission', nextIdea || 'None', '', 'Imagined scenery', world.scene, '', 'Planning brief only. Prices, availability and bookable experiences have not been verified.'].join('\n');
@@ -147,7 +155,8 @@ export default function Experience() {
     const link = document.createElement('a'); link.href = url; link.download = 'my-rami-trip.txt'; link.click(); URL.revokeObjectURL(url);
   }
   return <main className={`${styles.root} ${focusScene ? styles.focusScene : ''}`}>
-    {image && <img className={styles.scene} src={image} alt={renderedScene} />}
+    {previousImage && <img className={styles.previousScene} src={previousImage} alt="" aria-hidden="true" />}
+    {image && <img key={renders} className={styles.scene} src={image} alt={renderedScene} onAnimationEnd={() => setPreviousImage('')} />}
     <div className={styles.shade} />
     <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={saveTrip} disabled={!!phase || (!world && !input.trim() && !nextIdea.trim())}>Save my trip</button><button onClick={reset} disabled={!!phase}>Start over</button></div></header>
     <div className={styles.layout}>
@@ -157,6 +166,7 @@ export default function Experience() {
         {!world && <p>Describe a place, a feeling, or a trip you have been imagining. There are no fixed themes.</p>}
         {world && <p className={styles.description}>{world.scene}</p>}
         <div className={styles.caption}>{image ? 'Imagined experience · not a confirmed property or booking' : 'Your personalised scenery will appear here after your first answer.'}</div>
+        {image && world?.scene === renderedScene && !phase && <p className={styles.sceneReady} role="status">Your scene is up to date with your latest wishes.</p>}
         {image && world?.scene !== renderedScene && <p role="status">The visible scene is from your previous answer. Your new trip details are saved.</p>}
       </section>
       <aside className={styles.panel}>
