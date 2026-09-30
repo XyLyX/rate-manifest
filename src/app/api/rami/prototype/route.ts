@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   try {
     if (body.action === 'matches') {
       let query;
-      try { query = parseMatchQuery(body); } catch { return reply({ error: 'Choose a destination and valid future travel dates.' }, 400); }
+      try { query = parseMatchQuery(body); } catch { return reply({ error: 'Choose a destination, valid future dates and a complete travel party.' }, 400); }
       let hotels: ReturnType<typeof catalogueCandidates> = [];
       let hotelStatus = 'ok';
       try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       const mode = process.env.VIATOR_PRODUCTION_API_KEY ? 'production' : process.env.VIATOR_SANDBOX_API_KEY ? 'sandbox' : 'unavailable';
       const { searchThingsToDo } = await import('@/lib/viator/searchThingsToDo');
       const products = mode === 'unavailable' ? [] : await searchThingsToDo({ destinationName: query.destination, startDate: query.checkIn, endDate: query.checkOut, currency: 'AED', exactDestination: true });
-      return reply({ destination: query.destination, hotels, hotelStatus, experiences: experienceCandidates(products, query.requirements), experiencesMode: mode,
+      return reply({ party: query.party, destination: query.destination, hotels, hotelStatus, experiences: experienceCandidates(products, query.requirements), experiencesMode: mode,
         pendingWishes: query.requirements.map(wish => ({ wish, priority: query.priorities.find(s => s.wish === wish)?.priority || 'not chosen' })) });
     }
     const base = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, '');

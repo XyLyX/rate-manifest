@@ -3,13 +3,22 @@ import type { ThingsToDoProduct } from '../viator/types';
 import { parseWorld } from './world';
 import { parsePriorities, reconcilePriorities, type WishSelection } from './priorities';
 
-export type MatchQuery = { destination: string; checkIn: string; checkOut: string; requirements: string[]; priorities: WishSelection[] };
+export type TravelParty = { adults: number; childAges: number[]; rooms: number };
+export function parseParty(value: unknown): TravelParty {
+  if (!value || typeof value !== 'object') throw new Error('Enter your travel party.');
+  const p = value as Record<string, unknown>;
+  if (!Number.isInteger(p.adults) || (p.adults as number) < 1 || (p.adults as number) > 16 ||
+      !Number.isInteger(p.rooms) || (p.rooms as number) < 1 || (p.rooms as number) > (p.adults as number) ||
+      !Array.isArray(p.childAges) || p.childAges.length > 8 || p.childAges.some(age => !Number.isInteger(age) || age < 0 || age > 17)) throw new Error('Enter adults, rooms and an age from 0 to 17 for each child.');
+  return { adults: p.adults as number, rooms: p.rooms as number, childAges: [...p.childAges] };
+}
+export type MatchQuery = { party: TravelParty; destination: string; checkIn: string; checkOut: string; requirements: string[]; priorities: WishSelection[] };
 export function parseMatchQuery(body: Record<string, unknown>): MatchQuery {
   const date = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v;
   if (typeof body.destination !== 'string' || !body.destination.trim() || body.destination.length > 100 ||
       !date(body.checkIn) || !date(body.checkOut) || body.checkOut <= body.checkIn || body.checkIn < new Date().toISOString().slice(0, 10)) throw new Error('Choose a destination and valid future travel dates.');
   const world = parseWorld(body.world);
-  return { destination: body.destination.trim(), checkIn: body.checkIn, checkOut: body.checkOut, requirements: world.requirements, priorities: reconcilePriorities(world.requirements, parsePriorities(body.priorities)) };
+  return { party: parseParty(body.party), destination: body.destination.trim(), checkIn: body.checkIn, checkOut: body.checkOut, requirements: world.requirements, priorities: reconcilePriorities(world.requirements, parsePriorities(body.priorities)) };
 }
 export function catalogueCandidates(hotels: DiscoveredHotel[], destination: string) {
   return hotels.filter(h => !h.isMockData && h.state !== 'draft' && h.city.trim().toLowerCase() === destination.trim().toLowerCase()).slice(0, 6)
@@ -22,4 +31,4 @@ export function experienceCandidates(products: ThingsToDoProduct[], requirements
     return { id: p.supplierProductId, title: p.title, description: p.shortDescription, fromPrice: p.fromPrice, currency: p.currency, relatedWishes, checkedAt: p.checkedAt, index };
   }).sort((a, b) => b.relatedWishes.length - a.relatedWishes.length || a.index - b.index).slice(0, 6).map(({ index, ...p }) => p);
 }
-export type MatchResults = { destination: string; hotels: ReturnType<typeof catalogueCandidates>; experiences: ReturnType<typeof experienceCandidates>; experiencesMode: 'production' | 'sandbox' | 'unavailable'; hotelStatus: 'ok' | 'unavailable'; pendingWishes: { wish: string; priority: string }[] };
+export type MatchResults = { party?: TravelParty; destination: string; hotels: ReturnType<typeof catalogueCandidates>; experiences: ReturnType<typeof experienceCandidates>; experiencesMode: 'production' | 'sandbox' | 'unavailable'; hotelStatus: 'ok' | 'unavailable'; pendingWishes: { wish: string; priority: string }[] };

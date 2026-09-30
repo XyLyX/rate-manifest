@@ -12,6 +12,9 @@ export default function Matches({ world, priorities, call, onSaveShortlist, sele
   const [destination, setDestination] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [adults, setAdults] = useState(2);
+  const [rooms, setRooms] = useState(1);
+  const [childAges, setChildAges] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<MatchResults | null>(null);
@@ -42,9 +45,10 @@ export default function Matches({ world, priorities, call, onSaveShortlist, sele
   }
   async function search(event: React.FormEvent) {
     event.preventDefault(); if (busy || activeSearch.current) return;
+    if (childAges.some(age => age === '')) { setError('Enter an age for every child.'); return; }
     const controller = new AbortController(); activeSearch.current = controller;
     setBusy(true); setError(''); clearResults();
-    try { setResults(await activeResult(call({ action: 'matches', destination, checkIn, checkOut, world, priorities }, controller.signal), controller.signal)); }
+    try { setResults(await activeResult(call({ action: 'matches', destination, checkIn, checkOut, party: { adults, rooms, childAges: childAges.map(Number) }, world, priorities }, controller.signal), controller.signal)); }
     catch (e) { setError(e instanceof Error && e.name === 'AbortError' ? 'Stopped searching. Your trip wishes and selected suggestions are retained.' : e instanceof Error ? e.message : 'The search failed.'); }
     finally { if (activeSearch.current === controller) { activeSearch.current = null; setBusy(false); } }
   }
@@ -54,11 +58,16 @@ export default function Matches({ world, priorities, call, onSaveShortlist, sele
       <label className={styles.label}>Destination<input required maxLength={100} value={destination} onChange={e => { setDestination(e.target.value); clearResults(); }} disabled={busy} placeholder="City or destination name" /></label>
       <label className={styles.label}>Check-in<input required type="date" value={checkIn} onChange={e => { setCheckIn(e.target.value); clearResults(); }} disabled={busy} /></label>
       <label className={styles.label}>Check-out<input required type="date" value={checkOut} min={checkIn || undefined} onChange={e => { setCheckOut(e.target.value); clearResults(); }} disabled={busy} /></label>
+      <label className={styles.label}>Adults<input required type="number" min={1} max={16} value={adults} disabled={busy} onChange={e => { const n = Number(e.target.value); setAdults(n); if (rooms > n) setRooms(Math.max(1, n)); clearResults(); }} /></label>
+      <label className={styles.label}>Rooms<input required type="number" min={1} max={adults} value={rooms} disabled={busy} onChange={e => { setRooms(Number(e.target.value)); clearResults(); }} /></label>
+      <label className={styles.label}>Children<input type="number" min={0} max={8} value={childAges.length} disabled={busy} onChange={e => { const n = Math.max(0, Math.min(8, Number(e.target.value))); setChildAges(current => Array.from({ length: n }, (_, i) => current[i] ?? '')); clearResults(); }} /></label>
+      {childAges.map((age, i) => <label className={styles.label} key={i}>Child {i + 1} age at travel<input required type="number" min={0} max={17} value={age} disabled={busy} onChange={e => { setChildAges(current => current.map((a, index) => index === i ? e.target.value : a)); clearResults(); }} /></label>)}
+      <p>These details are saved with your shortlist. Current source results do not yet confirm room occupancy, child eligibility or a price for this party.</p>
       <button className={styles.primary} disabled={busy}>{busy ? 'Searching sources…' : 'Explore options'}</button>
     </form>
     {busy && <><p role="status">RaMi is checking sources for {destination} · {elapsed}s elapsed.</p><SuggestionStream context={[destination, ...world.requirements].join(' ')} selected={selectedIdeas} onSelect={onSelectIdea} /><button onClick={() => activeSearch.current?.abort()}>Stop searching</button></>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {results && <div aria-live="polite"><h4>Stays in {results.destination}</h4><p>Catalogue identities only. Your requested amenities, prices and room availability still need checking.</p>
+    {results && <div aria-live="polite"><h4>Stays in {results.destination}</h4>{results.party && <p>{results.party.adults} adults · {results.party.childAges.length} children{results.party.childAges.length ? ` (ages ${results.party.childAges.join(", ")})` : ""} · {results.party.rooms} rooms</p>}<p>Catalogue identities only. Your requested amenities, prices and room availability still need checking.</p>
       {results.hotelStatus === 'unavailable' && <p>The stay catalogue could not be reached. Try again later.</p>}
       {results.hotelStatus === 'ok' && !results.hotels.length && <p>No eligible catalogue properties were found for this destination.</p>}
       {results.hotels.map(h => <article key={h.id}><h4>{h.name}</h4><p>{h.area} · {h.city} · {h.starRating} stars</p><a href={`/hotel/${encodeURIComponent(h.id)}`} target="_blank" rel="noopener noreferrer">View property details</a><button onClick={() => select('hotel', h.id)} aria-pressed={hotelIds.includes(h.id)} aria-label={`${hotelIds.includes(h.id) ? 'Remove' : 'Shortlist'} ${h.name}`}>{hotelIds.includes(h.id) ? 'Remove from shortlist' : 'Shortlist stay'}</button></article>)}
