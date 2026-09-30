@@ -16,3 +16,5 @@
 .suggestion{padding:20px;background:#ffffff08;border:1px solid #ffffff30;border-radius:16px}.suggestion h4{font-family:var(--font-display),serif;font-size:26px;margin:14px 0}.suggestion button{margin-top:10px}.ideas .suggestionNote{font-size:12px}.suggestion .eyebrow{font-size:11px;color:#f2cd77}
 
 .previousScene{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3;pointer-events:none}.scene{pointer-events:none;animation-fill-mode:both}.world .sceneReady{font-size:14px;line-height:1.5;color:#dce7ff;background:#08152570;padding:10px 14px;border-radius:10px;width:fit-content}
+
+.planReview{border:1px solid #ffffff30;border-radius:16px;background:#ffffff08;padding:18px;margin:24px 0}.planReview .pendingCopy{white-space:pre-wrap;overflow-wrap:anywhere;color:white}.planReview h3{margin-top:0}.planReview .toggle input{width:auto}

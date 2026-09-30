@@ -83,3 +83,8 @@ Each successfully preloaded scene fades in over the previous visible image for 1
 ## Suggestions during source search
 
 RaMi's one-at-a-time suggestion stream now runs while catalogue and experience sources are searched, sharing the same selected-experience draft as scene generation. Source search shows elapsed time and supports Stop searching. Leaving the matching view aborts its request; late stopped responses cannot enter the results. Selected suggestions live in the parent trip view and survive the search finishing, failing, stopping or unmounting.
+
+
+## Complete plan review
+
+My trip now includes a single complete-plan download with accepted wishes and priorities, answers, imagined scenery and pending experience selections. Pending requests are explicitly separate from accepted wishes. A saved shortlist is excluded by default and can be included only through the traveller's checkbox; it retains its original timestamp and warns that it may refer to an earlier trip and has not been refreshed. The review states what remains to confirm before booking and never manufactures a reservation, verified amenity or total price.
