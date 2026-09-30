@@ -1,0 +1,198 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import type { World } from '@/lib/rami/world';
+import { DRAFT_KEY, parseDraft, type TripDraft } from '@/lib/rami/draft';
+import { reconcilePriorities, type WishPriority, type WishSelection } from '@/lib/rami/priorities';
+import styles from './experience.module.css';
+import Matches from './matches';
+import PlanReview from './plan-review';
+import { SHORTLIST_KEY, parseSavedShortlist, type SavedShortlist } from '@/lib/rami/shortlist';
+import { activeResult, assertUpdateActive, updateError } from '@/lib/rami/update';
+import { appendIdea, remainingIdeas } from '@/lib/rami/ideas';
+import SuggestionStream from './suggestion-stream';
+
+export default function Experience() {
+  const [access, setAccess] = useState('');
+  const accessInput = useRef<HTMLInputElement>(null);
+  const [input, setInput] = useState('');
+  const [nextIdea, setNextIdea] = useState('');
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [world, setWorld] = useState<World | null>(null);
+  const [image, setImage] = useState('');
+  const [previousImage, setPreviousImage] = useState('');
+  const [renderedScene, setRenderedScene] = useState('');
+  const [phase, setPhase] = useState('');
+  const activeUpdate = useRef<AbortController | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState('');
+  const [seconds, setSeconds] = useState<number | null>(null);
+  const [renders, setRenders] = useState(0);
+  const [auto, setAuto] = useState(true);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [review, setReview] = useState(false);
+  const [focusScene, setFocusScene] = useState(false);
+  const answerInput = useRef<HTMLTextAreaElement>(null);
+  const [savedDraft, setSavedDraft] = useState<TripDraft | null>(null);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [savedShortlist, setSavedShortlist] = useState<SavedShortlist | null>(null);
+  const [shortlistMessage, setShortlistMessage] = useState('');
+  const [priorities, setPriorities] = useState<WishSelection[]>([]);
+  useEffect(() => {
+    if (!phase) return;
+    const started = Date.now();
+    setElapsed(0);
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+  useEffect(() => () => activeUpdate.current?.abort(), []);
+  useEffect(() => {
+    if (!previousImage) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setPreviousImage(''); return; }
+    // Release the old image even when animation events are suppressed by the browser.
+    const timer = window.setTimeout(() => setPreviousImage(''), 1300);
+    return () => window.clearTimeout(timer);
+  }, [previousImage, image]);
+  function prioritise(wish: string, priority: WishPriority | '') {
+    setPriorities(current => [...current.filter(s => s.wish !== wish), ...(priority ? [{ wish, priority }] : [])]);
+  }
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) setSavedDraft(parseDraft(JSON.parse(raw)));
+    } catch { setSaveMessage('Your saved trip could not be opened. You can start a new trip.'); }
+  }, []);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SHORTLIST_KEY);
+      if (raw) setSavedShortlist(parseSavedShortlist(JSON.parse(raw)));
+    } catch { setShortlistMessage('Your saved shortlist could not be opened. You can create a new one.'); }
+  }, []);
+  function saveShortlist(brief: string) {
+    try {
+      const snapshot = parseSavedShortlist({ version: 1, brief, savedAt: new Date().toISOString() });
+      localStorage.setItem(SHORTLIST_KEY, JSON.stringify(snapshot));
+      setSavedShortlist(snapshot); setShortlistMessage('Shortlist saved on this device. Saving again replaces this copy.');
+    } catch { setShortlistMessage('This browser could not save the shortlist. Use Download my shortlist to keep a copy.'); }
+  }
+  function downloadSavedShortlist() {
+    if (!savedShortlist) return;
+    const url = URL.createObjectURL(new Blob([savedShortlist.brief], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'my-rami-shortlist.txt'; link.click(); URL.revokeObjectURL(url);
+  }
+  function saveTrip() {
+    try {
+      const draft = parseDraft({ version: 1, answers, world, input, nextIdea, editing, renders, priorities });
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setSavedDraft(draft); setSaveMessage('Trip saved on this device. Save again after making changes.');
+    } catch { setSaveMessage('This browser could not save your trip. Download your trip brief to keep a copy.'); }
+  }
+  function resumeTrip() {
+    if (!savedDraft || phase) return;
+    setAnswers(savedDraft.answers); setWorld(savedDraft.world); setInput(savedDraft.input); setEditing(savedDraft.editing); setRenders(savedDraft.renders);
+    setPriorities(savedDraft.priorities);
+    setNextIdea(savedDraft.nextIdea);
+    setImage(''); setPreviousImage(''); setRenderedScene(''); setSeconds(null); setError(''); setFocusScene(false); setReview(false);
+    setSaveMessage('Saved wishes restored. You can rebuild the scenery when the preview connection is ready.');
+  }
+  async function call(body: object, signal?: AbortSignal) {
+    const response = await fetch('/api/rami/prototype', { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessCode: accessInput.current?.value ?? access }) });
+    const text = await response.text();
+    let result;
+    try { result = JSON.parse(text); }
+    catch {
+      throw new Error(`The preview service returned an unexpected response (HTTP ${response.status}). ${response.status === 401 || response.status === 403 ? 'Sign in to the protected Netlify preview, then reload.' : 'The preview connection is not ready. Please retry after its deployment is updated.'}`);
+    }
+    if (!response.ok) throw new Error(result.error || 'The update failed.');
+    return result;
+  }
+  async function render(next: World, signal: AbortSignal) {
+    setPhase('Building your scene…');
+    const result = await activeResult(call({ action: 'render', world: next, image: image || undefined }, signal), signal);
+    // Preload before replacing the visible scene; a failed image keeps the old scene.
+    await new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      const cleanup = () => { signal.removeEventListener('abort', stop); img.onload = null; img.onerror = null; };
+      const stop = () => { cleanup(); reject(new DOMException('Stopped waiting', 'AbortError')); };
+      img.onload = () => { cleanup(); resolve(); };
+      img.onerror = () => { cleanup(); reject(new Error('The scene image could not load.')); };
+      if (signal.aborted) { stop(); return; }
+      signal.addEventListener('abort', stop, { once: true }); img.src = result.image;
+    });
+    assertUpdateActive(signal);
+    setPreviousImage(image); setImage(result.image); setRenderedScene(next.scene); setSeconds(Math.round(result.elapsedMs / 1000)); setRenders(n => n + 1);
+  }
+  async function submit(event: React.FormEvent, selectedExperiences?: string) {
+    event.preventDefault();
+    const answer = (selectedExperiences ?? input).trim();
+    const editIndex = selectedExperiences === undefined ? editing : null;
+    if (!answer || phase || activeUpdate.current || (editIndex === null && answers.length >= 12)) return;
+    const controller = new AbortController(); activeUpdate.current = controller;
+    setError(''); setPhase('Understanding your trip…');
+    try {
+      const nextAnswers = editIndex === null ? [...answers, answer] : answers.map((a, i) => i === editIndex ? answer : a);
+      // Rebuild from answers when correcting an earlier wish, so removed details cannot linger.
+      const result = await activeResult(call({ action: 'describe', answers: nextAnswers, previous: editIndex === null ? world : null }, controller.signal), controller.signal);
+      const next = result.world as World;
+      setAnswers(nextAnswers); setWorld(next); setEditing(null); setReview(false);
+      if (selectedExperiences === undefined) setInput('');
+      else setNextIdea(current => remainingIdeas(current, answer));
+      setPriorities(current => reconcilePriorities(next.requirements, current));
+      if (auto && renders < 12 && (!image || (next.scene !== renderedScene && (next.changed || editIndex !== null)))) await render(next, controller.signal);
+    } catch (e) { setError(updateError(e)); }
+    finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
+  }
+  async function retry() {
+    if (!world || phase || activeUpdate.current || renders >= 12) return;
+    const controller = new AbortController(); activeUpdate.current = controller;
+    setError('');
+    try { await render(world, controller.signal); } catch (e) { setError(updateError(e)); } finally { if (activeUpdate.current === controller) { activeUpdate.current = null; setPhase(''); } }
+  }
+  function editAnswer(index: number) { const answer = answers[index]; if (answer === undefined) return; setEditing(index); setInput(answer); setReview(false); answerInput.current?.focus(); }
+  function reset() { setAnswers([]); setWorld(null); setImage(''); setPreviousImage(''); setRenderedScene(''); setError(''); setSeconds(null); setRenders(0); setInput(''); setEditing(null); setReview(false); setFocusScene(false); setPriorities([]); setNextIdea(''); }
+  return <main className={`${styles.root} ${focusScene ? styles.focusScene : ''}`}>
+    {previousImage && <img className={styles.previousScene} src={previousImage} alt="" aria-hidden="true" />}
+    {image && <img key={renders} className={styles.scene} src={image} alt={renderedScene} onAnimationEnd={() => setPreviousImage('')} />}
+    <div className={styles.shade} />
+    <header className={styles.header}><a href="/">Rate Manifest</a><span>RaMi · Private prototype</span><div className={styles.actions}>{image && <button onClick={() => setFocusScene(!focusScene)} aria-pressed={focusScene}>{focusScene ? 'Continue imagining' : 'Immerse in my scene'}</button>}<button onClick={saveTrip} disabled={!!phase || (!world && !input.trim() && !nextIdea.trim())}>Save my trip</button><button onClick={reset} disabled={!!phase}>Start over</button></div></header>
+    <div className={styles.layout}>
+      <section className={styles.world} aria-label="Your imagined trip">
+        <span className={styles.eyebrow}>YOUR EXPERIENCE, TAKING SHAPE</span>
+        <h1>{world ? 'Keep making it yours.' : 'Where does your mind take you?'}</h1>
+        {!world && <p>Describe a place, a feeling, or a trip you have been imagining. There are no fixed themes.</p>}
+        {world && <p className={styles.description}>{world.scene}</p>}
+        <div className={styles.caption}>{image ? 'Imagined experience · not a confirmed property or booking' : 'Your personalised scenery will appear here after your first answer.'}</div>
+        {image && world?.scene === renderedScene && !phase && <p className={styles.sceneReady} role="status">Your scene is up to date with your latest wishes.</p>}
+        {image && world?.scene !== renderedScene && <p role="status">The visible scene is from your previous answer. Your new trip details are saved.</p>}
+      </section>
+      <aside className={styles.panel}>
+        <h2>Imagine it with RaMi</h2>
+        <p className={styles.intro}>A place. A feeling. The little details that make it yours. Tell RaMi in your own words.</p>
+        {phase && <SuggestionStream context={[...answers, input, ...(world?.requirements ?? [])].join(' ')} selected={nextIdea} onSelect={answer => setNextIdea(current => appendIdea(current, answer))} />}
+        {nextIdea && <section className={styles.nextIdea} aria-label="Your next addition"><label className={styles.label} htmlFor="rami-next-idea">Selected experiences — edit them your way</label><textarea id="rami-next-idea" value={nextIdea} maxLength={1000} rows={3} onChange={e => setNextIdea(e.target.value)} /><p>{phase ? 'I’ve kept your selections ready. You can add them when this update finishes.' : 'Ready to add these experiences to your plan?'}</p><form onSubmit={event => submit(event, nextIdea)}><button disabled={!!phase || !nextIdea.trim() || answers.length >= 12 || editing !== null}>Add selected experiences to my plan</button></form><button onClick={() => setNextIdea('')}>Clear selections</button></section>}
+        {shortlistMessage && <p role="status" aria-live="polite">{shortlistMessage}</p>}
+        {savedShortlist && <details className={styles.savedShortlist}><summary>Saved shortlist</summary><p>Saved {new Date(savedShortlist.savedAt).toLocaleString()}. This is a copy of your earlier choices; it may differ from your current wishes. Prices and availability have not been rechecked.</p><pre>{savedShortlist.brief}</pre><button onClick={downloadSavedShortlist}>Download saved shortlist</button></details>}
+        {savedDraft && <button onClick={resumeTrip} disabled={!!phase}>Resume saved trip</button>}
+        {saveMessage && <p role="status" aria-live="polite">{saveMessage}</p>}
+        <details className={styles.connection} open={!world}><summary>Private preview access</summary><label className={styles.label}>Prototype access code<input ref={accessInput} type="password" autoComplete="off" defaultValue="" onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label></details>
+        <nav className={styles.tabs} aria-label="Trip view"><button aria-pressed={!review} onClick={() => setReview(false)}>Imagine</button><button aria-pressed={review} onClick={() => setReview(true)} disabled={!world}>My trip{world ? ` · ${world.requirements.length} wishes` : ''}</button></nav>
+        {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><p>Which wishes are essential? Where could you be flexible?</p><ul>{world.requirements.map((r, i) => <li key={i}><span>{r}</span><label className={styles.label}>Priority for {r}<select value={priorities.find(s => s.wish === r)?.priority || ''} onChange={e => prioritise(r, e.target.value as WishPriority | '')} disabled={!!phase}><option value="">Choose priority</option><option value="essential">Essential</option><option value="flexible">Flexible</option></select></label></li>)}</ul><p>{priorities.filter(s => s.priority === 'essential').length} essential · {priorities.filter(s => s.priority === 'flexible').length} flexible · {world.requirements.length - priorities.length} to decide</p><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><PlanReview world={world} answers={answers} priorities={priorities} pending={nextIdea} shortlist={savedShortlist} /><button onClick={() => setReview(false)}>Keep customising</button><Matches key={JSON.stringify([world.requirements, priorities])} world={world} priorities={priorities} call={call} onSaveShortlist={saveShortlist} selectedIdeas={nextIdea} onSelectIdea={answer => setNextIdea(current => appendIdea(current, answer))} /></section> : <>
+        <details className={styles.answers}><summary>Your story so far · {answers.length} answers</summary><div className={styles.history} aria-label="Your answers">{answers.map((a, i) => <div className={styles.answer} key={i}><p>{a}</p><button onClick={() => editAnswer(i)} disabled={!!phase} aria-label={`Edit answer ${i + 1}`}>Edit</button></div>)}</div></details>
+        <p className={styles.question}>{editing !== null ? 'What would you like to change in this answer?' : world?.question || 'What would your ideal trip feel like?'}</p>
+        <form onSubmit={submit}>
+          <label htmlFor="rami-answer" className={styles.label}>Your answer</label>
+          <textarea ref={answerInput} id="rami-answer" value={input} maxLength={1000} onChange={e => setInput(e.target.value)} disabled={!!phase || (editing === null && answers.length >= 12)} placeholder="Snowy mountains, a quiet lakeside cabin, a fireplace…" rows={3} />
+          <button className={styles.primary} disabled={!!phase || !input.trim() || (editing === null && answers.length >= 12)}>{phase || (editing !== null ? 'Update my answer' : 'Tell RaMi')}</button>
+          {editing !== null && <button type="button" onClick={() => { setEditing(null); setInput(''); }} disabled={!!phase}>Cancel edit</button>}
+        </form>
+        <label className={styles.toggle}><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} disabled={!!phase} />Update scenery after visual changes</label>
+        {world && <button onClick={retry} disabled={!!phase || renders >= 12}>Update scene now</button>}
+        </>}
+        <p role="status" aria-live="polite">{phase || (seconds !== null ? `Last scene: ${seconds}s · ${renders} renders` : 'Live generation requires the prototype connection.')}</p>
+        {phase && <div className={styles.waiting}><p>{elapsed}s elapsed in this step{elapsed >= 20 ? ' · Still working. You can stop waiting and keep your current trip.' : ''}</p><button onClick={() => activeUpdate.current?.abort()}>Stop waiting</button><p>Stops this update on your device. A scene already being generated may still finish on the server.</p></div>}
+        {error && <p role="alert" className={styles.error}>{error}</p>}
+        {answers.length >= 12 && <p>Prototype session complete. Start over to explore another trip.</p>}
+        {renders >= 12 && <p>The preview’s scene allowance is used. You can still review your wishes and download your brief.</p>}
+      </aside>
+    </div>
+  </main>;
+}

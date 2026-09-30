@@ -104,7 +104,7 @@ export async function searchThingsToDo(params: ThingsToDoSearchParams): Promise<
   if (!isViatorConfigured()) return [];
 
   try {
-    const destinationId = await resolveDestinationId(params.destinationName);
+    const destinationId = await resolveDestinationId(params.destinationName, params.exactDestination);
     if (destinationId == null) return [];
 
     const response = await viatorFetch<ProductSearchResponse>("/products/search", {
