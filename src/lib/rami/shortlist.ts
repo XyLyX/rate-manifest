@@ -1,5 +1,15 @@
 import type { MatchResults } from './matches';
 
+export const SHORTLIST_KEY = 'rami-saved-shortlist-v1';
+export type SavedShortlist = { version: 1; brief: string; savedAt: string };
+export function parseSavedShortlist(value: unknown): SavedShortlist {
+  if (!value || typeof value !== 'object') throw new Error('Invalid saved shortlist');
+  const saved = value as Record<string, unknown>;
+  if (saved.version !== 1 || typeof saved.brief !== 'string' || !saved.brief.startsWith('MY RAMI SHORTLIST\n') || saved.brief.length > 30_000 ||
+      typeof saved.savedAt !== 'string' || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error('Invalid saved shortlist');
+  return { version: 1, brief: saved.brief, savedAt: saved.savedAt };
+}
+
 export function toggleCandidate(selected: string[], id: string, allowed: string[], limit: number): string[] {
   if (!allowed.includes(id)) throw new Error('Choose an option from the current search results.');
   const current = [...new Set(selected)].filter(item => allowed.includes(item));

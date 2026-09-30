@@ -6,7 +6,7 @@ import type { MatchResults } from '@/lib/rami/matches';
 import { shortlistBrief, toggleCandidate } from '@/lib/rami/shortlist';
 import styles from './experience.module.css';
 
-export default function Matches({ world, priorities, call }: { world: World; priorities: WishSelection[]; call: (body: object) => Promise<MatchResults> }) {
+export default function Matches({ world, priorities, call, onSaveShortlist }: { world: World; priorities: WishSelection[]; call: (body: object) => Promise<MatchResults>; onSaveShortlist: (brief: string) => void }) {
   const [destination, setDestination] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -37,7 +37,7 @@ export default function Matches({ world, priorities, call }: { world: World; pri
     finally { setBusy(false); }
   }
   return <section className={styles.matching} aria-label="Explore stays and experiences">
-    <h3>Bring your trip closer</h3><p>Choose where and when to explore catalogue stays and supplier experiences.</p><p>Changing the destination, dates or wishes starts a fresh shortlist. Download your choices to keep a copy.</p>
+    <h3>Bring your trip closer</h3><p>Choose where and when to explore catalogue stays and supplier experiences.</p><p>Changing the destination, dates or wishes starts a fresh shortlist. Save or download your choices to keep a copy.</p>
     <form onSubmit={search}>
       <label className={styles.label}>Destination<input required maxLength={100} value={destination} onChange={e => { setDestination(e.target.value); clearResults(); }} disabled={busy} placeholder="City or destination name" /></label>
       <label className={styles.label}>Check-in<input required type="date" value={checkIn} onChange={e => { setCheckIn(e.target.value); clearResults(); }} disabled={busy} /></label>
@@ -53,7 +53,7 @@ export default function Matches({ world, priorities, call }: { world: World; pri
       {results.experiencesMode !== 'unavailable' && !results.experiences.length && <p>No experiences were returned. The source may be unavailable or have no results for these dates.</p>}
       {results.experiences.map(p => <article key={p.id}><h4>{p.title}</h4><p>{p.description}</p><p>From {p.currency} {p.fromPrice.toFixed(2)} · {results.experiencesMode === 'sandbox' ? 'test price' : 'supplier search price'}</p>{p.relatedWishes.length > 0 && <p>Related words in the description: {p.relatedWishes.join('; ')}. This does not confirm these wishes are met.</p>}<small>Source: Viator · checked {new Date(p.checkedAt).toLocaleString()}</small><button onClick={() => select('experience', p.id)} aria-pressed={experienceIds.includes(p.id)} aria-label={`${experienceIds.includes(p.id) ? 'Remove' : 'Shortlist'} ${p.title}`}>{experienceIds.includes(p.id) ? 'Remove from shortlist' : 'Shortlist experience'}</button></article>)}
       <section aria-label="Your shortlisted options" className={styles.shortlist}><h4>Your shortlist</h4><p>{hotelIds.length} stays · {experienceIds.length} experiences</p>
-        {hotelIds.length + experienceIds.length === 0 ? <p>Choose the options you want to consider.</p> : <><ul>{results.hotels.filter(h => hotelIds.includes(h.id)).map(h => <li key={`hotel-${h.id}`}>{h.name} · stay · price and availability to confirm</li>)}{results.experiences.filter(p => experienceIds.includes(p.id)).map(p => <li key={`experience-${p.id}`}>{p.title} · experience · {results.experiencesMode === 'sandbox' ? 'test data' : 'availability to confirm'}</li>)}</ul><button onClick={downloadShortlist}>Download my shortlist</button><p>This is a planning shortlist. No reservation or payment has been made. A total trip price is not available.</p></>}
+        {hotelIds.length + experienceIds.length === 0 ? <p>Choose the options you want to consider.</p> : <><ul>{results.hotels.filter(h => hotelIds.includes(h.id)).map(h => <li key={`hotel-${h.id}`}>{h.name} · stay · price and availability to confirm</li>)}{results.experiences.filter(p => experienceIds.includes(p.id)).map(p => <li key={`experience-${p.id}`}>{p.title} · experience · {results.experiencesMode === 'sandbox' ? 'test data' : 'availability to confirm'}</li>)}</ul><button onClick={() => onSaveShortlist(shortlistBrief(results, hotelIds, experienceIds, checkIn, checkOut))}>Save shortlist on this device</button><button onClick={downloadShortlist}>Download my shortlist</button><p>This is a planning shortlist. No reservation or payment has been made. A total trip price is not available.</p></>}
       </section>
       <h4>Still to confirm</h4><ul>{results.pendingWishes.map((s, i) => <li key={i}>{s.wish} · {s.priority} · needs confirmation</li>)}</ul>
     </div>}

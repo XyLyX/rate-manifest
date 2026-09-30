@@ -48,3 +48,8 @@ Viator results reuse the existing destination-search adapter with exact destinat
 ## Shortlist
 
 Only explicit traveller clicks add options: up to five stays and six experiences from the current results. Removing is reversible. New searches and changed destination, dates or wishes clear the current shortlist. The shortlist is held for this view only and can be downloaded as a separate text planning brief containing dates, source labels, indicative or sandbox prices, source timestamps and all unconfirmed wishes. The Save my trip action continues to save wishes only, not supplier selections. No rates are combined into a total, and selection does not reserve, book or pay.
+
+
+## Saved shortlist copy
+
+Save shortlist on this device preserves a dated plain-text copy independently of the active search and saved wishes. It remains accessible even before a trip is resumed and survives refresh, changed wishes and Start over. Saving again replaces the previous copy. The copy retains original source timestamps and sandbox labels and is never treated as refreshed availability or restored live selections. Credentials and generated image payloads are not included. Browser storage errors leave the active shortlist downloadable.

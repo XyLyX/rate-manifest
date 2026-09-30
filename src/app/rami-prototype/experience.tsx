@@ -5,6 +5,7 @@ import { DRAFT_KEY, parseDraft, type TripDraft } from '@/lib/rami/draft';
 import { reconcilePriorities, type WishPriority, type WishSelection } from '@/lib/rami/priorities';
 import styles from './experience.module.css';
 import Matches from './matches';
+import { SHORTLIST_KEY, parseSavedShortlist, type SavedShortlist } from '@/lib/rami/shortlist';
 
 export default function Experience() {
   const [access, setAccess] = useState('');
@@ -25,6 +26,8 @@ export default function Experience() {
   const answerInput = useRef<HTMLTextAreaElement>(null);
   const [savedDraft, setSavedDraft] = useState<TripDraft | null>(null);
   const [saveMessage, setSaveMessage] = useState('');
+  const [savedShortlist, setSavedShortlist] = useState<SavedShortlist | null>(null);
+  const [shortlistMessage, setShortlistMessage] = useState('');
   const [priorities, setPriorities] = useState<WishSelection[]>([]);
   function prioritise(wish: string, priority: WishPriority | '') {
     setPriorities(current => [...current.filter(s => s.wish !== wish), ...(priority ? [{ wish, priority }] : [])]);
@@ -35,6 +38,24 @@ export default function Experience() {
       if (raw) setSavedDraft(parseDraft(JSON.parse(raw)));
     } catch { setSaveMessage('Your saved trip could not be opened. You can start a new trip.'); }
   }, []);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SHORTLIST_KEY);
+      if (raw) setSavedShortlist(parseSavedShortlist(JSON.parse(raw)));
+    } catch { setShortlistMessage('Your saved shortlist could not be opened. You can create a new one.'); }
+  }, []);
+  function saveShortlist(brief: string) {
+    try {
+      const snapshot = parseSavedShortlist({ version: 1, brief, savedAt: new Date().toISOString() });
+      localStorage.setItem(SHORTLIST_KEY, JSON.stringify(snapshot));
+      setSavedShortlist(snapshot); setShortlistMessage('Shortlist saved on this device. Saving again replaces this copy.');
+    } catch { setShortlistMessage('This browser could not save the shortlist. Use Download my shortlist to keep a copy.'); }
+  }
+  function downloadSavedShortlist() {
+    if (!savedShortlist) return;
+    const url = URL.createObjectURL(new Blob([savedShortlist.brief], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'my-rami-shortlist.txt'; link.click(); URL.revokeObjectURL(url);
+  }
   function saveTrip() {
     try {
       const draft = parseDraft({ version: 1, answers, world, input, editing, renders, priorities });
@@ -111,11 +132,13 @@ export default function Experience() {
       <aside className={styles.panel}>
         <h2>Imagine it with RaMi</h2>
         <p className={styles.intro}>A place. A feeling. The little details that make it yours. Tell RaMi in your own words.</p>
+        {shortlistMessage && <p role="status" aria-live="polite">{shortlistMessage}</p>}
+        {savedShortlist && <details className={styles.savedShortlist}><summary>Saved shortlist</summary><p>Saved {new Date(savedShortlist.savedAt).toLocaleString()}. This is a copy of your earlier choices; it may differ from your current wishes. Prices and availability have not been rechecked.</p><pre>{savedShortlist.brief}</pre><button onClick={downloadSavedShortlist}>Download saved shortlist</button></details>}
         {savedDraft && <button onClick={resumeTrip} disabled={!!phase}>Resume saved trip</button>}
         {saveMessage && <p role="status" aria-live="polite">{saveMessage}</p>}
         <details className={styles.connection} open={!world}><summary>Private preview access</summary><label className={styles.label}>Prototype access code<input ref={accessInput} type="password" autoComplete="off" defaultValue="" onChange={e => setAccess(e.target.value)} disabled={!!phase} /></label></details>
         <nav className={styles.tabs} aria-label="Trip view"><button aria-pressed={!review} onClick={() => setReview(false)}>Imagine</button><button aria-pressed={review} onClick={() => setReview(true)} disabled={!world}>My trip{world ? ` · ${world.requirements.length} wishes` : ''}</button></nav>
-        {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><p>Which wishes are essential? Where could you be flexible?</p><ul>{world.requirements.map((r, i) => <li key={i}><span>{r}</span><label className={styles.label}>Priority for {r}<select value={priorities.find(s => s.wish === r)?.priority || ''} onChange={e => prioritise(r, e.target.value as WishPriority | '')} disabled={!!phase}><option value="">Choose priority</option><option value="essential">Essential</option><option value="flexible">Flexible</option></select></label></li>)}</ul><p>{priorities.filter(s => s.priority === 'essential').length} essential · {priorities.filter(s => s.priority === 'flexible').length} flexible · {world.requirements.length - priorities.length} to decide</p><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><button onClick={downloadBrief}>Download my trip brief</button><button onClick={() => setReview(false)}>Keep customising</button><Matches key={JSON.stringify([world.requirements, priorities])} world={world} priorities={priorities} call={call} /></section> : <>
+        {review && world ? <section aria-label="Your trip brief" className={styles.brief}><h3>This is what matters to you</h3><p>Which wishes are essential? Where could you be flexible?</p><ul>{world.requirements.map((r, i) => <li key={i}><span>{r}</span><label className={styles.label}>Priority for {r}<select value={priorities.find(s => s.wish === r)?.priority || ''} onChange={e => prioritise(r, e.target.value as WishPriority | '')} disabled={!!phase}><option value="">Choose priority</option><option value="essential">Essential</option><option value="flexible">Flexible</option></select></label></li>)}</ul><p>{priorities.filter(s => s.priority === 'essential').length} essential · {priorities.filter(s => s.priority === 'flexible').length} flexible · {world.requirements.length - priorities.length} to decide</p><p>These are your selected wishes. RaMi will need verified stays, experiences and itemised prices before you can book or pay.</p><button onClick={downloadBrief}>Download my trip brief</button><button onClick={() => setReview(false)}>Keep customising</button><Matches key={JSON.stringify([world.requirements, priorities])} world={world} priorities={priorities} call={call} onSaveShortlist={saveShortlist} /></section> : <>
         <details className={styles.answers}><summary>Your story so far · {answers.length} answers</summary><div className={styles.history} aria-label="Your answers">{answers.map((a, i) => <div className={styles.answer} key={i}><p>{a}</p><button onClick={() => editAnswer(i)} disabled={!!phase} aria-label={`Edit answer ${i + 1}`}>Edit</button></div>)}</div></details>
         <p className={styles.question}>{editing !== null ? 'What would you like to change in this answer?' : world?.question || 'What would your ideal trip feel like?'}</p>
         <form onSubmit={submit}>

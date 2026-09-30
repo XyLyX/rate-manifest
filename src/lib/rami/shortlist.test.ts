@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shortlistBrief, toggleCandidate } from './shortlist';
+import { parseSavedShortlist, shortlistBrief, toggleCandidate } from './shortlist';
 import type { MatchResults } from './matches';
 
 test('shortlisting requires a current candidate and never silently replaces a choice', () => {
@@ -18,4 +18,11 @@ test('download includes only explicit choices and preserves test-price and uncon
   assert.match(brief, /Private pool · essential · needs confirmation/);
   assert.match(brief, /No total trip price is available/);
   assert.match(brief, /2099-01-01 to 2099-01-03/);
+  const snapshot = parseSavedShortlist({ version: 1, brief, savedAt: '2026-10-01T00:00:00Z', accessCode: 'secret', image: 'data:image/jpeg;base64,abc' });
+  assert.deepEqual(parseSavedShortlist(JSON.parse(JSON.stringify(snapshot))), snapshot);
+  assert.doesNotMatch(JSON.stringify(snapshot), /secret|accessCode|data:image/);
+  assert.match(snapshot.brief, /test price/);
+});
+test('invalid saved copies cannot replace the saved shortlist view', () => {
+  for (const value of [null, { version: 2, brief: 'MY RAMI SHORTLIST\n', savedAt: '2026-10-01' }, { version: 1, brief: 'wrong format', savedAt: '2026-10-01' }, { version: 1, brief: 'MY RAMI SHORTLIST\n', savedAt: 'invalid date' }, { version: 1, brief: 'MY RAMI SHORTLIST\n' + 'x'.repeat(30_000), savedAt: '2026-10-01' }]) assert.throws(() => parseSavedShortlist(value));
 });
