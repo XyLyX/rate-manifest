@@ -1,0 +1,21 @@
+# RaMi experience world — option 1
+
+Decision, 30 September 2026: travellers may describe any trip environment in free text. RaMi progressively customises the imagined world from their answers. Suggested answers must remain optional. This is separate from the five-theme homepage atmosphere, which rotates at intervals and responds to destination selection.
+
+Prototype route: `/rami-prototype`. No homepage link, supplier integration, booking promise, or public discovery change.
+
+## Connection
+
+Set server-side `RAMI_PROTOTYPE_ENABLED=true`, a long random `RAMI_PROTOTYPE_TOKEN`, and `OPENAI_API_KEY`. Netlify AI Gateway can supply the provider key and `OPENAI_BASE_URL`; direct OpenAI uses its standard base URL. Never put these keys in NEXT_PUBLIC variables. Enter only the prototype token in the private page; it is held in memory.
+
+Defaults: `RAMI_TEXT_MODEL=gpt-4.1-mini`, `RAMI_IMAGE_MODEL=gpt-image-1.5`. Both appear in Netlify's current supported-model list. Images use low quality, JPEG, 1536×1024. No new SDK or dependency. Verify gateway support for multipart image edits in a real deployment before relying on it.
+
+Answers produce a complete scene, explicit trip wishes and one follow-up question. Visual changes automatically generate/edit scenery. Nonvisual changes need not render. Turning off automatic updates allows several answers before a manual render. Previous image is submitted for editing, preserving composition where possible. Last good scene survives failures. No synthetic fallback claims success. Client session caps: 12 answers and 12 renders; these are usability caps, not a durable global spend limit.
+
+## Validation before release
+
+Run a private live trial: snowy mountain → lakeside cabin/fireplace → couple → family → remove fireplace → tropical beach. Also test black-sand volcanic islands and mixed environments outside named themes. Record scene accuracy, unchanged-feature continuity, replacement correctness, latency, provider usage/cost, mobile readability and failure recovery. The code tests mock the provider; they do not establish visual quality, provider access or live latency.
+
+Before public release add durable session quotas/rate limits, budget ceilings, image storage/jobs rather than large inline images, answer queuing, actual shared Trip State integration, and matching to verified supplier imagery. The current handler can exceed hosting request limits for slow image generations; a durable asynchronous job is required if live trial shows this. No public rollout until measured.
+
+Sources: https://developers.openai.com/api/docs/guides/image-generation and https://docs.netlify.com/build/ai-gateway/overview/.
